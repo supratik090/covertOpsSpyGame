@@ -6,7 +6,7 @@
   "targetVip": "High-Profile Minister",
   "attackForm": "ASSASSINATION",
   "maxTurns": 25,
-  "startingBudget": 2000000,
+  "startingBudget": 4000000,
   "mapBackground": "assets/maps/india_pakistan.svg",
   "nodes": [
     {
@@ -186,24 +186,21 @@
     }
   ],
   "defensiveAssetCosts": {
-    "SATELLITE_VIEW": 120000,
-    "CCTV_MONITOR": 50000,
-    "WIRE_TAP": 30000,
-    "FINANCE_MONITORING": 80000,
-    "PHONE_TAP": 60000
-  },
-  "trainingCosts": {
-    "agentTrainingCost": 50000,
-    "agentSkillIncrease": 10,
-    "teamTrainingCost": 100000,
-    "teamSkillIncrease": 10
+    "SATELLITE": 80000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 40000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
   },
   "safehouseBuildCosts": {
-    "HOME_TERRITORY": 50000,
-    "HOSTILE_TERRITORY": 150000
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
   },
   "startingEspionageResources": [
-    {"type": "CCTV_MONITOR", "cityId": "karachi"},
+    {"type": "CCTV", "cityId": "karachi"},
     {"type": "WIRE_TAP", "cityId": "peshawar"}
   ],
   "logisticsMapping": {

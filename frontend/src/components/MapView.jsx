@@ -10,6 +10,7 @@ export default function MapView({
   session,
   activeScenario,
   selectedAgent,
+  selectedTeam,
   selectedCityNode,
   setSelectedCityNode,
   onRelocateAgent,
@@ -97,6 +98,7 @@ export default function MapView({
   const prevSessionRef = useRef(session);
   const [movingUnits, setMovingUnits] = useState([]);
   const [buildingSafehouses, setBuildingSafehouses] = useState([]);
+  const [exposingSafehouses, setExposingSafehouses] = useState([]);
   const [combatAlerts, setCombatAlerts] = useState([]);
   const [isShaking, setIsShaking] = useState(false);
   const [mapVersion, setMapVersion] = useState(0);
@@ -209,6 +211,7 @@ export default function MapView({
       const isFriendly = nodeData ? nodeData.territory === 'HOME_TERRITORY' : ['srinagar', 'jammu', 'amritsar', 'chandigarh', 'new_delhi'].includes(cityId);
       const isTarget = activeScenario?.targetCity ? cityId === activeScenario.targetCity : cityId === 'new_delhi';
       const hasSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'DEFENDER');
+      const hasExposedHostileSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered);
       const isSweptZone = sweepCities.includes(cityId);
 
       // Calculate counts dynamically by factoring in local buffered turn moves
@@ -246,6 +249,7 @@ export default function MapView({
           <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''}"></div>
           <div class="city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}"></div>
           ${hasSafehouse ? `<div class="city-marker-safehouse">🛡️</div>` : ''}
+          ${hasExposedHostileSH ? `<div class="city-marker-exposed-hostile">👁️</div>` : ''}
           ${agentsCount > 0 ? `<div class="city-marker-badge agents">${agentsCount}</div>` : ''}
           ${teamsCount > 0 ? `<div class="city-marker-badge teams">${teamsCount}</div>` : ''}
           ${techCount > 0 ? `<div class="city-marker-tech">🛰️</div>` : ''}
@@ -372,6 +376,7 @@ export default function MapView({
 
       const newMoving = [];
       const newBuilding = [];
+      const newExposing = [];
       const newCombat = [];
 
       // 2. Identify Agent moves
@@ -414,7 +419,19 @@ export default function MapView({
         }
       });
 
-      // 5. Identify Combat Raids (by looking at new tactical clues this turn)
+      // 5. Identify newly exposed hostile safehouses
+      session.safehouses.forEach(sh => {
+        if (sh.ownerFaction === 'HOSTILE' && sh.uncovered) {
+          const wasExposed = prevSession.safehouses.some(psh =>
+            psh.cityNode === sh.cityNode && psh.ownerFaction === 'HOSTILE' && psh.uncovered
+          );
+          if (!wasExposed) {
+            newExposing.push({ cityId: sh.cityNode, progress: 0 });
+          }
+        }
+      });
+
+      // 6. Identify Combat Raids (by looking at new tactical clues this turn)
       const lastTurnClues = session.discoveredClues.filter(c => c.turnDiscovered === prevSession.currentTurn);
       const wasCombatEncountered = lastTurnClues.some(c => 
         c.source === 'TACTICAL_FORCE' || c.clueText.includes('COMBAT') || c.clueText.includes('raided')
@@ -428,9 +445,10 @@ export default function MapView({
         }
       }
 
-      if (newMoving.length > 0 || newBuilding.length > 0 || newCombat.length > 0) {
+      if (newMoving.length > 0 || newBuilding.length > 0 || newExposing.length > 0 || newCombat.length > 0) {
         setMovingUnits(newMoving);
         setBuildingSafehouses(newBuilding);
+        setExposingSafehouses(newExposing);
         setCombatAlerts(newCombat);
 
         // Run animation loop over 2.0 seconds
@@ -444,6 +462,7 @@ export default function MapView({
 
           setMovingUnits(prev => prev.map(m => ({ ...m, progress })));
           setBuildingSafehouses(prev => prev.map(b => ({ ...b, progress })));
+          setExposingSafehouses(prev => prev.map(e => ({ ...e, progress })));
           setCombatAlerts(prev => prev.map(c => ({ ...c, progress })));
 
           if (progress < 1.0) {
@@ -453,6 +472,7 @@ export default function MapView({
             setTimeout(() => {
               setMovingUnits([]);
               setBuildingSafehouses([]);
+              setExposingSafehouses([]);
               setCombatAlerts([]);
             }, 600);
           }
@@ -609,7 +629,43 @@ export default function MapView({
           );
         })}
 
-        {/* 3. Combat / Raid alerts animations */}
+        {/* 3. Exposed Hostile Safehouse reveal animations */}
+        {exposingSafehouses.map((e, idx) => {
+          const center = getPixelCoords(e.cityId);
+          if (center.x === 0) return null;
+
+          const radius = 8 + e.progress * 50;
+          const opacity = 1.0 - e.progress;
+
+          return (
+            <g key={`expose-${idx}`}>
+              <circle
+                cx={center.x}
+                cy={center.y}
+                r={radius}
+                fill="none"
+                stroke="#ffcc00"
+                strokeWidth="2.5"
+                strokeDasharray="6,3"
+                opacity={opacity}
+              />
+              <circle
+                cx={center.x}
+                cy={center.y}
+                r={radius * 0.5}
+                fill="none"
+                stroke="#ffcc00"
+                strokeWidth="1.5"
+                opacity={opacity * 0.6}
+              />
+              <line x1={center.x - radius - 8} y1={center.y} x2={center.x + radius + 8} y2={center.y} stroke="#ffcc00" strokeWidth="1.2" opacity={opacity} />
+              <line x1={center.x} y1={center.y - radius - 8} x2={center.x} y2={center.y + radius + 8} stroke="#ffcc00" strokeWidth="1.2" opacity={opacity} />
+              <text x={center.x} y={center.y - radius - 14} textAnchor="middle" fill="#ffcc00" fontSize="10" opacity={opacity} fontFamily="monospace" fontWeight="bold">EXPOSED</text>
+            </g>
+          );
+        })}
+
+        {/* 4. Combat / Raid alerts animations */}
         {combatAlerts.map((c, idx) => {
           const center = getPixelCoords(c.cityId);
           if (center.x === 0) return null;
@@ -652,6 +708,8 @@ export default function MapView({
           cityId={selectedCityNode} 
           session={session} 
           nodesData={activeScenario?.nodes || []} 
+          selectedAgent={selectedAgent}
+          selectedTeam={selectedTeam}
           onAssignAgentTask={onAssignAgentTask}
           onRelocateAgent={onRelocateAgent}
           onRelocateTacticalTeam={onRelocateTacticalTeam}

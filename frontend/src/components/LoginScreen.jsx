@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Key, Play } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { AUTH_API_BASE } from '../config';
 
 const LoginScreen = ({ onLoginSuccess }) => {
   const [loginMode, setLoginMode] = useState('LOGIN');
@@ -15,11 +16,10 @@ const LoginScreen = ({ onLoginSuccess }) => {
     setRegisterSuccess('');
 
     const payload = { username, password };
-    const apiBase = `http://${window.location.hostname}:7900/api/auth`;
 
     try {
       if (loginMode === 'LOGIN') {
-        const res = await fetch(`${apiBase}/login`, {
+        const res = await fetch(`${AUTH_API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -34,7 +34,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
           setLoginError(errText || 'INVALID CREDENTIALS');
         }
       } else {
-        const res = await fetch(`${apiBase}/register`, {
+        const res = await fetch(`${AUTH_API_BASE}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -63,9 +63,13 @@ const LoginScreen = ({ onLoginSuccess }) => {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="auth-header">
+          <div className="auth-brand">
+            <span className="auth-brand-line">PROTOCOL</span>
+            <span className="auth-brand-name">NIGHTFALL</span>
+          </div>
           <Key className="auth-icon" size={48} />
-          <h1 className="auth-title">CLEARANCE TERMINAL</h1>
-          <p className="auth-subtitle">AUTHENTICATE ENCRYPTED DIRECTORY LINK</p>
+          <h1 className="auth-title">PROTOCOL NIGHTFALL</h1>
+          <p className="auth-subtitle">CLEARANCE TERMINAL — AUTHENTICATE TO OPERATE</p>
         </div>
 
         <div className="auth-tabs">

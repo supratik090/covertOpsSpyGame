@@ -59,9 +59,7 @@ const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit }) => {
       
       <div className="status-divider" />
       
-      <div className="status-item game-status-badge">
-        {status}
-      </div>
+
       
       <div className="status-spacer" />
       

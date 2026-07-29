@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronLeft, X, Shield, Target, Radio, HelpCircle, Lock, Key, AlertTriangle } from 'lucide-react';
+import { ChevronRight, ChevronLeft, X, Target, Shield, Radio } from 'lucide-react';
 
 export default function ObjectiveBoardView({ session, activeScenario, onClose }) {
   const [currentPage, setCurrentPage] = useState(0);
@@ -29,7 +29,6 @@ export default function ObjectiveBoardView({ session, activeScenario, onClose })
   const targetCityName = activeScenario?.nodes?.find(n => n.id === activeScenario.targetCity)?.name || 'New Delhi';
   const targetVipName = activeScenario?.targetVip || 'High-Profile Minister';
 
-  // Tutorial Slides Data (US Army OPORD Briefing Edition 🪖)
   const slides = [
     {
       title: "1. SITUATION REPORT (SITREP)",
@@ -100,7 +99,7 @@ export default function ObjectiveBoardView({ session, activeScenario, onClose })
     },
     {
       title: "3. COMMAND & SIGNAL (ROE)",
-      icon: Shield,
+      icon: Radio,
       color: "var(--red)",
       content: (
         <div className="flex-col-container">
@@ -122,7 +121,7 @@ export default function ObjectiveBoardView({ session, activeScenario, onClose })
             <div className="sitrep-item briefing-alert" style={{ borderLeftColor: 'var(--emerald)' }}>
               <span className="sitrep-title" style={{ color: 'var(--emerald)' }}>c. SUCCESS PARAMETERS</span>
               <p className="sitrep-text" style={{ fontStyle: 'italic', color: 'var(--emerald-light)' }}>
-                🏁 Neutralizing the target at the correct safehouse node with the correct security code immediately terminates the threat network and completes the mission.
+                Mission objective: Neutralize the target at the correct safehouse node with the correct security code to complete the operation.
               </p>
             </div>
           </div>
@@ -155,20 +154,21 @@ export default function ObjectiveBoardView({ session, activeScenario, onClose })
       )}
 
       {/* Header */}
-      <div className="flex justify-center items-center border-b border-[rgba(0,240,255,0.25)] pb-6 mb-12 flex-shrink-0">
+      <div className="flex justify-center items-center border-b border-[rgba(0,240,255,0.25)] pb-8 mb-8 flex-shrink-0">
         <div>
-          <h2 className="text-cyber text-2xl font-bold tracking-wider text-center" style={{ textShadow: '0 0 10px rgba(0,240,255,0.4)', textAlign: 'center' }}>
+          <h2 className="text-cyber text-xl md:text-2xl font-bold tracking-wider text-center" style={{ textShadow: '0 0 10px rgba(0,240,255,0.4)', textAlign: 'center' }}>
             TACTICAL OPERATIONS BOARD
           </h2>
         </div>
       </div>
 
-      {/* Main Content Pane */}
-      <div className="flex-1 flex flex-col gap-6 mb-5 min-h-[440px] overflow-hidden">
+      {/* Main Content Pane — fills space between header and footer */}
+      <div className="flex-1 flex flex-col gap-6 mb-6 min-h-0 overflow-hidden">
         {/* Swipable text panel - Full Widescreen Width */}
         <div className="flex-1 flex flex-col justify-between cyber-panel bg-[rgba(5,10,24,0.85)] p-6 border border-[rgba(0,240,255,0.2)] rounded-lg overflow-y-auto shadow-[0_0_30px_rgba(0,0,0,0.8)]">
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-2.5 pb-3 border-b border-[rgba(255,255,255,0.08)]">
+              <CurrentIcon size={16} style={{ color: currentSlide.color }} />
               <h3 className="font-bold text-sm tracking-wide" style={{ color: currentSlide.color }}>
                 {currentSlide.title}
               </h3>
@@ -199,7 +199,7 @@ export default function ObjectiveBoardView({ session, activeScenario, onClose })
         <button
           onClick={handlePrev}
           disabled={currentPage === 0}
-          className={`cyber-btn sm flex items-center gap-1.5 ${currentPage === 0 ? 'disabled' : ''}`}
+          className={`cyber-btn sm flex items-center gap-1.5 ${currentPage === 0 ? 'opacity-30 cursor-not-allowed' : ''}`}
         >
           <ChevronLeft size={14} /> BACK
         </button>

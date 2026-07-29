@@ -213,7 +213,7 @@ public class GameSession {
     }
 
     public static class ActiveResource {
-        private String type; // SATELLITE_VIEW, CCTV_MONITOR, WIRE_TAP, FINANCE_MONITORING, PHONE_TAP
+        private String type; // SATELLITE, CCTV, WIRE_TAP, FINANCE_MONITOR, PHONE_TAP
         private String cityNode;
         private int cooldownRemaining; // Representing turns remaining active
 

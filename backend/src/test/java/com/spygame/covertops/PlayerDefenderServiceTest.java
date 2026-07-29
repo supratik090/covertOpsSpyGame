@@ -84,33 +84,18 @@ public class PlayerDefenderServiceTest {
     @Test
     public void testBuildSafehouse() {
         GameSession session = sessionService.createSession("operation_silent_edge");
-        int startingBudget = session.getBudget(); // $1,000,000
+        int startingBudget = session.getBudget();
 
-        // Build safehouse in Srinagar (Home territory, cost $50,000)
+        // Build safehouse in Srinagar (Home territory, cost $40,000)
         session = defenderService.buildSafehouse(session, "srinagar", config);
 
-        assertEquals(startingBudget - 50000, session.getBudget());
+        assertEquals(startingBudget - 40000, session.getBudget());
         boolean hasSrinagarSafehouse = session.getSafehouses().stream()
                 .anyMatch(s -> s.getCityNode().equals("srinagar") && "DEFENDER".equals(s.getOwnerFaction()));
         assertTrue(hasSrinagarSafehouse);
 
-        // Build safehouse in Islamabad (Hostile territory, cost $150,000)
+        // Build safehouse in Islamabad (Hostile territory, cost $100,000)
         session = defenderService.buildSafehouse(session, "islamabad", config);
-        assertEquals(startingBudget - 200000, session.getBudget());
-    }
-
-    @Test
-    public void testTrainAgentAndSkillsUpgrade() {
-        GameSession session = sessionService.createSession("operation_silent_edge");
-        int startingBudget = session.getBudget();
-
-        // Train Agent 1 (Marcus Vance - SIGINT starts at 90)
-        session = defenderService.trainAgent(session, 1, "sigint");
-
-        GameSession.Agent analyst = session.getAgents().stream().filter(a -> a.getId() == 1).findFirst().orElseThrow();
-        assertEquals(100, analyst.getSkills().get("sigint"), "Skill should increment by +10 and cap at 100");
-        assertEquals(startingBudget - 50000, session.getBudget());
-        assertEquals(1, analyst.getCooldownRemaining(), "Training applies a 1-turn lockout cooldown");
-        assertEquals("TRAINING", analyst.getActiveTask());
+        assertEquals(startingBudget - 140000, session.getBudget());
     }
 }

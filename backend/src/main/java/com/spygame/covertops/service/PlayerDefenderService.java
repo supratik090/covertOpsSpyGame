@@ -42,6 +42,26 @@ public class PlayerDefenderService {
 
         if (startNode != null && endNode != null && !startNode.getTerritory().equals(endNode.getTerritory())) {
             agent.setCooldownRemaining(2); // Lay low for 2 turns when changing country
+
+            // Border crossing into hostile territory: heat increase + capture risk
+            if ("HOSTILE_TERRITORY".equals(endNode.getTerritory())) {
+                java.util.Random borderRand = new java.util.Random();
+                int currentHeat = session.getCityHeat().getOrDefault(targetCity, 0);
+                session.getCityHeat().put(targetCity, Math.min(100, currentHeat + 20));
+
+                if (borderRand.nextDouble() < 0.20) {
+                    String agentCity = agent.getCurrentCity();
+                    session.getAgents().remove(agent);
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            session.getCurrentTurn(),
+                            "BORDER_INCIDENT",
+                            "BORDER INCIDENT: Agent " + agent.getCodename() + " was captured during border crossing into " + targetCity.toUpperCase() + ". Operator has been disavowed.",
+                            targetCity,
+                            "Border Security"
+                    ));
+                    return repository.save(session);
+                }
+            }
         } else {
             agent.setCooldownRemaining(1); // Standard same-territory relocation sets 1-turn cooldown
         }
@@ -75,7 +95,7 @@ public class PlayerDefenderService {
                 .orElseThrow(() -> new IllegalArgumentException("Node not found: " + cityNode));
 
         // Deduct territory cost
-        int cost = "HOME_TERRITORY".equals(node.getTerritory()) ? 50000 : 150000;
+        int cost = "HOME_TERRITORY".equals(node.getTerritory()) ? 40000 : 100000;
         if (session.getBudget() < cost) {
             throw new IllegalStateException("Insufficient budget to build safehouse in " + cityNode);
         }
@@ -85,76 +105,15 @@ public class PlayerDefenderService {
         return repository.save(session);
     }
 
-    // Spends $50,000 to increase an agent skill by +10 points. Sets a 1-turn training lockout.
-    public GameSession trainAgent(GameSession session, int agentId, String skillName) {
-        GameSession.Agent agent = session.getAgents().stream()
-                .filter(a -> a.getId() == agentId)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + agentId));
-
-        if (agent.getCooldownRemaining() > 0) {
-            throw new IllegalStateException("Agent is already in a lockout state.");
-        }
-
-        int cost = 50000;
-        if (session.getBudget() < cost) {
-            throw new IllegalStateException("Insufficient budget to train agent.");
-        }
-
-        Map<String, Integer> skills = agent.getSkills();
-        if (skills == null || !skills.containsKey(skillName)) {
-            throw new IllegalArgumentException("Invalid skill type: " + skillName);
-        }
-
-        int currentVal = skills.get(skillName);
-        skills.put(skillName, Math.min(100, currentVal + 10)); // Caps skill at 100
-
-        session.setBudget(session.getBudget() - cost);
-        agent.setCooldownRemaining(1);
-        agent.setActiveTask("TRAINING");
-
-        return repository.save(session);
-    }
-
-    // Spends $100,000 to increase a tactical team skill by +10 points. Sets a 1-turn lockout.
-    public GameSession trainTacticalTeam(GameSession session, int teamId, String skillName) {
-        GameSession.TacticalTeam team = session.getTacticalTeams().stream()
-                .filter(t -> t.getId() == teamId)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Tactical team not found: " + teamId));
-
-        if (team.getCooldownRemaining() > 0) {
-            throw new IllegalStateException("Tactical team is already in a lockout state.");
-        }
-
-        int cost = 100000;
-        if (session.getBudget() < cost) {
-            throw new IllegalStateException("Insufficient budget to train tactical team.");
-        }
-
-        Map<String, Integer> skills = team.getSkills();
-        if (skills == null || !skills.containsKey(skillName)) {
-            throw new IllegalArgumentException("Invalid skill type: " + skillName);
-        }
-
-        int currentVal = skills.get(skillName);
-        skills.put(skillName, Math.min(100, currentVal + 10)); // Caps skill at 100
-
-        session.setBudget(session.getBudget() - cost);
-        team.setCooldownRemaining(1);
-
-        return repository.save(session);
-    }
-
     // Spends budget dynamically based on config to purchase and deploy a tech asset to a node.
     public GameSession deployEspionageResource(GameSession session, String type, String cityNode, ScenarioConfig config) {
         if ("BORDER_GUARD".equals(type) && !isFriendlyBorderCity(cityNode, config)) {
             throw new IllegalArgumentException("Border Guard can only be deployed in friendly border cities.");
         }
-        if ("BIOMETRIC_SCAN".equals(type)) {
+        if ("BIOMETRIC_SCAN".equals(type) || "FINANCE_MONITOR".equals(type) || "SIGNAL_JAMMER".equals(type)) {
             Node node = config.getNodes().stream().filter(n -> n.getId().equals(cityNode)).findFirst().orElse(null);
             if (node == null || !"HOME_TERRITORY".equals(node.getTerritory())) {
-                throw new IllegalArgumentException("Biometric Scan Grid can only be deployed in friendly cities.");
+                throw new IllegalArgumentException(type.replace("_", " ") + " can only be deployed in friendly cities.");
             }
         }
 
@@ -162,9 +121,14 @@ public class PlayerDefenderService {
         if (config.getDefensiveAssetCosts() != null && config.getDefensiveAssetCosts().containsKey(type)) {
             cost = config.getDefensiveAssetCosts().get(type);
         } else {
-            if ("BIOMETRIC_SCAN".equals(type)) cost = 45000;
-            else if ("BORDER_GUARD".equals(type)) cost = 55000;
-            else if ("SIGNAL_JAMMER".equals(type)) cost = 30000;
+            if ("CCTV".equals(type)) cost = 30000;
+            else if ("WIRE_TAP".equals(type)) cost = 20000;
+            else if ("PHONE_TAP".equals(type)) cost = 40000;
+            else if ("SATELLITE".equals(type)) cost = 80000;
+            else if ("FINANCE_MONITOR".equals(type)) cost = 50000;
+            else if ("BIOMETRIC_SCAN".equals(type)) cost = 35000;
+            else if ("BORDER_GUARD".equals(type)) cost = 40000;
+            else if ("SIGNAL_JAMMER".equals(type)) cost = 25000;
             else throw new IllegalArgumentException("Unknown defensive asset type: " + type);
         }
 
@@ -195,7 +159,8 @@ public class PlayerDefenderService {
 
     // Relocates a tactical team to a target city node.
     // Team must not be on cooldown and target city must have a friendly safehouse. Sets 1 turn cooldown.
-    public GameSession relocateTacticalTeam(GameSession session, int teamId, String targetCity) {
+    // Border crossing into hostile territory incurs +20 heat and a 20% capture risk.
+    public GameSession relocateTacticalTeam(GameSession session, int teamId, String targetCity, ScenarioConfig config) {
         GameSession.TacticalTeam team = null;
         for (GameSession.TacticalTeam t : session.getTacticalTeams()) {
             if (t.getId() == teamId) {
@@ -222,8 +187,39 @@ public class PlayerDefenderService {
             throw new IllegalArgumentException("Cannot send tactical team to " + targetCity + ": No active friendly safehouse established.");
         }
 
+        // Border crossing detection and capture risk
+        String teamCity = team.getCurrentCity();
+        Node startNode = config.getNodes().stream().filter(n -> n.getId().equals(teamCity)).findFirst().orElse(null);
+        Node endNode = config.getNodes().stream().filter(n -> n.getId().equals(targetCity)).findFirst().orElse(null);
+
+        if (startNode != null && endNode != null && !startNode.getTerritory().equals(endNode.getTerritory())) {
+            if ("HOSTILE_TERRITORY".equals(endNode.getTerritory())) {
+                java.util.Random borderRand = new java.util.Random();
+                int currentHeat = session.getCityHeat().getOrDefault(targetCity, 0);
+                session.getCityHeat().put(targetCity, Math.min(100, currentHeat + 20));
+
+                if (borderRand.nextDouble() < 0.20) {
+                    session.getTacticalTeams().remove(team);
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            session.getCurrentTurn(),
+                            "BORDER_INCIDENT",
+                            "BORDER INCIDENT: Tactical Team " + team.getName() + " was captured during border crossing into " + targetCity.toUpperCase() + ". Unit has been disavowed.",
+                            targetCity,
+                            "Border Security"
+                    ));
+                    return repository.save(session);
+                }
+            }
+        }
+
+        int cost = "HOSTILE_TERRITORY".equals(endNode != null ? endNode.getTerritory() : "HOME_TERRITORY") ? 80000 : 40000;
+        if (session.getBudget() < cost) {
+            throw new IllegalStateException("Insufficient budget to relocate tactical team.");
+        }
+
+        session.setBudget(session.getBudget() - cost);
         team.setCurrentCity(targetCity);
-        team.setCooldownRemaining(1); // Limit movement to once per turn
+        team.setCooldownRemaining(1);
         return repository.save(session);
     }
 }

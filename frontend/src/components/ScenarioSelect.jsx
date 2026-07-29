@@ -18,7 +18,11 @@ const ScenarioSelect = ({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
       >
-        <h1 className="select-title">COMMAND DESK: CAMPAIGN SELECTION</h1>
+        <div className="auth-brand">
+            <span className="auth-brand-line">PROTOCOL</span>
+            <span className="auth-brand-name">NIGHTFALL</span>
+          </div>
+        <h1 className="select-title">COMMAND DESK: CAMPAIGN SELECTION — PROTOCOL NIGHTFALL</h1>
         
         {errorMsg && <div className="error-msg">{errorMsg}</div>}
         

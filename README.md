@@ -1,6 +1,6 @@
-# Covert-Ops Command Simulator
+# Protocol Nightfall
 
-An immersive, cyber-espionage tactical HUD simulator depicting an operative tracking scenario across the India-Pakistan border region. The defender coordinates intelligence sweeps, constructs safehouses, and performs tactical raids to stop an AI suspect from executing an attack on a VIP minister in New Delhi.
+An immersive, cyber-espionage tactical HUD simulator depicting an operative tracking scenario across a contested border region. The defender coordinates intelligence sweeps, constructs safehouses, and performs tactical raids to stop an AI suspect from executing an attack on a VIP minister.
 
 ---
 
@@ -48,7 +48,7 @@ Ensure your MongoDB instance is running before launching the backend. The Spring
    ```bash
    npm run dev
    ```
-4. Click the URL printed in the terminal (usually `http://localhost:5173`) to launch the Operator Command Clearance terminal in your browser.
+4. Click the URL printed in the terminal (usually `http://localhost:5173`) to launch the Protocol Nightfall terminal in your browser.
 
 ---
 

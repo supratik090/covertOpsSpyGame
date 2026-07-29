@@ -19,7 +19,11 @@ public class ClueGenerationEngine {
     // Standardized templates used for both True and False clues to prevent formatting-based distinction
     private final List<String> suspectLocationTemplates = Arrays.asList(
             "Surveillance report: Suspect %s was spotted near a local safehouse in %s.",
-            "Local informant: Suspect %s was seen moving through the %s transit hub."
+            "Local informant: Suspect %s was seen moving through the %s transit hub.",
+            "Field agent report: Suspect %s was observed meeting with a known handler in %s.",
+            "Covert surveillance: Suspect %s's vehicle was tracked to a restricted zone in %s.",
+            "Signal intercept: Suspect %s placed a call from a burner phone near %s.",
+            "Human source: Suspect %s was seen entering a high-security compound in %s."
     );
 
     private final List<String> financeTemplates = Arrays.asList(
@@ -34,7 +38,13 @@ public class ClueGenerationEngine {
 
     private final List<String> neutralTemplates = Arrays.asList(
             "Signal check: Communications and border lines in %s appear secure.",
-            "Area status: Standard administrative flow observed in %s server logs."
+            "Area status: Standard administrative flow observed in %s server logs.",
+            "Routine patrol: No unusual activity detected in %s this cycle.",
+            "Communications monitoring: Traffic patterns normal across %s relay stations.",
+            "Satellite sweep: Thermal imaging shows standard civilian movement in %s.",
+            "Local asset report: Nothing of interest to report from %s.",
+            "Infrastructure check: Power and network grids stable in %s.",
+            "Unattended sensor array: No signature matches recorded in %s sector."
     );
 
     public List<GameSession.Clue> generateTurnClues(GameSession session, ScenarioConfig config) {
@@ -197,13 +207,15 @@ public class ClueGenerationEngine {
                     .orElse(null);
 
             if (financeAgent != null && lastStep != null && cityId.equals(lastStep.getFinanceCity())) {
-                turnClues.add(new GameSession.Clue(
+                GameSession.Clue financeClue = new GameSession.Clue(
                         currentTurn,
                         "CONFIRMED_FINANCE",
                         "CONFIRMED FINANCE: Wire transactions for suspect " + actualAttacker + " confirmed at finance hub in " + cityName + ".",
                         cityId,
                         financeAgent.getCodename()
-                ));
+                );
+                financeClue.setAssessment("ACCEPT");
+                turnClues.add(financeClue);
             }
 
             // Check if any agent is inspecting logistics in this city
@@ -213,13 +225,15 @@ public class ClueGenerationEngine {
                     .orElse(null);
 
             if (logisticsAgent != null && lastStep != null && cityId.equals(lastStep.getLogisticsCity())) {
-                turnClues.add(new GameSession.Clue(
+                GameSession.Clue logisticsClue = new GameSession.Clue(
                         currentTurn,
                         "CONFIRMED_LOGISTICS",
-                        "CONFIRMED LOGISTICS: Specialist gear shipments for suspect " + actualAttacker + " confirmed departured/customs in " + cityName + ".",
+                        "CONFIRMED LOGISTICS: Specialist gear shipments for suspect " + actualAttacker + " confirmed departed/customs in " + cityName + ".",
                         cityId,
                         logisticsAgent.getCodename()
-                ));
+                );
+                logisticsClue.setAssessment("ACCEPT");
+                turnClues.add(logisticsClue);
             }
         }
 
@@ -234,7 +248,7 @@ public class ClueGenerationEngine {
                     PlanStep suspectLastStep = suspectPlan.stream().filter(s -> s.getTurn() == lastTurn).findFirst().orElse(null);
                     if (suspectLastStep == null) continue;
 
-                    if ("CCTV_MONITOR".equals(resource.getType()) && resCity.equals(suspectLastStep.getSuspectLocation())) {
+                    if ("CCTV".equals(resource.getType()) && resCity.equals(suspectLastStep.getSuspectLocation())) {
                         turnClues.add(new GameSession.Clue(
                                 currentTurn,
                                 "CCTV_SCAN",
@@ -266,25 +280,6 @@ public class ClueGenerationEngine {
                 }
             }
         }
-
-        // 5. Security Sweep Warning Clues (hostile patrol targets for next turn)
-        if (session.getHostilePatrolCities() != null && !session.getHostilePatrolCities().isEmpty()) {
-            for (String patrolCityId : session.getHostilePatrolCities()) {
-                Node patrolNode = config.getNodes().stream()
-                        .filter(n -> n.getId().equals(patrolCityId))
-                        .findFirst()
-                        .orElse(null);
-                String patrolCityName = patrolNode != null ? patrolNode.getName() : patrolCityId.toUpperCase();
-                turnClues.add(new GameSession.Clue(
-                        currentTurn,
-                        "SECURITY_SWEEP_ALERT",
-                        "⚠ SWEEP WARNING: Local security forces are conducting a 1-turn warning raid sweep in " + patrolCityName + " this turn. ALL ASSETS MUST VACATE IMMEDIATELY or face absolute capture/destruction.",
-                        patrolCityId,
-                        "Field Intercept"
-                ));
-            }
-        }
-
         return turnClues;
     }
 }

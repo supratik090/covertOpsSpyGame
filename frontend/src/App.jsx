@@ -13,8 +13,7 @@ import ObjectiveBoardView from './components/ObjectiveBoardView';
 import Toast from './components/Toast';
 import EndTurnReportModal from './components/EndTurnReportModal';
 import GameOverModal from './components/GameOverModal';
-
-const API_BASE = `http://${window.location.hostname}:7900/api/game`;
+import { GAME_API_BASE } from './config';
 
 export default function App() {
   const [screen, setScreen] = useState('LOGIN'); // 'LOGIN', 'SELECT', 'GAME'
@@ -37,8 +36,6 @@ export default function App() {
 
   // Buffered mid-turn actions (sent with EndTurnRequest)
   const [localAgentTasks, setLocalAgentTasks] = useState({});      // agentId -> task
-  const [localAgentTraining, setLocalAgentTraining] = useState({}); // agentId -> [skills]
-  const [localTeamTraining, setLocalTeamTraining] = useState({});   // teamId -> [skills]
   const [localSafehouseBuilds, setLocalSafehouseBuilds] = useState([]); // [cityNode, ...]
   const [localTechDeploys, setLocalTechDeploys] = useState([]);     // [{type, cityNode}, ...]
 
@@ -49,10 +46,13 @@ export default function App() {
   const [endTurnReport, setEndTurnReport] = useState(null);
   const [showGameOver, setShowGameOver] = useState(false);
 
+  // Lost agents accumulated across turns (render in AgentsView instead of disappearing)
+  const [lostAgentsList, setLostAgentsList] = useState([]);
+
   // Load scenarios on mount or success
   const fetchScenarios = async () => {
     try {
-      const res = await fetch(`${API_BASE}/scenarios`);
+      const res = await fetch(`${GAME_API_BASE}/scenarios`);
       if (res.ok) {
         const data = await res.json();
         setScenarios(data);
@@ -83,7 +83,7 @@ export default function App() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/create?scenarioId=${selectedScenarioId}`, {
+      const res = await fetch(`${GAME_API_BASE}/create?scenarioId=${selectedScenarioId}`, {
         method: 'POST'
       });
       if (!res.ok) throw new Error('Failed to create new game session.');
@@ -93,10 +93,9 @@ export default function App() {
       setLocalAssessments({});
       setCovertActions([]);
       setLocalAgentTasks({});
-      setLocalAgentTraining({});
-      setLocalTeamTraining({});
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
+      setLostAgentsList([]);
       setActiveTab('OBJECTIVES');
       setScreen('GAME');
       setShowGodMode(false);
@@ -119,7 +118,7 @@ export default function App() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/${savedId}`);
+      const res = await fetch(`${GAME_API_BASE}/${savedId}`);
       if (!res.ok) throw new Error('Save feed no longer active on backend.');
       const data = await res.json();
       setSession(data);
@@ -130,10 +129,9 @@ export default function App() {
       setLocalAssessments(loadedAssessments);
       setCovertActions([]);
       setLocalAgentTasks({});
-      setLocalAgentTraining({});
-      setLocalTeamTraining({});
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
+      setLostAgentsList([]);
       setActiveTab('MAP');
       setScreen('GAME');
       setShowGodMode(false);
@@ -217,32 +215,6 @@ export default function App() {
     addToast(`${team.name} queued for relocation to ${targetCity.toUpperCase()}`, "success");
   };
 
-  // Train agent (buffered locally)
-  const handleTrainAgent = (agentId, skill) => {
-    if (!session) return;
-    const agent = session.agents.find(a => a.id === agentId);
-    if (!agent) return;
-    setLocalAgentTraining(prev => {
-      const existing = prev[agentId] || [];
-      if (existing.includes(skill)) return prev; // already queued
-      return { ...prev, [agentId]: [...existing, skill] };
-    });
-    addToast(`${agent.codename} training queued: ${skill.toUpperCase()}`, "info");
-  };
-
-  // Train tactical team (buffered locally)
-  const handleTrainTeam = (teamId, skill) => {
-    if (!session) return;
-    const team = session.tacticalTeams.find(t => t.id === teamId);
-    if (!team) return;
-    setLocalTeamTraining(prev => {
-      const existing = prev[teamId] || [];
-      if (existing.includes(skill)) return prev;
-      return { ...prev, [teamId]: [...existing, skill] };
-    });
-    addToast(`${team.name} training protocol queued: ${skill.toUpperCase()}`, "info");
-  };
-
   // Build safehouse (buffered locally)
   const handleBuildSafehouse = (cityNode) => {
     if (!session) return;
@@ -319,13 +291,11 @@ export default function App() {
         agentRelocations: localAgentMoves,
         teamRelocations: localTeamMoves,
         agentTasks: localAgentTasks,
-        agentTraining: localAgentTraining,
-        teamTraining: localTeamTraining,
         safehouseBuilds: localSafehouseBuilds,
         techDeployments: localTechDeploys
       };
 
-      const res = await fetch(`${API_BASE}/${session.id}/end-turn`, {
+      const res = await fetch(`${GAME_API_BASE}/${session.id}/end-turn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -344,11 +314,16 @@ export default function App() {
       const updatedDefenderSH = (updated.safehouses || []).filter(s => s.ownerFaction === 'DEFENDER');
       const lostSafehouses = prevDefenderSH.filter(s => !updatedDefenderSH.some(us => us.cityNode === s.cityNode));
 
+      const newExposedHostileSH = (updated.safehouses || []).filter(s =>
+        s.ownerFaction === 'HOSTILE' && s.uncovered &&
+        !prevSafehouses.some(ps => ps.cityNode === s.cityNode && ps.ownerFaction === 'HOSTILE' && ps.uncovered)
+      );
+
       const newClues = (updated.discoveredClues || []).slice(prevClueCount);
       const sweepAlertClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_ALERT');
       const sweepLossClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_LOSS');
 
-      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0) {
+      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0) {
         setEndTurnReport({
           newFinance,
           newLogistics,
@@ -357,6 +332,7 @@ export default function App() {
           lostAgents,
           lostTeams,
           lostSafehouses,
+          newExposedHostileSH,
           sweepAlerts: sweepAlertClues,
           sweepLosses: sweepLossClues
         });
@@ -367,10 +343,9 @@ export default function App() {
       setLocalAgentMoves({});
       setLocalTeamMoves({});
       setLocalAgentTasks({});
-      setLocalAgentTraining({});
-      setLocalTeamTraining({});
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
+      setLostAgentsList(prev => [...prev, ...lostAgents]);
       
       const nextAssessments = {};
       updated.discoveredClues.forEach((c, idx) => {
@@ -399,7 +374,7 @@ export default function App() {
   // Replay data fetch
   const fetchReplayData = async (gameId, silent = false) => {
     try {
-      const res = await fetch(`${API_BASE}/${gameId}/replay`);
+      const res = await fetch(`${GAME_API_BASE}/${gameId}/replay`);
       if (res.ok) {
         const data = await res.json();
         setReplayPlan(data);
@@ -491,6 +466,7 @@ export default function App() {
                 session={session}
                 activeScenario={activeScenario}
                 selectedAgent={selectedAgent}
+                selectedTeam={selectedTeam}
                 selectedCityNode={selectedCityNode}
                 setSelectedCityNode={setSelectedCityNode}
                 onRelocateAgent={handleRelocateAgent}
@@ -519,14 +495,9 @@ export default function App() {
                 setSelectedAgent={setSelectedAgent}
                 selectedTeam={selectedTeam}
                 setSelectedTeam={setSelectedTeam}
-                onAssignAgentTask={handleAssignAgentTask}
-                onTrainAgent={handleTrainAgent}
-                onTrainTeam={handleTrainTeam}
-                covertActions={covertActions}
-                onToggleCovertAction={toggleCovertAction}
-                onRelocateAgent={handleRelocateAgent}
-                localAgentMoves={localAgentMoves}
-                localAgentTasks={localAgentTasks}
+                setSelectedCityNode={setSelectedCityNode}
+                setActiveTab={setActiveTab}
+                lostAgentsList={lostAgentsList}
                 nodesData={activeScenario?.nodes || []}
               />
             )}

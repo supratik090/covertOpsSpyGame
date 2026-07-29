@@ -60,9 +60,10 @@ public class GameSessionController {
     public GameSession relocateTacticalTeam(
             @PathVariable UUID id,
             @RequestParam int teamId,
-            @RequestParam String targetCity) {
+            @RequestParam String targetCity) throws Exception {
         GameSession session = sessionService.getSession(id);
-        return defenderService.relocateTacticalTeam(session, teamId, targetCity);
+        ScenarioConfig config = loadConfig(session.getScenarioId());
+        return defenderService.relocateTacticalTeam(session, teamId, targetCity, config);
     }
 
     // POST /api/game/{id}/agent/task
@@ -83,26 +84,6 @@ public class GameSessionController {
         GameSession session = sessionService.getSession(id);
         ScenarioConfig config = loadConfig(session.getScenarioId());
         return defenderService.buildSafehouse(session, cityNode, config);
-    }
-
-    // POST /api/game/{id}/agent/train
-    @PostMapping("/{id}/agent/train")
-    public GameSession trainAgent(
-            @PathVariable UUID id,
-            @RequestParam int agentId,
-            @RequestParam String skillName) {
-        GameSession session = sessionService.getSession(id);
-        return defenderService.trainAgent(session, agentId, skillName);
-    }
-
-    // POST /api/game/{id}/team/train
-    @PostMapping("/{id}/team/train")
-    public GameSession trainTacticalTeam(
-            @PathVariable UUID id,
-            @RequestParam int teamId,
-            @RequestParam String skillName) {
-        GameSession session = sessionService.getSession(id);
-        return defenderService.trainTacticalTeam(session, teamId, skillName);
     }
 
     // POST /api/game/{id}/tech/deploy

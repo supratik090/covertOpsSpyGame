@@ -212,7 +212,7 @@ public class GameSessionService {
         if (request.getTeamRelocations() != null) {
             for (Map.Entry<Integer, String> entry : request.getTeamRelocations().entrySet()) {
                 try {
-                    session = defenderService.relocateTacticalTeam(session, entry.getKey(), entry.getValue());
+                    session = defenderService.relocateTacticalTeam(session, entry.getKey(), entry.getValue(), config);
                 } catch (Exception e) {
                     System.err.println("Failed team relocation: " + e.getMessage());
                 }
@@ -370,32 +370,6 @@ public class GameSessionService {
             }
         }
 
-        // Apply agent training
-        if (request.getAgentTraining() != null) {
-            for (Map.Entry<Integer, List<String>> entry : request.getAgentTraining().entrySet()) {
-                for (String skill : entry.getValue()) {
-                    try {
-                        session = defenderService.trainAgent(session, entry.getKey(), skill);
-                    } catch (Exception e) {
-                        System.err.println("Failed agent training: " + e.getMessage());
-                    }
-                }
-            }
-        }
-
-        // Apply team training
-        if (request.getTeamTraining() != null) {
-            for (Map.Entry<Integer, List<String>> entry : request.getTeamTraining().entrySet()) {
-                for (String skill : entry.getValue()) {
-                    try {
-                        session = defenderService.trainTacticalTeam(session, entry.getKey(), skill);
-                    } catch (Exception e) {
-                        System.err.println("Failed team training: " + e.getMessage());
-                    }
-                }
-            }
-        }
-
         // 0. Apply clue assessments submitted in this turn transaction
         if (request.getClueAssessments() != null) {
             for (Map.Entry<Integer, String> entry : request.getClueAssessments().entrySet()) {
@@ -446,15 +420,19 @@ public class GameSessionService {
                     }
                 }
 
-                // 2.2 Enforce costs
+                // 2.2 Enforce costs (doubled in hostile territory)
                 int cost = 0;
-                if ("FREEZE_FINANCE".equals(type)) cost = 15000;
-                else if ("RAID_LOGISTICS".equals(type)) cost = 20000;
-                else if ("RAID_SAFEHOUSE".equals(type)) cost = 30000;
-                else if ("TRANSIT_CHECKPOINT".equals(type) || "ROADBLOCK".equals(type)) cost = 25000;
-                else if ("CITY_GRID_LOCKDOWN".equals(type) || "LOCKDOWN".equals(type)) cost = 75000;
+                if ("FREEZE_FINANCE".equals(type)) cost = 50000;
+                else if ("RAID_LOGISTICS".equals(type)) cost = 50000;
+                else if ("RAID_SAFEHOUSE".equals(type)) cost = 100000;
+                else if ("TRANSIT_CHECKPOINT".equals(type) || "ROADBLOCK".equals(type)) cost = 80000;
+                else if ("CITY_GRID_LOCKDOWN".equals(type) || "LOCKDOWN".equals(type)) cost = 100000;
                 else if ("STOP_INFILTRATION".equals(type)) cost = 35000;
                 else if ("STOP_EXFILTRATION".equals(type)) cost = 40000;
+
+                if (actionNode != null && "HOSTILE_TERRITORY".equals(actionNode.getTerritory())) {
+                    cost *= 2;
+                }
 
                 if (session.getBudget() < cost) {
                     session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER", 
@@ -536,8 +514,14 @@ public class GameSessionService {
                     if (city.equals(strikeStep.getEscapeNode())) {
                         isMatch = true;
                     }
-                } else if (("LOCKDOWN".equals(type) || "CITY_GRID_LOCKDOWN".equals(type)) && city.equals(session.getAiMasterPlan().getPrimaryPlan().get(session.getAiMasterPlan().getPrimaryPlan().size() - 1).getSuspectLocation())) {
-                    isMatch = true;
+                } else if (("LOCKDOWN".equals(type) || "CITY_GRID_LOCKDOWN".equals(type))) {
+                    PlanStep curStep = activePlanSteps.stream().filter(s -> s.getTurn() == currentTurn).findFirst().orElse(null);
+                    PlanStep nxtStep = activePlanSteps.stream().filter(s -> s.getTurn() == currentTurn + 1).findFirst().orElse(null);
+                    boolean suspectCurrentlyHere = curStep != null && city.equals(curStep.getSuspectLocation());
+                    boolean suspectMovingHere = nxtStep != null && city.equals(nxtStep.getSuspectLocation());
+                    if (suspectCurrentlyHere || suspectMovingHere) {
+                        isMatch = true;
+                    }
                 }
 
                 if (isMatch) {
@@ -611,32 +595,60 @@ public class GameSessionService {
                         session.getCityHeat().put(resCity, Math.min(100, currentCityHeat + 25));
                     }
 
-                    // 2. Border Guard Mobilization (Smuggling interception)
+                    // 2. Border Guard Mobilization — intercept crossing + 10% capture risk, fallback on failure
                     if ("BORDER_GUARD".equals(resType) && resCity.equals(suspectLastStep.getSuspectLocation()) && (suspectLastStep.isSmuggling() || "BORDER_CROSSING".equals(suspectLastStep.getPhase()))) {
                         Node node = config.getNodes().stream().filter(n -> n.getId().equals(resCity)).findFirst().orElse(null);
                         String cityName = node != null ? node.getName() : resCity;
-                        session.getDiscoveredClues().add(new GameSession.Clue(
-                                currentTurn,
-                                "BORDER_GUARD",
-                                "Border Guard Alert: Tactical smuggling attempt intercepted near " + cityName + ". Attacker " + suspectName + "'s cell suffered a 3-turn operational setback.",
-                                resCity,
-                                "Border Guard Command"
-                        ));
+
                         if (suspectName.equals(session.getActualAttacker())) {
-                            session.setCurrentTurn(Math.max(1, session.getCurrentTurn() - 3));
-                            session.setMaxTurns(session.getMaxTurns() + 3);
+                            java.util.Random borderRoll = new java.util.Random();
+                            if (borderRoll.nextDouble() < 0.10) {
+                                session.setStatus("SUCCESS");
+                                session.getDiscoveredClues().add(new GameSession.Clue(
+                                        currentTurn,
+                                        "BORDER_GUARD",
+                                        "BORDER CAPTURE: Suspect " + session.getActualAttacker() + " was intercepted and captured by border patrol at " + cityName + " crossing. Threat neutralized.",
+                                        resCity,
+                                        "Border Guard Command"
+                                ));
+                                return repository.save(session);
+                            }
+
+                            // Crossing detected but suspect escaped — trigger fallback plan
+                            session.getDiscoveredClues().add(new GameSession.Clue(
+                                    currentTurn,
+                                    "BORDER_GUARD",
+                                    "BORDER INTERDICTION: Border patrol intercepted suspect " + session.getActualAttacker() + " at " + cityName + " crossing. The suspect escaped but the crossing has failed and the cell must reroute through an alternate network.",
+                                    resCity,
+                                    "Border Guard Command"
+                            ));
+                            if (!session.getAiMasterPlan().getFallbackPlan().isEmpty()) {
+                                session.getAiMasterPlan().setPrimaryPlan(session.getAiMasterPlan().getFallbackPlan());
+                                session.getAiMasterPlan().setFallbackPlan(new ArrayList<>());
+                                session.getSuspectPlans().put(session.getActualAttacker(), session.getAiMasterPlan().getPrimaryPlan());
+                                session.setMaxTurns(session.getMaxTurns() + 3);
+                            } else {
+                                session.setMaxTurns(session.getMaxTurns() + 2);
+                                session.setCurrentTurn(Math.max(1, session.getCurrentTurn() - 2));
+                            }
                         }
                     }
 
-                    // 3. Signal Jammer
-                    if ("SIGNAL_JAMMER".equals(resType) && resCity.equals(suspectLastStep.getSuspectLocation()) && 
-                            ("FINANCE_SOURCING".equals(suspectLastStep.getPhase()) || "LOGISTICS_SOURCING".equals(suspectLastStep.getPhase()))) {
+                    // 3. Signal Jammer — intercept attacker comms for any phase
+                    if ("SIGNAL_JAMMER".equals(resType) && resCity.equals(suspectLastStep.getSuspectLocation())) {
                         Node node = config.getNodes().stream().filter(n -> n.getId().equals(resCity)).findFirst().orElse(null);
                         String cityName = node != null ? node.getName() : resCity;
+                        String phaseLabel = suspectLastStep.getPhase().replace("_", " ");
+                        String commsDetail = "comms intercept: Suspect " + suspectName + " (" + phaseLabel + ") — " +
+                            (suspectLastStep.getFinanceCity() != null && resCity.equals(suspectLastStep.getFinanceCity()) ?
+                                "financial transaction routing through " + cityName :
+                             suspectLastStep.getLogisticsCity() != null && resCity.equals(suspectLastStep.getLogisticsCity()) ?
+                                "logistics coordination active in " + cityName :
+                                "command signals relayed through " + cityName);
                         session.getDiscoveredClues().add(new GameSession.Clue(
                                 currentTurn,
                                 "SIGNAL_JAMMER",
-                                "Signal Jammer Alert: Communications blocked in " + cityName + ". Suspect " + suspectName + " was unable to complete secure transactions and has been forced to reroute.",
+                                "Signal Jammer Alert: " + commsDetail + ".",
                                 resCity,
                                 "Signal Jammer Tech"
                         ));
@@ -791,6 +803,23 @@ public class GameSessionService {
 
         session.setHostilePatrolCities(nextWarnedPatrols);
         session.setSurprisePatrolCities(nextSurprisePatrols);
+
+        // Generate SECURITY_SWEEP_ALERT clues for the NEXT turn's warned sweeps
+        // This gives the player a full turn to react before the sweep hits.
+        for (String patrolCityId : nextWarnedPatrols) {
+            Node patrolNode = config.getNodes().stream()
+                    .filter(n -> n.getId().equals(patrolCityId))
+                    .findFirst()
+                    .orElse(null);
+            String patrolCityName = patrolNode != null ? patrolNode.getName() : patrolCityId.toUpperCase();
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    session.getCurrentTurn(),
+                    "SECURITY_SWEEP_ALERT",
+                    "⚠ SWEEP WARNING: Local security forces are planning a raid sweep in " + patrolCityName + " next turn. ASSETS MUST VACATE or face absolute capture/destruction.",
+                    patrolCityId,
+                    "Field Intercept"
+            ));
+        }
 
         return repository.save(session);
     }

@@ -9,16 +9,25 @@ export default function AgentsView({
   setSelectedAgent,
   selectedTeam,
   setSelectedTeam,
-  onAssignAgentTask,
-  onTrainAgent,
-  onTrainTeam,
-  covertActions,
-  onToggleCovertAction,
-  onRelocateAgent,
-  localAgentMoves,
-  localAgentTasks = {},
+  setSelectedCityNode,
+  setActiveTab,
+  lostAgentsList = [],
   nodesData = []
 }) {
+  const handleAgentSelect = (agent) => {
+    setSelectedAgent(agent);
+    setSelectedTeam(null);
+    setSelectedCityNode(agent.currentCity);
+    setActiveTab?.('MAP');
+  };
+
+  const handleTeamSelect = (team) => {
+    setSelectedTeam(team);
+    setSelectedAgent(null);
+    setSelectedCityNode(team.currentCity);
+    setActiveTab?.('MAP');
+  };
+
   return (
     <div className="agents-view">
       <div className="agents-column">
@@ -28,25 +37,23 @@ export default function AgentsView({
         </div>
         <div className="column-content">
           {session.agents.map(agent => (
-            <AgentCard 
+            <AgentCard
               key={agent.id}
               agent={agent}
               isSelected={selectedAgent?.id === agent.id}
-              onSelect={() => {
-                setSelectedAgent(agent);
-                setSelectedTeam(null);
-              }}
-              onAssignTask={onAssignAgentTask}
-              onTrain={onTrainAgent}
-              onRelocate={onRelocateAgent}
-              nodesData={nodesData}
-              localAgentMoves={localAgentMoves}
-              localAgentTasks={localAgentTasks}
+              onNavigate={() => handleAgentSelect(agent)}
+            />
+          ))}
+          {lostAgentsList.map(agent => (
+            <AgentCard
+              key={`lost-${agent.id}`}
+              agent={agent}
+              isLost
             />
           ))}
         </div>
       </div>
-      
+
       <div className="agents-column">
         <div className="column-header">
           <Target className="icon red" />
@@ -54,18 +61,11 @@ export default function AgentsView({
         </div>
         <div className="column-content">
           {session.tacticalTeams.map(team => (
-            <TeamCard 
+            <TeamCard
               key={team.id}
               team={team}
               isSelected={selectedTeam?.id === team.id}
-              onSelect={() => {
-                setSelectedTeam(team);
-                setSelectedAgent(null);
-              }}
-              covertActions={covertActions}
-              onToggleCovertAction={onToggleCovertAction}
-              onTrain={onTrainTeam}
-              nodesData={nodesData}
+              onNavigate={() => handleTeamSelect(team)}
             />
           ))}
         </div>

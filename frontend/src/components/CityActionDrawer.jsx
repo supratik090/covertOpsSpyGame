@@ -31,24 +31,24 @@ const CityActionDrawer = ({
             className="cyber-btn sm" 
             onClick={() => onBuildSafehouse(cityId)}
           >
-            BUILD SAFEHOUSE ({isFriendly ? '$50K' : '$150K'})
+            BUILD SAFEHOUSE ({isFriendly ? '$40K' : '$100K'})
           </button>
         )}
         
         <button className="cyber-btn sm amber" onClick={() => onDeployTech('CCTV', cityId)}>
-          DEPLOY CCTV ($50,000)
+          DEPLOY CCTV ($30,000)
         </button>
         <button className="cyber-btn sm amber" onClick={() => onDeployTech('WIRE_TAP', cityId)}>
-          DEPLOY WIRE TAP ($30,000)
+          DEPLOY WIRE TAP ($20,000)
         </button>
         <button className="cyber-btn sm amber" onClick={() => onDeployTech('PHONE_TAP', cityId)}>
-          DEPLOY PHONE TAP ($60,000)
+          DEPLOY PHONE TAP ($40,000)
         </button>
         <button className="cyber-btn sm amber" onClick={() => onDeployTech('SATELLITE', cityId)}>
-          DEPLOY SATELLITE ($120,000)
+          DEPLOY SATELLITE ($80,000)
         </button>
         <button className="cyber-btn sm amber" onClick={() => onDeployTech('FINANCE_MONITOR', cityId)}>
-          DEPLOY FINANCE MONITOR ($80,000)
+          DEPLOY FINANCE MONITOR ($50,000)
         </button>
       </div>
 

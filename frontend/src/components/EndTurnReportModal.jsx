@@ -12,6 +12,7 @@ export default function EndTurnReportModal({ report, onClose }) {
     report.lostAgents?.length > 0 ||
     report.lostTeams?.length > 0 ||
     report.lostSafehouses?.length > 0 ||
+    report.newExposedHostileSH?.length > 0 ||
     report.sweepAlerts?.length > 0 ||
     report.sweepLosses?.length > 0;
 
@@ -155,6 +156,28 @@ export default function EndTurnReportModal({ report, onClose }) {
                 {report.lostTeams.map(t => (
                   <li key={t.id}>
                     Team <strong style={{ color: '#ff6666' }}>{t.name}</strong> lost in <span style={{ color: 'var(--text-primary)' }}>{t.currentCity?.toUpperCase()}</span>.
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Exposed Hostile Safehouses */}
+          {report.newExposedHostileSH?.length > 0 && (
+            <div style={{
+              border: '1px solid rgba(255, 200, 0, 0.3)',
+              background: 'rgba(255, 200, 0, 0.04)',
+              padding: '14px',
+              borderRadius: '6px'
+            }}>
+              <span style={{ color: '#ffcc00', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <ShieldAlert size={14} /> ENEMY SAFEHOUSES EXPOSED
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                {report.newExposedHostileSH.map(s => (
+                  <li key={s.cityNode}>
+                    Hostile safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>{s.safehouseCode || '???'}</span>
+                    {s.origin !== 'DEFAULT' ? ' — cell eliminated.' : '. Raid to dismantle.'}
                   </li>
                 ))}
               </ul>

@@ -5,11 +5,11 @@ export default function ResourcesView({ session, nodes, onBuildSafehouse, onDepl
   const [selectedDeployCity, setSelectedDeployCity] = useState(nodes[0]?.id || '');
 
   const techOptions = [
-    { type: 'SATELLITE_VIEW', cost: 120000 },
-    { type: 'CCTV_MONITOR', cost: 50000 },
-    { type: 'WIRE_TAP', cost: 30000 },
-    { type: 'FINANCE_MONITORING', cost: 80000 },
-    { type: 'PHONE_TAP', cost: 60000 }
+    { type: 'SATELLITE', cost: 80000 },
+    { type: 'CCTV', cost: 30000 },
+    { type: 'WIRE_TAP', cost: 20000 },
+    { type: 'FINANCE_MONITOR', cost: 50000 },
+    { type: 'PHONE_TAP', cost: 40000 }
   ];
 
   return (

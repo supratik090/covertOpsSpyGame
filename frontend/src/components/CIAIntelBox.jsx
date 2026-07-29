@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Users, Radio, DollarSign, Archive, Compass, Award, Cpu } from 'lucide-react';
 
 export default function CIAIntelBox({ 
   cityId, 
   session, 
   nodesData, 
+  selectedAgent,
+  selectedTeam,
   onClose,
   onAssignAgentTask,
   onRelocateAgent,
@@ -25,6 +27,21 @@ export default function CIAIntelBox({
   const [activeAgentId, setActiveAgentId] = useState(null);
   const [activeTeamId, setActiveTeamId] = useState(null);
   const [showDeployMenu, setShowDeployMenu] = useState(false);
+
+  // Auto-highlight agent/team selected from AgentsView
+  useEffect(() => {
+    if (selectedAgent && selectedAgent.currentCity === cityId) {
+      setActiveAgentId(selectedAgent.id);
+      setActiveTeamId(null);
+    }
+  }, [selectedAgent?.id, cityId]);
+
+  useEffect(() => {
+    if (selectedTeam && selectedTeam.currentCity === cityId) {
+      setActiveTeamId(selectedTeam.id);
+      setActiveAgentId(null);
+    }
+  }, [selectedTeam?.id, cityId]);
   
   // Track selected safehouse code for combat team raid actions
   const [selectedRaidTarget, setSelectedRaidTarget] = useState({}); // maps teamId -> safehouseCode
@@ -32,13 +49,14 @@ export default function CIAIntelBox({
   // Derive isFriendly from scenario nodesData instead of hardcoded city list
   const currentNodeInfo = nodesData.find(n => n.id === cityId);
   const isFriendly = currentNodeInfo ? currentNodeInfo.territory === 'HOME_TERRITORY' : false;
+  const isHostile = currentNodeInfo ? currentNodeInfo.territory === 'HOSTILE_TERRITORY' : false;
 
   const renderTechButton = (type, label, cost) => {
     const isAlreadyActive = session.espionageResources.some(r => r.cityNode === cityId && r.type === type);
     const isQueued = localTechDeploys.some(d => d.type === type && d.cityNode === cityId);
 
     let btnStyle = { padding: '8px 10px', fontSize: '10px' };
-    let btnClass = "cia-task-btn font-mono text-left w-full flex justify-between items-center";
+    let btnClass = "cia-task-btn font-mono w-full flex items-center";
 
     if (isAlreadyActive) {
       btnClass += " border-emerald-500 text-emerald-400 bg-[rgba(16,185,129,0.08)] cursor-not-allowed";
@@ -62,8 +80,8 @@ export default function CIAIntelBox({
 
     return (
       <button key={type} onClick={() => onDeployTech?.(type, cityId)} className={btnClass} style={btnStyle}>
-        <span>{label}</span>
-        <span className="text-muted text-[9px]">${cost.toLocaleString()}</span>
+        <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
+        <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '12px' }}>${cost.toLocaleString()}</span>
       </button>
     );
   };
@@ -73,7 +91,7 @@ export default function CIAIntelBox({
     if (hasDefenderSafehouse) return null; // already exists, hide option
 
     const isQueued = localSafehouseBuilds.includes(cityId);
-    const cost = isFriendly ? 50000 : 150000;
+    const cost = isFriendly ? 40000 : 100000;
 
     let btnClass = "cia-dispatch-btn font-mono text-center w-full flex justify-between items-center px-4 py-2 mt-2";
     let btnStyle = { fontSize: '10.5px' };
@@ -168,14 +186,12 @@ export default function CIAIntelBox({
               {isFriendly ? 'FRIENDLY / HOME' : 'HOSTILE / ENEMY'}
             </span>
           </div>
-          {!isFriendly && (
-            <div className="cia-meta-row mt-1">
-              <span className="label">DETECTION HEAT:</span>
-              <span className="value text-threat font-mono font-bold">
-                {session.cityHeat?.[cityId] || 0}%
-              </span>
-            </div>
-          )}
+          <div className="cia-meta-row mt-1">
+            <span className="label">DETECTION HEAT:</span>
+            <span className={`value font-mono font-bold ${isFriendly ? 'text-success' : 'text-threat'}`}>
+              {session.cityHeat?.[cityId] || 0}%
+            </span>
+          </div>
         </div>
 
         {/* Safehouses Status */}
@@ -410,6 +426,7 @@ export default function CIAIntelBox({
                                   style={{ background: isRaidPlanned ? 'rgba(255, 59, 48, 0.15)' : '', borderColor: isRaidPlanned ? 'var(--red)' : '', color: isRaidPlanned ? 'var(--red)' : '' }}
                                 >
                                   {isRaidPlanned ? 'CANCEL RAID ORDER' : 'LAUNCH COMBAT RAID'}
+                                  <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '8px' }}>${isHostile ? '200,000' : '100,000'}</span>
                                 </button>
                               </div>
                             )}
@@ -426,18 +443,29 @@ export default function CIAIntelBox({
                                      actOptions.push('STOP_EXFILTRATION');
                                    }
                                  }
-                                 return actOptions.map(actType => {
-                                   const isActPlanned = activeAction && activeAction.actionType === actType;
-                                   return (
-                                     <button
-                                       key={actType}
-                                       onClick={() => onToggleCovertAction?.(actType, cityId, t.id)}
-                                       className={`cia-task-btn font-mono ${isActPlanned ? 'active' : ''}`}
-                                     >
-                                       {actType.replace('RAID_', '').replace('_', ' ')}
-                                     </button>
-                                   );
-                                 });
+                                  const baseCosts = {
+                                    'FREEZE_FINANCE': 50000,
+                                    'RAID_LOGISTICS': 50000,
+                                    'TRANSIT_CHECKPOINT': 80000,
+                                    'CITY_GRID_LOCKDOWN': 100000,
+                                    'STOP_INFILTRATION': 35000,
+                                    'STOP_EXFILTRATION': 40000
+                                  };
+                                  return actOptions.map(actType => {
+                                    const isActPlanned = activeAction && activeAction.actionType === actType;
+                                    const cost = baseCosts[actType] || 0;
+                                    const displayCost = isHostile ? cost * 2 : cost;
+                                    return (
+                                      <button
+                                        key={actType}
+                                        onClick={() => onToggleCovertAction?.(actType, cityId, t.id)}
+                                        className={`cia-task-btn font-mono ${isActPlanned ? 'active' : ''}`}
+                                      >
+                                        <span style={{ flex: 1, textAlign: 'left' }}>{actType.replace('RAID_', '').replace('_', ' ')}</span>
+                                        <span className="text-amber text-[10px] font-bold">${displayCost.toLocaleString()}</span>
+                                      </button>
+                                    );
+                                  });
                                })()}
                              </div>
                            </div>
@@ -451,19 +479,25 @@ export default function CIAIntelBox({
                               {currentConnections.length === 0 ? (
                                 <span className="text-[8px] text-dim">NO CONNECTED NODES</span>
                               ) : (
-                                currentConnections.map(connId => (
-                                  <button
-                                    key={connId}
-                                    onClick={() => {
-                                      onRelocateTacticalTeam?.(t.id, connId);
-                                      setActiveTeamId(null);
-                                    }}
-                                    className="cia-dispatch-btn font-mono"
-                                  >
-                                    {connId.toUpperCase()}
-                                  </button>
-                                ))
-                              )}
+                                currentConnections.map(connId => {
+                                  const connNode = nodesData.find(n => n.id === connId);
+                                  const connHostile = connNode?.territory === 'HOSTILE_TERRITORY';
+                                  const moveCost = connHostile ? 80000 : 40000;
+                                  return (
+                                    <button
+                                      key={connId}
+                                      onClick={() => {
+                                        onRelocateTacticalTeam?.(t.id, connId);
+                                        setActiveTeamId(null);
+                                      }}
+                                      className="cia-dispatch-btn font-mono"
+                                    >
+                                      <span style={{ flex: 1, textAlign: 'left' }}>{connId.toUpperCase()}</span>
+                                      <span className="text-amber text-[10px] font-bold">${moveCost.toLocaleString()}</span>
+                                    </button>
+                                  );
+                                }))}
+                              
                             </div>
                           </div>
                         )}
@@ -501,14 +535,14 @@ export default function CIAIntelBox({
                   <div className="cia-agent-controls animate-fade-in" style={{ borderColor: 'rgba(255, 204, 0, 0.3)' }}>
                     <span className="cia-controls-label" style={{ color: 'var(--amber)', borderBottomColor: 'rgba(255, 204, 0, 0.15)' }}>SCANNER GRID OPTIONS</span>
                     <div className="flex flex-col gap-2 mt-2">
-                      {renderTechButton('CCTV', 'CCTV MONITOR', 50000)}
-                      {renderTechButton('WIRE_TAP', 'WIRE TAP', 30000)}
-                      {renderTechButton('PHONE_TAP', 'PHONE TAP', 60000)}
-                      {renderTechButton('SATELLITE', 'SATELLITE VIEW', 120000)}
-                      {renderTechButton('FINANCE_MONITOR', 'FINANCE MONITOR', 80000)}
-                      {isFriendly && renderTechButton('BIOMETRIC_SCAN', 'BIOMETRIC SCAN GRID', 45000)}
-                      {isFriendlyBorder && renderTechButton('BORDER_GUARD', 'BORDER GUARD MOBILIZATION', 55000)}
-                      {renderTechButton('SIGNAL_JAMMER', 'SIGNAL JAMMER TECH', 30000)}
+                      {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'CCTV') && renderTechButton('CCTV', 'CCTV MONITOR', 30000)}
+                      {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'WIRE_TAP') && renderTechButton('WIRE_TAP', 'WIRE TAP', 20000)}
+                      {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'PHONE_TAP') && renderTechButton('PHONE_TAP', 'PHONE TAP', 40000)}
+                      {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'SATELLITE') && renderTechButton('SATELLITE', 'SATELLITE VIEW', 80000)}
+                      {isFriendly && !session.espionageResources.some(r => r.cityNode === cityId && r.type === 'FINANCE_MONITOR') && renderTechButton('FINANCE_MONITOR', 'FINANCE MONITOR', 50000)}
+                      {isFriendly && !session.espionageResources.some(r => r.cityNode === cityId && r.type === 'BIOMETRIC_SCAN') && renderTechButton('BIOMETRIC_SCAN', 'BIOMETRIC SCAN GRID', 35000)}
+                      {isFriendlyBorder && !session.espionageResources.some(r => r.cityNode === cityId && r.type === 'BORDER_GUARD') && renderTechButton('BORDER_GUARD', 'BORDER GUARD MOBILIZATION', 40000)}
+                      {isFriendly && !session.espionageResources.some(r => r.cityNode === cityId && r.type === 'SIGNAL_JAMMER') && renderTechButton('SIGNAL_JAMMER', 'SIGNAL JAMMER TECH', 25000)}
                     </div>
                   </div>
                 )}
