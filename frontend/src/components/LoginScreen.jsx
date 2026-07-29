@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Key, Play } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AUTH_API_BASE } from '../config';
+import { fetchWithRetry } from '../utils/api';
+import RetrySpinner from './RetrySpinner';
 
 const LoginScreen = ({ onLoginSuccess }) => {
   const [loginMode, setLoginMode] = useState('LOGIN');
@@ -9,6 +11,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
+  const [retryState, setRetryState] = useState(null);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -18,12 +21,14 @@ const LoginScreen = ({ onLoginSuccess }) => {
     const payload = { username, password };
 
     try {
+      const onRetry = (a, m) => setRetryState({ attempt: a, max: m });
       if (loginMode === 'LOGIN') {
-        const res = await fetch(`${AUTH_API_BASE}/login`, {
+        const res = await fetchWithRetry(`${AUTH_API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        });
+        }, onRetry);
+        setRetryState(null);
 
         if (res.ok) {
           const data = await res.json();
@@ -34,11 +39,12 @@ const LoginScreen = ({ onLoginSuccess }) => {
           setLoginError(errText || 'INVALID CREDENTIALS');
         }
       } else {
-        const res = await fetch(`${AUTH_API_BASE}/register`, {
+        const res = await fetchWithRetry(`${AUTH_API_BASE}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        });
+        }, onRetry);
+        setRetryState(null);
 
         if (res.ok) {
           setRegisterSuccess('OPERATOR ID REGISTERED. PROCEED TO LOGIN.');
@@ -57,6 +63,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
 
   return (
     <div className="auth-screen">
+      {retryState && <RetrySpinner attempt={retryState.attempt} max={retryState.max} />}
       <motion.div 
         className="auth-card cyber-panel"
         initial={{ opacity: 0, y: 20 }}

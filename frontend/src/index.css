@@ -1575,6 +1575,58 @@ body {
 }
 
 /* ==========================================================================
+   RETRY SPINNER OVERLAY
+   ========================================================================== */
+.retry-spinner-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(2, 6, 18, 0.88);
+  backdrop-filter: blur(4px);
+}
+.retry-spinner-ring {
+  position: relative;
+  width: 48px;
+  height: 48px;
+}
+.retry-spinner-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid rgba(0, 240, 255, 0.1);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: retry-spin 1s linear infinite;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+}
+.retry-spinner-dot {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 12px var(--cyan);
+  animation: retry-pulse 1.2s ease-in-out infinite;
+}
+.retry-spinner-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+}
+@keyframes retry-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes retry-pulse {
+  0%, 100% { transform: scale(0.6); opacity: 0.5; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
+/* ==========================================================================
    TACTICAL OPERATIONS BOARD (OBJECTIVE BOARD)
    ========================================================================== */
 .objective-board-view {

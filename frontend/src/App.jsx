@@ -14,6 +14,8 @@ import Toast from './components/Toast';
 import EndTurnReportModal from './components/EndTurnReportModal';
 import GameOverModal from './components/GameOverModal';
 import { GAME_API_BASE } from './config';
+import { fetchWithRetry } from './utils/api';
+import RetrySpinner from './components/RetrySpinner';
 
 export default function App() {
   const [screen, setScreen] = useState('LOGIN'); // 'LOGIN', 'SELECT', 'GAME'
@@ -49,10 +51,14 @@ export default function App() {
   // Lost agents accumulated across turns (render in AgentsView instead of disappearing)
   const [lostAgentsList, setLostAgentsList] = useState([]);
 
+  // Retry spinner state
+  const [retryState, setRetryState] = useState(null);
+
   // Load scenarios on mount or success
   const fetchScenarios = async () => {
     try {
-      const res = await fetch(`${GAME_API_BASE}/scenarios`);
+      const res = await fetchWithRetry(`${GAME_API_BASE}/scenarios`, {}, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
       if (res.ok) {
         const data = await res.json();
         setScenarios(data);
@@ -83,9 +89,10 @@ export default function App() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${GAME_API_BASE}/create?scenarioId=${selectedScenarioId}`, {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/create?scenarioId=${selectedScenarioId}`, {
         method: 'POST'
-      });
+      }, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
       if (!res.ok) throw new Error('Failed to create new game session.');
       const data = await res.json();
       setSession(data);
@@ -118,7 +125,8 @@ export default function App() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${GAME_API_BASE}/${savedId}`);
+      const res = await fetchWithRetry(`${GAME_API_BASE}/${savedId}`, {}, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
       if (!res.ok) throw new Error('Save feed no longer active on backend.');
       const data = await res.json();
       setSession(data);
@@ -295,11 +303,12 @@ export default function App() {
         techDeployments: localTechDeploys
       };
 
-      const res = await fetch(`${GAME_API_BASE}/${session.id}/end-turn`, {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/${session.id}/end-turn`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      });
+      }, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
       if (!res.ok) throw new Error('Turn resolution rejected by security cluster.');
       const updated = await res.json();
       
@@ -374,7 +383,8 @@ export default function App() {
   // Replay data fetch
   const fetchReplayData = async (gameId, silent = false) => {
     try {
-      const res = await fetch(`${GAME_API_BASE}/${gameId}/replay`);
+      const res = await fetchWithRetry(`${GAME_API_BASE}/${gameId}/replay`, {}, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
       if (res.ok) {
         const data = await res.json();
         setReplayPlan(data);
@@ -425,6 +435,7 @@ export default function App() {
     <div className={`app-layout ${screen !== 'GAME' ? 'no-sidebar' : ''}`}>
       <div className="crt-overlay"></div>
       <Toast toasts={toasts} removeToast={removeToast} />
+      {retryState && <RetrySpinner attempt={retryState.attempt} max={retryState.max} />}
 
       {screen === 'LOGIN' && (
         <LoginScreen onLoginSuccess={onLoginSuccess} />
