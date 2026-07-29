@@ -21,7 +21,7 @@ export default function AgentCard({
     >
       <div className="card-header">
         <span className={isLost ? 'text-threat' : 'cyan'}>
-          {isLost ? 'AGENT: ' + agent.codename + ' — LOST/CAPTURED' : 'AGENT: ' + agent.codename}
+          {isLost ? 'AGENT: ' + agent.codename + ' — LOST' : 'AGENT: ' + agent.codename}
         </span>
       </div>
       <div className="card-meta">

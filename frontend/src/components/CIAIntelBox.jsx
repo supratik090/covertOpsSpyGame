@@ -391,9 +391,7 @@ export default function CIAIntelBox({
                             <span className="cia-controls-label">COVERT ACTION PLANNER</span>
                             
                             {/* Hostile Safehouse Selection grid if any exist */}
-                            {hostileSafehouses.length === 0 ? (
-                              <div className="text-dim font-mono text-[8px] mb-2">NO UNCOVERED HOSTILE SAFEHOUSES IN AREA</div>
-                            ) : (
+                            {hostileSafehouses.length > 0 ? (
                               <div className="mb-2">
                                 <span className="label text-[8px] font-mono text-dim block mb-1">CHOOSE TARGET SAFEHOUSE FOR RAID:</span>
                                 <div className="flex flex-wrap gap-2 mb-2">
@@ -429,7 +427,7 @@ export default function CIAIntelBox({
                                   <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '8px' }}>${isHostile ? '200,000' : '100,000'}</span>
                                 </button>
                               </div>
-                            )}
+                            ) : null}
 
                              {/* Standard tactical disruptions */}
                              <div className="cia-task-button-grid mt-2">
@@ -462,7 +460,7 @@ export default function CIAIntelBox({
                                         className={`cia-task-btn font-mono ${isActPlanned ? 'active' : ''}`}
                                       >
                                         <span style={{ flex: 1, textAlign: 'left' }}>{actType.replace('RAID_', '').replace('_', ' ')}</span>
-                                        <span className="text-amber text-[10px] font-bold">${displayCost.toLocaleString()}</span>
+                                        <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '12px' }}>${displayCost.toLocaleString()}</span>
                                       </button>
                                     );
                                   });
@@ -493,7 +491,7 @@ export default function CIAIntelBox({
                                       className="cia-dispatch-btn font-mono"
                                     >
                                       <span style={{ flex: 1, textAlign: 'left' }}>{connId.toUpperCase()}</span>
-                                      <span className="text-amber text-[10px] font-bold">${moveCost.toLocaleString()}</span>
+                                      <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '12px' }}>${moveCost.toLocaleString()}</span>
                                     </button>
                                   );
                                 }))}
