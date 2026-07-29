@@ -1,0 +1,228 @@
+{
+  "scenarioId": "operation_thunder",
+  "title": "Operation  Thunder",
+  "briefing": "Intelligence reports indicate a rogue cell is plotting a high-yield BOMB_BLAST strike targeting Mumbai or New Delhi. Disrupt their logistics, intercept payments in Karachi or Muzaffarabad, and secure the border corridors before Turn 25.",
+  "targetCity": "mumbai",
+  "targetVip": "Mumbai Financial Exchange",
+  "attackForm": "BOMB_BLAST",
+  "maxTurns": 25,
+  "startingBudget": 2500000,
+  "mapBackground": "satellite",
+  "nodes": [
+    {
+      "id": "karachi",
+      "name": "Karachi Port",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 20, "y": 70, "lat": 24.8607, "lng": 67.0011},
+      "connections": ["mumbai", "ahmedabad", "lahore"],
+      "availableFinance": ["DRUG_SALES", "ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"]
+    },
+    {
+      "id": "muzaffarabad",
+      "name": "Muzaffarabad Station",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 55, "y": 15, "lat": 34.3700, "lng": 73.4908},
+      "connections": ["srinagar", "peshawar"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"]
+    },
+    {
+      "id": "peshawar",
+      "name": "Peshawar Frontier",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 45, "y": 25, "lat": 34.0151, "lng": 71.5249},
+      "connections": ["muzaffarabad", "lahore", "islamabad"],
+      "availableFinance": ["TRIBAL_TOLLS", "RANSOMWARE_HACK"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"]
+    },
+    {
+      "id": "islamabad",
+      "name": "Islamabad Capital",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 52, "y": 20, "lat": 33.6844, "lng": 73.0479},
+      "connections": ["peshawar", "lahore"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"]
+    },
+    {
+      "id": "lahore",
+      "name": "Lahore Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 60, "y": 40, "lat": 31.5204, "lng": 74.3587},
+      "connections": ["karachi", "peshawar", "islamabad", "srinagar", "amritsar"],
+      "availableFinance": ["HUNDI_HAWALA", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"]
+    },
+    {
+      "id": "srinagar",
+      "name": "Srinagar Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 65, "y": 18, "lat": 34.0837, "lng": 74.7973},
+      "connections": ["muzaffarabad", "lahore", "amritsar"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH"
+    },
+    {
+      "id": "mumbai",
+      "name": "Mumbai District",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 30, "y": 90, "lat": 19.0760, "lng": 72.8777},
+      "connections": ["karachi", "ahmedabad", "new_delhi"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME"
+    },
+    {
+      "id": "amritsar",
+      "name": "Amritsar Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 60, "y": 38, "lat": 31.6340, "lng": 74.8723},
+      "connections": ["lahore", "srinagar", "new_delhi"],
+      "defenses": "MEDIUM",
+      "counterEspionage": "MEDIUM"
+    },
+    {
+      "id": "ahmedabad",
+      "name": "Ahmedabad Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 35, "y": 75, "lat": 23.0225, "lng": 72.5714},
+      "connections": ["karachi", "mumbai", "new_delhi"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH"
+    },
+    {
+      "id": "new_delhi",
+      "name": "New Delhi Capital",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 75, "y": 55, "lat": 28.6139, "lng": 77.2090},
+      "connections": ["amritsar", "ahmedabad", "mumbai"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME"
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "mumbai"},
+    {"cityId": "new_delhi"},
+    {"cityId": "peshawar"},
+    {"cityId": "karachi"}
+  ],
+  "attackerNames": [
+    "Tariq Mahmood",
+    "Zubair Khan",
+    "Faisal Shah"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Marcus Vance",
+      "codename": "PSHYCO",
+      "startingCity": "new_delhi",
+      "skills": {"humint": 80, "sigint": 90, "infiltration": 70, "survivability": 60}
+    },
+    {
+      "id": 2,
+      "name": "Evelyn Cross",
+      "codename": "VIXEN",
+      "startingCity": "mumbai",
+      "skills": {"humint": 70, "sigint": 60, "infiltration": 90, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "Alec Mercer",
+      "codename": "CIRCUS",
+      "startingCity": "new_delhi",
+      "skills": {"humint": 90, "sigint": 80, "infiltration": 50, "survivability": 50}
+    },
+    {
+      "id": 4,
+      "name": "Ethan Cole",
+      "codename": "MAVERICK",
+      "startingCity": "peshawar",
+      "skills": {"humint": 70, "sigint": 50, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "James Sterling",
+      "codename": "SPECTRE",
+      "startingCity": "karachi",
+      "skills": {"humint": 85, "sigint": 30, "infiltration": 80, "survivability": 95}
+    },
+    {
+      "id": 6,
+      "name": "Jason Webb",
+      "codename": "TREADSTONE",
+      "startingCity": "peshawar",
+      "skills": {"humint": 40, "sigint": 40, "infiltration": 85, "survivability": 95}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "Ghost Patrol",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "peshawar",
+      "skills": {"combat": 90, "stealth": 95, "mobility": 60}
+    },
+    {
+      "id": 2,
+      "name": "Apex Strike",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "karachi",
+      "skills": {"combat": 95, "stealth": 60, "mobility": 80}
+    },
+    {
+      "id": 3,
+      "name": "Vanguard Unit",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "new_delhi",
+      "skills": {"combat": 85, "stealth": 70, "mobility": 70}
+    },
+    {
+      "id": 4,
+      "name": "Delta Team",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "mumbai",
+      "skills": {"combat": 90, "stealth": 50, "mobility": 95}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE_VIEW": 120000,
+    "CCTV_MONITOR": 50000,
+    "WIRE_TAP": 30000,
+    "FINANCE_MONITORING": 80000,
+    "PHONE_TAP": 60000,
+    "BIOMETRIC_SCAN": 45000,
+    "BORDER_GUARD": 55000,
+    "SIGNAL_JAMMER": 30000
+  },
+  "trainingCosts": {
+    "agentTrainingCost": 50000,
+    "agentSkillIncrease": 10,
+    "teamTrainingCost": 100000,
+    "teamSkillIncrease": 10
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 50000,
+    "HOSTILE_TERRITORY": 150000
+  },
+  "startingEspionageResources": [
+    {"type": "CCTV_MONITOR", "cityId": "karachi"},
+    {"type": "WIRE_TAP", "cityId": "peshawar"}
+  ],
+  "logisticsMapping": {
+    "BOMB_BLAST": {
+      "itemName": "Tactical Detonation Payload",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "BOMB_BLAST": {
+      "itemName": "Cryptographic Terror Transfer",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}
