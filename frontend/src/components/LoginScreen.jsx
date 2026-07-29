@@ -63,10 +63,6 @@ const LoginScreen = ({ onLoginSuccess }) => {
         animate={{ opacity: 1, y: 0 }}
       >
         <div className="auth-header">
-          <div className="auth-brand">
-            <span className="auth-brand-line">PROTOCOL</span>
-            <span className="auth-brand-name">NIGHTFALL</span>
-          </div>
           <Key className="auth-icon" size={48} />
           <h1 className="auth-title">PROTOCOL NIGHTFALL</h1>
           <p className="auth-subtitle">CLEARANCE TERMINAL — AUTHENTICATE TO OPERATE</p>
