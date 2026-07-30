@@ -311,6 +311,35 @@ public class ClueGenerationEngine {
             }
         }
 
+        // 4.1 Generate Decoy Clues matching standard scans if any decoys are active (Attacker mode)
+        if (session.getActiveDecoys() != null) {
+            for (GameSession.ActiveDecoy decoy : session.getActiveDecoys()) {
+                if ("CCTV".equals(decoy.getType())) {
+                    GameSession.Clue decoyClue = new GameSession.Clue(
+                            currentTurn,
+                            "CCTV_SCAN",
+                            "CCTV Scan: Visual match confirmed for target " + actualAttacker + " in " + decoy.getCityNode() + " traffic logs.",
+                            decoy.getCityNode(),
+                            "Surveillance Tech"
+                    );
+                    decoyClue.setAssessment("ACCEPT");
+                    turnClues.add(decoyClue);
+                } else if ("SATELLITE".equals(decoy.getType())) {
+                    Node node = config.getNodes().stream().filter(n -> n.getId().equals(decoy.getCityNode())).findFirst().orElse(null);
+                    String cityName = node != null ? node.getName() : decoy.getCityNode();
+                    GameSession.Clue decoyClue = new GameSession.Clue(
+                            currentTurn,
+                            "SATELLITE_SCAN",
+                            "Satellite Imagery Analysis: " + actualAttacker + " was tracked to " + cityName + " via satellite reconnaissance.",
+                            decoy.getCityNode(),
+                            "Satellite Recon"
+                    );
+                    decoyClue.setAssessment("ACCEPT");
+                    turnClues.add(decoyClue);
+                }
+            }
+        }
+
         // 5. Trusted Intelligence Milestone Every 6 Turns (turn 6, 12, 18...)
         if (currentTurn % 6 == 0) {
             List<PlanStep> fullPlan = session.getAiMasterPlan().getPrimaryPlan();

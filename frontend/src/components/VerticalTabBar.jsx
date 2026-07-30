@@ -1,7 +1,13 @@
 import { Shield, Map, BookOpen, Lightbulb, Users, Search, FolderOpen, Package, Eye } from 'lucide-react';
 
-const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, actionCount }) => {
-  const tabs = [
+const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, actionCount, playerRole }) => {
+  const isAttacker = playerRole === 'ATTACKER';
+  const tabs = isAttacker ? [
+    { id: 'MAP', label: 'MAP', icon: Map, badge: 0 },
+    { id: 'OBJECTIVES', label: 'OBJECTIVES', icon: BookOpen, badge: 0 },
+    { id: 'HINTS', label: 'HINTS', icon: Lightbulb, badge: 0 },
+    { id: 'CELL_HQ', label: 'CELL HQ', icon: Users, badge: 0 }
+  ] : [
     { id: 'MAP', label: 'MAP', icon: Map, badge: 0 },
     { id: 'OBJECTIVES', label: 'OBJECTIVES', icon: BookOpen, badge: 0 },
     { id: 'HINTS', label: 'HINTS', icon: Lightbulb, badge: 0 },

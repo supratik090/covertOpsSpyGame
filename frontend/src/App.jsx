@@ -11,6 +11,7 @@ import GodModeView from './components/GodModeView';
 import ResourcesView from './components/ResourcesView';
 import ObjectiveBoardView from './components/ObjectiveBoardView';
 import HintsView from './components/HintsView';
+import CellHqView from './components/CellHqView';
 import Toast from './components/Toast';
 import EndTurnReportModal from './components/EndTurnReportModal';
 import GameOverModal from './components/GameOverModal';
@@ -43,6 +44,17 @@ export default function App() {
   const [localSafehouseBuilds, setLocalSafehouseBuilds] = useState([]); // [cityNode, ...]
   const [localTechDeploys, setLocalTechDeploys] = useState([]);     // [{type, cityNode}, ...]
 
+  // Attacker-specific buffered turn actions
+  const [localSuspectMove, setLocalSuspectMove] = useState('');
+  const [localTargetSafehouseCode, setLocalTargetSafehouseCode] = useState('');
+  const [localBuiltSafehouses, setLocalBuiltSafehouses] = useState([]);
+  const [localBuiltSecureSafehouses, setLocalBuiltSecureSafehouses] = useState([]);
+  const [localDecoyDeployments, setLocalDecoyDeployments] = useState([]);
+  const [localActiveJammerTarget, setLocalActiveJammerTarget] = useState('');
+  const [localSeekPermissionType, setLocalSeekPermissionType] = useState('');
+  const [localTriggerStrike, setLocalTriggerStrike] = useState(false);
+  const [localTriggerExfiltration, setLocalTriggerExfiltration] = useState(false);
+
   // God Mode Replay
   const [replayPlan, setReplayPlan] = useState(null);
   const [replayTurn, setReplayTurn] = useState(1);
@@ -55,6 +67,7 @@ export default function App() {
 
   // Retry spinner state
   const [retryState, setRetryState] = useState(null);
+  const [countdownText, setCountdownText] = useState('');
 
   // Load scenarios on mount or success
   const fetchScenarios = async () => {
@@ -87,6 +100,84 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    const token = localStorage.getItem('spy_game_token');
+    if (token) {
+      setScreen('SELECT');
+      fetchScenarios();
+      fetchSessions();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!session || !session.isMultiplayer) return;
+
+    const currentUser = localStorage.getItem('covert_ops_operator_user');
+    const isWaiting = session.lobbyStatus === 'LOBBY_WAITING' || session.activePlayer !== currentUser;
+
+    if (!isWaiting) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const token = localStorage.getItem('spy_game_token');
+        const res = await fetch(`${GAME_API_BASE}/${session.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (
+            data.lobbyStatus !== session.lobbyStatus || 
+            data.activePlayer !== session.activePlayer || 
+            data.currentTurn !== session.currentTurn ||
+            data.status !== session.status
+          ) {
+            setSession(data);
+            if (data.activePlayer === currentUser) {
+              addToast("It is your turn! Prepare your operations.", "success");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to poll session status", err);
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [session]);
+
+  useEffect(() => {
+    if (!session || !session.turnDeadline) {
+      setCountdownText('');
+      return;
+    }
+
+    const updateTimer = () => {
+      const deadline = new Date(session.turnDeadline).getTime();
+      const now = new Date().getTime();
+      const diff = deadline - now;
+
+      if (diff <= 0) {
+        setCountdownText('EXPIRED');
+        const currentUser = localStorage.getItem('covert_ops_operator_user');
+        if (session.activePlayer === currentUser && session.status === 'ACTIVE') {
+          addToast("TIME LIMIT EXPIRED. Executing scheduled transmission automatically.", "warning");
+          handleEndTurn();
+        }
+        clearInterval(timer);
+        return;
+      }
+
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setCountdownText(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(timer);
+  }, [session]);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now() + Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
@@ -97,14 +188,17 @@ export default function App() {
   };
 
   // Start new game
-  const handleStartNewGame = async () => {
+  const handleStartNewGame = async (role = 'DEFENDER', isMultiplayer = false, timerMinutes = 5) => {
     if (!selectedScenarioId) {
       addToast("Please select a scenario config.", "warning");
       return;
     }
     setLoading(true);
     try {
-      const res = await fetchWithRetry(`${GAME_API_BASE}/create?scenarioId=${selectedScenarioId}`, {
+      const endpoint = isMultiplayer
+        ? `${GAME_API_BASE}/create-multiplayer?scenarioId=${selectedScenarioId}&playerRole=${role}&timerMinutes=${timerMinutes}`
+        : `${GAME_API_BASE}/create?scenarioId=${selectedScenarioId}&playerRole=${role}`;
+      const res = await fetchWithRetry(endpoint, {
         method: 'POST'
       }, (a, m) => setRetryState({ attempt: a, max: m }));
       setRetryState(null);
@@ -118,18 +212,86 @@ export default function App() {
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
       setLostAgentsList([]);
+
+      // Clear Attacker states
+      setLocalSuspectMove('');
+      setLocalTargetSafehouseCode('');
+      setLocalBuiltSafehouses([]);
+      setLocalBuiltSecureSafehouses([]);
+      setLocalDecoyDeployments([]);
+      setLocalActiveJammerTarget('');
+      setLocalSeekPermissionType('');
+      setLocalTriggerStrike(false);
+      setLocalTriggerExfiltration(false);
+
       setActiveTab('OBJECTIVES');
       setScreen('GAME');
       setShowGodMode(false);
       setReplayPlan(null);
       fetchReplayData(data.id, true);
       fetchSessions();
-      addToast("Operation initiated successfully.", "success");
+      addToast(isMultiplayer ? "Multiplayer lobby created successfully." : "Operation initiated successfully.", "success");
     } catch (err) {
       addToast(err.message, "error");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Join multiplayer game
+  const handleJoinGame = async (token) => {
+    if (!token) {
+      addToast("Please enter a valid game token.", "warning");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/join?gameToken=${token.trim()}`, {
+        method: 'POST'
+      }, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || 'Failed to join game session.');
+      }
+      const data = await res.json();
+      setSession(data);
+      localStorage.setItem('spy_game_session_id', data.id);
+      setLocalAssessments({});
+      setCovertActions([]);
+      setLocalAgentTasks({});
+      setLocalSafehouseBuilds([]);
+      setLocalTechDeploys([]);
+      setLostAgentsList([]);
+
+      // Clear Attacker states
+      setLocalSuspectMove('');
+      setLocalTargetSafehouseCode('');
+      setLocalBuiltSafehouses([]);
+      setLocalBuiltSecureSafehouses([]);
+      setLocalDecoyDeployments([]);
+      setLocalActiveJammerTarget('');
+      setLocalSeekPermissionType('');
+      setLocalTriggerStrike(false);
+      setLocalTriggerExfiltration(false);
+
+      setActiveTab('OBJECTIVES');
+      setScreen('GAME');
+      setShowGodMode(false);
+      setReplayPlan(null);
+      fetchSessions();
+      addToast("Successfully joined operation.", "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkWaiting = () => {
+    const currentUser = localStorage.getItem('covert_ops_operator_user');
+    const waiting = session && session.isMultiplayer && (session.lobbyStatus === 'LOBBY_WAITING' || session.activePlayer !== currentUser);
+    return waiting;
   };
 
   // Continue existing game
@@ -223,6 +385,10 @@ export default function App() {
 
   // Assign agent task (buffered locally)
   const handleAssignAgentTask = (agentId, task) => {
+    if (checkWaiting()) {
+      addToast("It is not your turn.", "warning");
+      return;
+    }
     if (!session) return;
     const agent = session.agents.find(a => a.id === agentId);
     if (!agent) return;
@@ -236,6 +402,10 @@ export default function App() {
 
   // Relocate agent locally
   const handleRelocateAgent = (agentId, targetCity) => {
+    if (checkWaiting()) {
+      addToast("It is not your turn.", "warning");
+      return;
+    }
     if (!session) return;
     
     // Check if agent is currently locked out by cooldown/training
@@ -267,6 +437,10 @@ export default function App() {
 
   // Relocate tactical team locally
   const handleRelocateTacticalTeam = (teamId, targetCity) => {
+    if (checkWaiting()) {
+      addToast("It is not your turn.", "warning");
+      return;
+    }
     if (!session) return;
 
     const team = session.tacticalTeams.find(t => t.id === teamId);
@@ -292,34 +466,92 @@ export default function App() {
   };
 
   // Build safehouse (buffered locally)
-  const handleBuildSafehouse = (cityNode) => {
+  const handleBuildSafehouse = (cityNode, isSecure = false) => {
+    if (checkWaiting()) {
+      addToast("It is not your turn.", "warning");
+      return;
+    }
     if (!session) return;
-    if (localSafehouseBuilds.includes(cityNode)) {
-      setLocalSafehouseBuilds(prev => prev.filter(c => c !== cityNode));
-      addToast(`Safehouse construction cancelled for ${cityNode.toUpperCase()}`, "info");
+    const isAttacker = session.playerRole === 'ATTACKER';
+    if (isAttacker) {
+      if (isSecure) {
+        if (localBuiltSecureSafehouses.includes(cityNode)) {
+          setLocalBuiltSecureSafehouses(prev => prev.filter(c => c !== cityNode));
+          addToast(`Secure Safehouse construction cancelled for ${cityNode.toUpperCase()}`, "info");
+        } else {
+          setLocalBuiltSecureSafehouses(prev => [...prev, cityNode]);
+          addToast(`Secure Safehouse construction queued in ${cityNode.toUpperCase()}`, "success");
+        }
+      } else {
+        if (localBuiltSafehouses.includes(cityNode)) {
+          setLocalBuiltSafehouses(prev => prev.filter(c => c !== cityNode));
+          addToast(`Safehouse construction cancelled for ${cityNode.toUpperCase()}`, "info");
+        } else {
+          setLocalBuiltSafehouses(prev => [...prev, cityNode]);
+          addToast(`Safehouse construction queued in ${cityNode.toUpperCase()}`, "success");
+        }
+      }
     } else {
-      setLocalSafehouseBuilds(prev => [...prev, cityNode]);
-      addToast(`Safehouse construction queued in ${cityNode.toUpperCase()}`, "success");
+      if (localSafehouseBuilds.includes(cityNode)) {
+        setLocalSafehouseBuilds(prev => prev.filter(c => c !== cityNode));
+        addToast(`Safehouse construction cancelled for ${cityNode.toUpperCase()}`, "info");
+      } else {
+        setLocalSafehouseBuilds(prev => [...prev, cityNode]);
+        addToast(`Safehouse construction queued in ${cityNode.toUpperCase()}`, "success");
+      }
     }
   };
 
   // Deploy tech resource (buffered locally)
   const handleDeployTech = (type, cityNode) => {
+    if (checkWaiting()) {
+      addToast("It is not your turn.", "warning");
+      return;
+    }
     if (!session) return;
-    setLocalTechDeploys(prev => {
-      const exists = prev.some(d => d.type === type && d.cityNode === cityNode);
-      if (exists) {
-        addToast(`${type.replace(/_/g, ' ')} deployment cancelled.`, "info");
-        return prev.filter(d => !(d.type === type && d.cityNode === cityNode));
-      } else {
-        addToast(`${type.replace(/_/g, ' ')} deployment queued for ${cityNode.toUpperCase()}`, "success");
-        return [...prev, { type, cityNode }];
+    const isAttacker = session.playerRole === 'ATTACKER';
+    if (isAttacker) {
+      if (type === 'JAMMER') {
+        if (localActiveJammerTarget === cityNode) {
+          setLocalActiveJammerTarget('');
+          addToast(`Active Jammer deployment cancelled.`, "info");
+        } else {
+          setLocalActiveJammerTarget(cityNode);
+          addToast(`Active Jammer deployment queued in ${cityNode.toUpperCase()}`, "success");
+        }
+      } else if (type.startsWith('DECOY_')) {
+        const decoyType = type.replace('DECOY_', '');
+        setLocalDecoyDeployments(prev => {
+          const exists = prev.some(d => d.type === decoyType && d.cityNode === cityNode);
+          if (exists) {
+            addToast(`Decoy ${decoyType} cancelled.`, "info");
+            return prev.filter(d => !(d.type === decoyType && d.cityNode === cityNode));
+          } else {
+            addToast(`Decoy ${decoyType} queued in ${cityNode.toUpperCase()}`, "success");
+            return [...prev, { type: decoyType, cityNode }];
+          }
+        });
       }
-    });
+    } else {
+      setLocalTechDeploys(prev => {
+        const exists = prev.some(d => d.type === type && d.cityNode === cityNode);
+        if (exists) {
+          addToast(`${type.replace(/_/g, ' ')} deployment cancelled.`, "info");
+          return prev.filter(d => !(d.type === type && d.cityNode === cityNode));
+        } else {
+          addToast(`${type.replace(/_/g, ' ')} deployment queued for ${cityNode.toUpperCase()}`, "success");
+          return [...prev, { type, cityNode }];
+        }
+      });
+    }
   };
 
   // Covert Actions Planner
   const toggleCovertAction = (actionType, cityNode, teamId, targetSafehouseCode = "") => {
+    if (checkWaiting()) {
+      addToast("It is not your turn.", "warning");
+      return;
+    }
     const existingIdx = covertActions.findIndex(a => a.teamId === teamId);
     let newActions = [...covertActions];
     if (existingIdx >= 0) {
@@ -368,7 +600,18 @@ export default function App() {
         teamRelocations: localTeamMoves,
         agentTasks: localAgentTasks,
         safehouseBuilds: localSafehouseBuilds,
-        techDeployments: localTechDeploys
+        techDeployments: localTechDeploys,
+        
+        // Attacker specific fields
+        suspectMoveTarget: localSuspectMove,
+        targetSafehouseCode: localTargetSafehouseCode,
+        builtSafehouses: localBuiltSafehouses,
+        builtSecureSafehouses: localBuiltSecureSafehouses,
+        decoyDeployments: localDecoyDeployments,
+        activeJammerTarget: localActiveJammerTarget,
+        seekPermissionType: localSeekPermissionType,
+        triggerStrike: localTriggerStrike,
+        triggerExfiltration: localTriggerExfiltration
       };
 
       const res = await fetchWithRetry(`${GAME_API_BASE}/${session.id}/end-turn`, {
@@ -426,6 +669,18 @@ export default function App() {
       setLocalAgentTasks({});
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
+
+      // Reset Attacker states
+      setLocalSuspectMove('');
+      setLocalTargetSafehouseCode('');
+      setLocalBuiltSafehouses([]);
+      setLocalBuiltSecureSafehouses([]);
+      setLocalDecoyDeployments([]);
+      setLocalActiveJammerTarget('');
+      setLocalSeekPermissionType('');
+      setLocalTriggerStrike(false);
+      setLocalTriggerExfiltration(false);
+
       setLostAgentsList(prev => [...prev, ...lostAgents]);
       
       const nextAssessments = {};
@@ -506,6 +761,8 @@ export default function App() {
       }).length
     : 0;
 
+  const isWaiting = checkWaiting();
+
   return (
     <div className={`app-layout ${screen !== 'GAME' ? 'no-sidebar' : ''}`}>
       <div className="crt-overlay"></div>
@@ -525,7 +782,7 @@ export default function App() {
           onStartNewGame={handleStartNewGame}
           onLoadGame={handleLoadGame}
           onDeleteGame={handleDeleteGame}
-          hasActiveGame={hasActiveGame}
+          onJoinGame={handleJoinGame}
           loading={loading}
           errorMsg={errorMsg}
         />
@@ -539,6 +796,7 @@ export default function App() {
             clueCount={unassessedCluesCount}
             acceptedCount={acceptedCluesCount}
             actionCount={covertActions.length}
+            playerRole={session.playerRole}
           />
 
           <main className="tab-content">
@@ -553,6 +811,20 @@ export default function App() {
             {activeTab === 'HINTS' && (
               <HintsView
                 session={session}
+              />
+            )}
+
+            {activeTab === 'CELL_HQ' && (
+              <CellHqView
+                session={session}
+                activeScenario={activeScenario}
+                localSeekPermissionType={localSeekPermissionType}
+                setLocalSeekPermissionType={setLocalSeekPermissionType}
+                localTriggerStrike={localTriggerStrike}
+                setLocalTriggerStrike={setLocalTriggerStrike}
+                localTriggerExfiltration={localTriggerExfiltration}
+                setLocalTriggerExfiltration={setLocalTriggerExfiltration}
+                addToast={addToast}
               />
             )}
 
@@ -580,6 +852,15 @@ export default function App() {
                 localTechDeploys={localTechDeploys}
                 localSafehouseBuilds={localSafehouseBuilds}
                 addToast={addToast}
+                isWaiting={isWaiting}
+                localSuspectMove={localSuspectMove}
+                setLocalSuspectMove={setLocalSuspectMove}
+                localTargetSafehouseCode={localTargetSafehouseCode}
+                setLocalTargetSafehouseCode={setLocalTargetSafehouseCode}
+                localBuiltSafehouses={localBuiltSafehouses}
+                localBuiltSecureSafehouses={localBuiltSecureSafehouses}
+                localActiveJammerTarget={localActiveJammerTarget}
+                localDecoyDeployments={localDecoyDeployments}
               />
             )}
 
@@ -641,6 +922,8 @@ export default function App() {
             onEndTurn={handleEndTurn}
             loading={loading}
             onExit={handleExit}
+            isWaiting={isWaiting}
+            countdownText={countdownText}
           />
         </>
       )}

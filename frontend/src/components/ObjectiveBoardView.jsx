@@ -7,14 +7,10 @@ export default function ObjectiveBoardView({ session, activeScenario, onClose })
   if (!session) return null;
 
   const scenarioTitle = activeScenario?.title?.toUpperCase() || session.scenarioId?.replace(/_/g, ' ').toUpperCase() || 'CLASSIFIED OPERATION';
-  const briefingText = activeScenario?.briefing || session.aiMasterPlan?.briefing || "Hostile threat cell is plotting a strike.";
-
-  const homeSafehouseCost = activeScenario?.safehouseBuildCosts?.HOME_TERRITORY 
-    ? `$${(activeScenario.safehouseBuildCosts.HOME_TERRITORY / 1000)}K` 
-    : '$50K';
-  const hostileSafehouseCost = activeScenario?.safehouseBuildCosts?.HOSTILE_TERRITORY 
-    ? `$${(activeScenario.safehouseBuildCosts.HOSTILE_TERRITORY / 1000)}K` 
-    : '$150K';
+  const isAttacker = session.playerRole === 'ATTACKER';
+  const briefingText = isAttacker
+    ? (activeScenario?.attackerBriefing || "Major terrorist attack planned on North Indian cities. Execute attack with precision.")
+    : (activeScenario?.briefing || session.aiMasterPlan?.briefing || "Hostile threat cell is plotting a strike.");
 
   const hostileCities = activeScenario?.nodes
     ?.filter(n => n.territory === 'HOSTILE_TERRITORY')
@@ -29,7 +25,106 @@ export default function ObjectiveBoardView({ session, activeScenario, onClose })
   const targetCityName = activeScenario?.nodes?.find(n => n.id === activeScenario.targetCity)?.name || 'New Delhi';
   const targetVipName = activeScenario?.targetVip || 'High-Profile Minister';
 
-  const slides = [
+  const slides = isAttacker ? [
+    {
+      title: "1. SITUATION REPORT (SITREP)",
+      icon: Target,
+      color: "var(--cyan)",
+      content: (
+        <div className="flex-col-container">
+          <div className="sitrep-box">
+            <div>
+              <span className="sitrep-title">OPERATION SYSTEM:</span>
+              <span className="text-cyber font-bold text-lg tracking-widest block">{scenarioTitle}</span>
+            </div>
+            
+            <div className="sitrep-item">
+              <span className="sitrep-title white">a. AREA OF OPERATIONS (AO)</span>
+              <p className="sitrep-text">
+                Friendly home soil zones (<span className="highlight">{hostileCities}</span>) connecting to hostile Target sectors (<span className="highlight">{friendlyCities}</span>).
+              </p>
+            </div>
+
+            <div className="sitrep-item">
+              <span className="sitrep-title white">b. TACTICAL OBJECTIVE</span>
+              <p className="sitrep-text">
+                Establish safehouse networks, cross the border undetected, and relocate the active threat agent to <span className="highlight">{targetCityName}</span> to initiate strike payload against the VIP (<span className="highlight">{targetVipName}</span>).
+              </p>
+            </div>
+            
+            <div className="sitrep-item briefing-alert">
+              <span className="sitrep-title amber">c. CELL LEADER DIRECTIVE (BRIEFING)</span>
+              <p className="sitrep-text" style={{ fontStyle: 'italic', color: 'var(--amber)' }}>
+                "{briefingText}"
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "2. EXECUTION (CONCEPT OF OPS)",
+      icon: Shield,
+      color: "var(--red)",
+      content: (
+        <div className="flex-col-container">
+          <div className="sitrep-box">
+            <div className="sitrep-item">
+              <span className="sitrep-title white">PHASE I: SOURCING & PREPARATION</span>
+              <p className="sitrep-text">
+                Utilize local channels to build base safehouses. Source sniper payloads and transaction funds in friendly cities.
+              </p>
+            </div>
+            
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--red)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--red)' }}>PHASE II: BORDER CROSSING</span>
+              <p className="sitrep-text">
+                After completing Logistics Sourcing, transition to Handover phase and request Border Infiltration Clearance from HQ. Once approved, cross the border checkpoints.
+              </p>
+            </div>
+
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--red)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--red)' }}>PHASE III: PAYLOAD STRIKE & EXFILTRATION</span>
+              <p className="sitrep-text">
+                Infiltrate the target city, request Strike Authorization, and detonate the payload. You must then exfiltrate the operative back to home soil undetected to secure final victory.
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "3. COUNTER-INTELLIGENCE PROTOCOLS",
+      icon: Radio,
+      color: "var(--red)",
+      content: (
+        <div className="flex-col-container">
+          <div className="sitrep-box">
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--red)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--red)' }}>a. RADAR DEFLECTION (DECOYS & JAMMERS)</span>
+              <p className="sitrep-text">
+                Friendly CCTV, wire taps, and satellites will increase your heat level. Deploy Decoy sensors and Active Jammers to mask your locations and prevent tactical team raids.
+              </p>
+            </div>
+
+            <div className="sitrep-item">
+              <span className="sitrep-title white">b. SECURE SAFEHOUSE NETWORKS</span>
+              <p className="sitrep-text">
+                Construct Secure Safehouses to fully hide the suspect and block active defender scans for up to 5 turns.
+              </p>
+            </div>
+
+            <div className="sitrep-item briefing-alert" style={{ borderLeftColor: 'var(--emerald)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--emerald)' }}>c. VICTORY PARAMETERS</span>
+              <p className="sitrep-text" style={{ fontStyle: 'italic', color: 'var(--emerald-light)' }}>
+                Target objective: Execute strike on the target VIP and safely return back to home soil undetected.
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+  ] : [
     {
       title: "1. SITUATION REPORT (SITREP)",
       icon: Target,

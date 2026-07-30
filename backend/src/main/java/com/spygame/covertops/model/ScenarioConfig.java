@@ -11,6 +11,7 @@ public class ScenarioConfig {
     private String scenarioId;
     private String title;
     private String briefing;
+    private String attackerBriefing;
     private String targetCity;
     private String targetVip;
     private String attackForm;
@@ -40,6 +41,9 @@ public class ScenarioConfig {
 
     public String getBriefing() { return briefing; }
     public void setBriefing(String briefing) { this.briefing = briefing; }
+
+    public String getAttackerBriefing() { return attackerBriefing; }
+    public void setAttackerBriefing(String attackerBriefing) { this.attackerBriefing = attackerBriefing; }
 
     public String getTargetCity() { return targetCity; }
     public void setTargetCity(String targetCity) { this.targetCity = targetCity; }

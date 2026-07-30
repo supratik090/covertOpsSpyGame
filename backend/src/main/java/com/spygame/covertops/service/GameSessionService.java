@@ -32,6 +32,12 @@ public class GameSessionService {
     @Autowired
     private com.spygame.covertops.repository.ScenarioConfigRepository scenarioConfigRepository;
 
+    @Autowired
+    private PlayerAttackerService playerAttackerService;
+
+    @Autowired
+    private AIDefenderService aiDefenderService;
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     // Creates a new Game Session, fetching scenario from MongoDB database
@@ -50,13 +56,10 @@ public class GameSessionService {
     }
 
     public GameSession createSession(String scenarioId) {
-        // Prevent creating a new game if any ACTIVE session already exists
-        List<GameSession> existing = repository.findAll();
-        for (GameSession s : existing) {
-            if ("ACTIVE".equals(s.getStatus())) {
-                throw new IllegalStateException("An active operation already exists. Complete or delete it before starting a new one.");
-            }
-        }
+        return createSession(scenarioId, "DEFENDER", null);
+    }
+
+    public GameSession createMultiplayerSession(String scenarioId, String playerARole, String ownerUsername, int timerMinutes) {
         try {
             ScenarioConfig config = scenarioConfigRepository.findById(scenarioId)
                     .orElseThrow(() -> new IllegalArgumentException("Scenario config not found in database for ID: " + scenarioId));
@@ -68,6 +71,15 @@ public class GameSessionService {
             session.setMaxTurns(config.getMaxTurns());
             session.setBudget(config.getStartingBudget());
             session.setStatus("ACTIVE");
+            session.setPlayerRole(playerARole != null ? playerARole.toUpperCase() : "DEFENDER");
+            session.setOwnerUsername(ownerUsername);
+
+            session.setMultiplayer(true);
+            session.setPlayerA(ownerUsername);
+            session.setPlayerARole(playerARole != null ? playerARole.toUpperCase() : "DEFENDER");
+            session.setPlayerBRole("ATTACKER".equals(session.getPlayerARole()) ? "DEFENDER" : "ATTACKER");
+            session.setTurnTimerDurationMinutes(timerMinutes);
+            session.setLobbyStatus("LOBBY_WAITING");
 
             // Populate attacker names and select actual attacker first
             String actual = "Suspect";
@@ -78,22 +90,215 @@ public class GameSessionService {
                 session.setActualAttacker(actual);
             }
 
-            // 1. Generate Fresh AI Master Plan and Backup Plan with knowledge of the actual attacker
-            AIMasterPlan plan = aiService.generateMasterPlan(config, actual);
-            session.setAiMasterPlan(plan);
+            // 1. Generate Fresh AI Master Plan and Backup Plan if player is defender
+            if ("ATTACKER".equalsIgnoreCase(playerARole)) {
+                AIMasterPlan plan = new AIMasterPlan(new java.util.ArrayList<>(), new java.util.ArrayList<>());
+                session.setAiMasterPlan(plan);
+                session.setSuspectPlans(new java.util.HashMap<>());
+            } else {
+                AIMasterPlan plan = aiService.generateMasterPlan(config, actual);
+                session.setAiMasterPlan(plan);
 
-            // 1.1 Generate Decoy Plans for other suspects
-            Map<String, List<PlanStep>> suspectPlans = new java.util.HashMap<>();
-            suspectPlans.put(actual, plan.getPrimaryPlan());
-            if (config.getAttackerNames() != null) {
-                for (String name : config.getAttackerNames()) {
-                    if (!name.equals(actual)) {
-                        List<PlanStep> decoyPath = aiService.generateDecoyPath(config);
-                        suspectPlans.put(name, decoyPath);
+                // 1.1 Generate Decoy Plans for other suspects
+                Map<String, List<PlanStep>> suspectPlans = new java.util.HashMap<>();
+                suspectPlans.put(actual, plan.getPrimaryPlan());
+                if (config.getAttackerNames() != null) {
+                    for (String name : config.getAttackerNames()) {
+                        if (!name.equals(actual)) {
+                            List<PlanStep> decoyPath = aiService.generateDecoyPath(config);
+                            suspectPlans.put(name, decoyPath);
+                        }
+                    }
+                }
+                session.setSuspectPlans(suspectPlans);
+            }
+
+            // 1.2 Initialize cityHeat map with 0 for all nodes
+            Map<String, Integer> cityHeat = new java.util.HashMap<>();
+            if (config.getNodes() != null) {
+                for (Node n : config.getNodes()) {
+                    cityHeat.put(n.getId(), 0);
+                }
+            }
+            session.setCityHeat(cityHeat);
+
+            // 2. Parse Starting Rosters (Agents & Teams)
+            if (config.getAgents() != null) {
+                List<GameSession.Agent> agentsList = config.getAgents().stream().map(aMap -> {
+                    GameSession.Agent agent = new GameSession.Agent();
+                    agent.setId((Integer) aMap.get("id"));
+                    agent.setName((String) aMap.get("name"));
+                    agent.setCodename((String) aMap.get("codename"));
+                    agent.setCurrentCity((String) aMap.get("startingCity"));
+                    agent.setActiveTask("FIND_SUSPECT");
+                    agent.setSkills((Map<String, Integer>) aMap.get("skills"));
+                    agent.setCooldownRemaining(0);
+                    return agent;
+                }).collect(Collectors.toList());
+                session.setAgents(agentsList);
+            }
+
+            if (config.getTacticalTeams() != null) {
+                List<GameSession.TacticalTeam> teamsList = config.getTacticalTeams().stream().map(tMap -> {
+                    GameSession.TacticalTeam team = new GameSession.TacticalTeam();
+                    team.setId((Integer) tMap.get("id"));
+                    team.setName((String) tMap.get("name"));
+                    team.setOperatingCountry((String) tMap.get("operatingCountry"));
+                    team.setCurrentCity((String) tMap.get("startingCity"));
+                    team.setSkills((Map<String, Integer>) tMap.get("skills"));
+                    team.setCooldownRemaining(0);
+                    return team;
+                }).collect(Collectors.toList());
+                session.setTacticalTeams(teamsList);
+            }
+
+            // 3. Parse Starting Friendly Safehouses
+            List<GameSession.Safehouse> safehousesList = new ArrayList<>();
+            if (config.getStartingDefenderSafehouses() != null) {
+                safehousesList = config.getStartingDefenderSafehouses().stream()
+                        .map(sMap -> new GameSession.Safehouse(sMap.get("cityId"), "DEFENDER", "DEFAULT", true))
+                        .collect(Collectors.toList());
+            }
+
+            // 3.1 Pre-build hidden hostile safehouses
+            List<PlanStep> allSteps = new ArrayList<>();
+            if (session.getSuspectPlans() != null) {
+                for (List<PlanStep> pathSteps : session.getSuspectPlans().values()) {
+                    allSteps.addAll(pathSteps);
+                }
+            }
+            if (session.getAiMasterPlan() != null && session.getAiMasterPlan().getFallbackPlan() != null) {
+                allSteps.addAll(session.getAiMasterPlan().getFallbackPlan());
+            }
+            for (PlanStep step : allSteps) {
+                String loc = step.getSuspectLocation();
+                if (loc != null && !loc.isEmpty() && !loc.equals("NONE")) {
+                    final String targetLoc = loc;
+                    boolean exists = safehousesList.stream()
+                        .anyMatch(s -> s.getCityNode().equals(targetLoc) && "HOSTILE".equals(s.getOwnerFaction()));
+                    if (!exists) {
+                        safehousesList.add(new GameSession.Safehouse(loc, "HOSTILE", "DEFAULT", false));
                     }
                 }
             }
-            session.setSuspectPlans(suspectPlans);
+            session.setSafehouses(safehousesList);
+
+            // 4. Parse Starting Espionage Scanning Resources
+            if (config.getStartingEspionageResources() != null) {
+                List<GameSession.ActiveResource> resourcesList = config.getStartingEspionageResources().stream()
+                        .map(rMap -> new GameSession.ActiveResource(rMap.get("type"), rMap.get("cityId"), 0))
+                        .collect(Collectors.toList());
+                session.setEspionageResources(resourcesList);
+            }
+
+            return repository.save(session);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to initialize multiplayer session: " + e.getMessage(), e);
+        }
+    }
+
+    public GameSession joinSession(UUID sessionId, String inviteeUsername) {
+        GameSession session = getSession(sessionId);
+        if (!session.isMultiplayer()) {
+            throw new IllegalArgumentException("This is not a multiplayer game.");
+        }
+        if (!"LOBBY_WAITING".equals(session.getLobbyStatus())) {
+            throw new IllegalStateException("Lobby is already full or game has started/terminated.");
+        }
+        if (session.getPlayerA().equals(inviteeUsername)) {
+            throw new IllegalArgumentException("Creator cannot join their own lobby as Player B.");
+        }
+        session.setPlayerB(inviteeUsername);
+        session.setLobbyStatus("IN_PROGRESS");
+
+        // The attacker starts first
+        String attackerUsername = "ATTACKER".equals(session.getPlayerARole()) ? session.getPlayerA() : inviteeUsername;
+        session.setActivePlayer(attackerUsername);
+        session.setTurnDeadline(java.time.LocalDateTime.now().plusMinutes(session.getTurnTimerDurationMinutes()));
+
+        // Also set up starting budgets / locations for human Attacker if not already configured
+        ScenarioConfig config = scenarioConfigRepository.findById(session.getScenarioId())
+                .orElseThrow(() -> new IllegalArgumentException("Scenario config not found: " + session.getScenarioId()));
+        session.setAttackerBudget(config.getStartingBudget() != 0 ? config.getStartingBudget() : 300000);
+        List<Node> hostileNodes = config.getNodes().stream()
+                .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                .collect(Collectors.toList());
+        if (!hostileNodes.isEmpty()) {
+            java.util.Random rand = new java.util.Random();
+            session.setSuspectLocation(hostileNodes.get(rand.nextInt(hostileNodes.size())).getId());
+        } else {
+            session.setSuspectLocation("Berlin");
+        }
+        session.setActiveAttackerPhase("TRAIL_BREAKING");
+
+        return repository.save(session);
+    }
+
+    public GameSession createSession(String scenarioId, String playerRole) {
+        return createSession(scenarioId, playerRole, null);
+    }
+
+    public GameSession createSession(String scenarioId, String playerRole, String ownerUsername) {
+        try {
+            ScenarioConfig config = scenarioConfigRepository.findById(scenarioId)
+                    .orElseThrow(() -> new IllegalArgumentException("Scenario config not found in database for ID: " + scenarioId));
+
+            GameSession session = new GameSession();
+            session.setId(UUID.randomUUID());
+            session.setScenarioId(config.getScenarioId());
+            session.setCurrentTurn(1);
+            session.setMaxTurns(config.getMaxTurns());
+            session.setBudget(config.getStartingBudget());
+            session.setStatus("ACTIVE");
+            session.setPlayerRole(playerRole != null ? playerRole.toUpperCase() : "DEFENDER");
+            session.setOwnerUsername(ownerUsername);
+
+            // If player is Attacker, set starting budget and starting location
+            if ("ATTACKER".equals(session.getPlayerRole())) {
+                session.setAttackerBudget(config.getStartingBudget() != 0 ? config.getStartingBudget() : 300000);
+                List<Node> hostileNodes = config.getNodes().stream()
+                        .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                        .collect(Collectors.toList());
+                if (!hostileNodes.isEmpty()) {
+                    java.util.Random rand = new java.util.Random();
+                    session.setSuspectLocation(hostileNodes.get(rand.nextInt(hostileNodes.size())).getId());
+                } else {
+                    session.setSuspectLocation("Berlin");
+                }
+                session.setActiveAttackerPhase("TRAIL_BREAKING");
+            }
+
+            // Populate attacker names and select actual attacker first
+            String actual = "Suspect";
+            if (config.getAttackerNames() != null && !config.getAttackerNames().isEmpty()) {
+                session.setAttackerNames(config.getAttackerNames());
+                java.util.Random rand = new java.util.Random();
+                actual = config.getAttackerNames().get(rand.nextInt(config.getAttackerNames().size()));
+                session.setActualAttacker(actual);
+            }
+
+            // 1. Generate Fresh AI Master Plan and Backup Plan if player is defender
+            if ("ATTACKER".equalsIgnoreCase(playerRole)) {
+                AIMasterPlan plan = new AIMasterPlan(new java.util.ArrayList<>(), new java.util.ArrayList<>());
+                session.setAiMasterPlan(plan);
+                session.setSuspectPlans(new java.util.HashMap<>());
+            } else {
+                AIMasterPlan plan = aiService.generateMasterPlan(config, actual);
+                session.setAiMasterPlan(plan);
+
+                // 1.1 Generate Decoy Plans for other suspects
+                Map<String, List<PlanStep>> suspectPlans = new java.util.HashMap<>();
+                suspectPlans.put(actual, plan.getPrimaryPlan());
+                if (config.getAttackerNames() != null) {
+                    for (String name : config.getAttackerNames()) {
+                        if (!name.equals(actual)) {
+                            List<PlanStep> decoyPath = aiService.generateDecoyPath(config);
+                            suspectPlans.put(name, decoyPath);
+                        }
+                    }
+                }
+                session.setSuspectPlans(suspectPlans);
+            }
 
             // 1.2 Initialize cityHeat map with 0 for all nodes
             Map<String, Integer> cityHeat = new java.util.HashMap<>();
@@ -208,16 +413,121 @@ public class GameSessionService {
     // Resolves all turn-end scans and checks roadblocks.
     // Ticks the timeline forward.
     public GameSession processEndTurn(UUID sessionId, com.spygame.covertops.model.EndTurnRequest request) {
+        return processEndTurn(sessionId, request, null);
+    }
+
+    public GameSession processEndTurn(UUID sessionId, com.spygame.covertops.model.EndTurnRequest request, String username) {
         GameSession session = getSession(sessionId);
         if (!"ACTIVE".equals(session.getStatus())) {
             throw new IllegalStateException("Game session is no longer active.");
         }
 
-        // Apply relocations before resolving clues and combat
         final String scenarioId = session.getScenarioId();
         final ScenarioConfig config = scenarioConfigRepository.findById(scenarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Scenario configuration not found in database: " + scenarioId));
 
+        if (session.isMultiplayer()) {
+            if (!"IN_PROGRESS".equals(session.getLobbyStatus())) {
+                throw new IllegalStateException("Multiplayer game lobby is not in progress.");
+            }
+            if (username != null && !username.equals(session.getActivePlayer())) {
+                throw new IllegalStateException("It is not your turn to submit selections.");
+            }
+
+            boolean isAttacker = false;
+            if (username != null) {
+                if (username.equals(session.getPlayerA())) {
+                    isAttacker = "ATTACKER".equals(session.getPlayerARole());
+                } else if (username.equals(session.getPlayerB())) {
+                    isAttacker = "ATTACKER".equals(session.getPlayerBRole());
+                }
+            } else {
+                isAttacker = "ATTACKER".equals(session.getActivePlayer().equals(session.getPlayerA()) ? session.getPlayerARole() : session.getPlayerBRole());
+            }
+
+            if (isAttacker) {
+                // Apply Attacker's moves
+                session = playerAttackerService.applyAttackerActions(session, request, config);
+
+                if (!"ACTIVE".equals(session.getStatus())) {
+                    return repository.save(session);
+                }
+
+                // Switch turn to Defender
+                String defenderUsername = session.getPlayerA().equals(session.getActivePlayer()) ? session.getPlayerB() : session.getPlayerA();
+                session.setActivePlayer(defenderUsername);
+                session.setPlayerRole("DEFENDER");
+                session.setTurnDeadline(java.time.LocalDateTime.now().plusMinutes(session.getTurnTimerDurationMinutes()));
+                
+                return repository.save(session);
+            }
+            session.setPlayerRole("DEFENDER");
+        }
+
+        if ("ATTACKER".equals(session.getPlayerRole())) {
+            int currentTurn = session.getCurrentTurn();
+
+            // 1. Process human attacker actions (move suspect, tools, permissions, etc.)
+            session = playerAttackerService.applyAttackerActions(session, request, config);
+
+            if (!"ACTIVE".equals(session.getStatus())) {
+                return repository.save(session);
+            }
+
+            // 2. Process AI Defender actions (scanners, agent moves, safehouse raids, lockdowns)
+            session = aiDefenderService.executeTurn(session, config);
+
+            if (!"ACTIVE".equals(session.getStatus())) {
+                return repository.save(session);
+            }
+
+            // 3. Process automated clues generated by suspect moves/decoys/satellites
+            List<GameSession.Clue> turnIntel = clueEngine.generateTurnClues(session, config);
+            session.getDiscoveredClues().addAll(turnIntel);
+
+            // Tick down active technologically scanner durations and remove expired ones
+            if (session.getEspionageResources() != null) {
+                List<GameSession.ActiveResource> activeResources = new ArrayList<>();
+                for (GameSession.ActiveResource res : session.getEspionageResources()) {
+                    int left = res.getCooldownRemaining() - 1;
+                    if (left > 0) {
+                        res.setCooldownRemaining(left);
+                        activeResources.add(res);
+                    }
+                }
+                session.setEspionageResources(activeResources);
+            }
+
+            // Advance turn
+            session.setCurrentTurn(currentTurn + 1);
+
+            // Check Defeat: if currentTurn exceeds deadline limit
+            if (session.getCurrentTurn() > session.getMaxTurns()) {
+                session.setStatus("COMPROMISED");
+                session.getDiscoveredClues().add(new GameSession.Clue(session.getCurrentTurn(), "TACTICAL_FORCE", 
+                        "Crisis level alert: Strike executed. Strike initiated. Mission failed."));
+            }
+
+            // If suspect exfiltrated undetected back to home soil after strike, set victory
+            boolean reachedHome = false;
+            String loc = session.getSuspectLocation();
+            Node node = config.getNodes().stream().filter(n -> n.getId().equals(loc)).findFirst().orElse(null);
+            if (node != null && "HOSTILE_TERRITORY".equals(node.getTerritory())) {
+                reachedHome = true;
+            }
+            if ("EXFILTRATION".equals(session.getActiveAttackerPhase()) && reachedHome) {
+                session.setStatus("SUCCESS");
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        session.getCurrentTurn(),
+                        "TACTICAL_FORCE",
+                        "MISSION SUCCESS! operative successfully returned back to home soil undetected. Victory achieved."
+                ));
+            }
+
+            return repository.save(session);
+        }
+
+        // Apply relocations before resolving clues and combat
         if (request.getAgentRelocations() != null) {
             for (Map.Entry<Integer, String> entry : request.getAgentRelocations().entrySet()) {
                 try {
@@ -431,7 +741,7 @@ public class GameSessionService {
                 .findFirst()
                 .orElse(null);
 
-        if (currentStep != null) {
+        if (currentStep != null || session.isMultiplayer()) {
             // 2. Resolve Player's Covert Actions for this turn
             for (Map<String, Object> action : covertActions) {
                 String type = (String) action.get("actionType"); 
@@ -478,7 +788,14 @@ public class GameSessionService {
                 session.setBudget(session.getBudget() - cost);
 
                 // 2A. Resolve Safehouse Raid Combat Encounter
-                if ("RAID_SAFEHOUSE".equals(type) && city.equals(currentStep.getSuspectLocation())) {
+                boolean isSuspectAtRaid = false;
+                if (session.isMultiplayer()) {
+                    isSuspectAtRaid = city.equals(session.getSuspectLocation());
+                } else {
+                    isSuspectAtRaid = currentStep != null && city.equals(currentStep.getSuspectLocation());
+                }
+
+                if ("RAID_SAFEHOUSE".equals(type) && isSuspectAtRaid) {
                     // Extract chosen targetSafehouseCode from user action
                     String targetCode = action.containsKey("targetSafehouseCode") ? (String) action.get("targetSafehouseCode") : "";
                     
@@ -537,26 +854,51 @@ public class GameSessionService {
                 }
 
                 boolean isMatch = false;
-                if ("FREEZE_FINANCE".equals(type) && city.equals(currentStep.getFinanceCity())) {
+                if ("FREEZE_FINANCE".equals(type) && currentStep != null && city.equals(currentStep.getFinanceCity())) {
                     isMatch = true;
-                } else if ("RAID_LOGISTICS".equals(type) && city.equals(currentStep.getLogisticsCity())) {
+                } else if ("RAID_LOGISTICS".equals(type) && currentStep != null && city.equals(currentStep.getLogisticsCity())) {
                     isMatch = true;
-                } else if (("ROADBLOCK".equals(type) || "TRANSIT_CHECKPOINT".equals(type)) && city.equals(currentStep.getSuspectLocation())) {
-                    isMatch = true;
-                } else if ("STOP_INFILTRATION".equals(type) && city.equals(currentStep.getSuspectLocation()) && currentStep.isSmuggling()) {
-                    isMatch = true;
+                } else if (("ROADBLOCK".equals(type) || "TRANSIT_CHECKPOINT".equals(type))) {
+                    if (session.isMultiplayer()) {
+                        isMatch = city.equals(session.getSuspectLocation());
+                    } else {
+                        isMatch = currentStep != null && city.equals(currentStep.getSuspectLocation());
+                    }
+                } else if ("STOP_INFILTRATION".equals(type)) {
+                    if (session.isMultiplayer()) {
+                        isMatch = city.equals(session.getSuspectLocation()) && "BORDER_CROSSING".equals(session.getActiveAttackerPhase());
+                    } else {
+                        isMatch = currentStep != null && city.equals(currentStep.getSuspectLocation()) && currentStep.isSmuggling();
+                    }
                 } else if ("STOP_EXFILTRATION".equals(type)) {
-                    PlanStep strikeStep = session.getAiMasterPlan().getPrimaryPlan().get(session.getAiMasterPlan().getPrimaryPlan().size() - 1);
-                    if (city.equals(strikeStep.getEscapeNode())) {
-                        isMatch = true;
+                    if (session.isMultiplayer()) {
+                        isMatch = city.equals(session.getSuspectLocation()) && "EXFILTRATION".equals(session.getActiveAttackerPhase());
+                    } else {
+                        PlanStep strikeStep = session.getAiMasterPlan().getPrimaryPlan().get(session.getAiMasterPlan().getPrimaryPlan().size() - 1);
+                        if (city.equals(strikeStep.getEscapeNode())) {
+                            isMatch = true;
+                        }
                     }
                 } else if (("LOCKDOWN".equals(type) || "CITY_GRID_LOCKDOWN".equals(type))) {
-                    PlanStep curStep = activePlanSteps.stream().filter(s -> s.getTurn() == currentTurn).findFirst().orElse(null);
-                    PlanStep nxtStep = activePlanSteps.stream().filter(s -> s.getTurn() == currentTurn + 1).findFirst().orElse(null);
-                    boolean suspectCurrentlyHere = curStep != null && city.equals(curStep.getSuspectLocation());
-                    boolean suspectMovingHere = nxtStep != null && city.equals(nxtStep.getSuspectLocation());
-                    if (suspectCurrentlyHere || suspectMovingHere) {
-                        isMatch = true;
+                    if (session.isMultiplayer()) {
+                        final String finalSuspectLoc = session.getSuspectLocation();
+                        boolean suspectCurrentlyHere = city.equals(finalSuspectLoc);
+                        boolean suspectMovingHere = false;
+                        Node suspectNode = config.getNodes().stream().filter(n -> n.getId().equals(finalSuspectLoc)).findFirst().orElse(null);
+                        if (suspectNode != null && suspectNode.getConnections() != null) {
+                            suspectMovingHere = suspectNode.getConnections().contains(city);
+                        }
+                        if (suspectCurrentlyHere || suspectMovingHere) {
+                            isMatch = true;
+                        }
+                    } else {
+                        PlanStep curStep = activePlanSteps.stream().filter(s -> s.getTurn() == currentTurn).findFirst().orElse(null);
+                        PlanStep nxtStep = activePlanSteps.stream().filter(s -> s.getTurn() == currentTurn + 1).findFirst().orElse(null);
+                        boolean suspectCurrentlyHere = curStep != null && city.equals(curStep.getSuspectLocation());
+                        boolean suspectMovingHere = nxtStep != null && city.equals(nxtStep.getSuspectLocation());
+                        if (suspectCurrentlyHere || suspectMovingHere) {
+                            isMatch = true;
+                        }
                     }
                 }
 
@@ -613,8 +955,39 @@ public class GameSessionService {
                 for (String suspectName : session.getAttackerNames()) {
                     List<PlanStep> suspectPlan = session.getSuspectPlans().get(suspectName);
                     if (suspectPlan == null) continue;
-                    PlanStep suspectLastStep = suspectPlan.stream().filter(s -> s.getTurn() == lastTurn).findFirst().orElse(null);
-                    if (suspectLastStep == null) continue;
+                    PlanStep suspectLastStep = null;
+                    if (session.isMultiplayer()) {
+                        suspectLastStep = new PlanStep();
+                        if (suspectName.equals(session.getActualAttacker())) {
+                            suspectLastStep.setSuspectLocation(session.getSuspectLocation());
+                            suspectLastStep.setPhase(session.getActiveAttackerPhase() != null ? session.getActiveAttackerPhase() : "TRAIL_BREAKING");
+                            PlanStep planStep = suspectPlan.stream().filter(s -> s.getTurn() == currentTurn).findFirst().orElse(null);
+                            if (planStep != null) {
+                                suspectLastStep.setFinanceCity(planStep.getFinanceCity());
+                                suspectLastStep.setLogisticsCity(planStep.getLogisticsCity());
+                                suspectLastStep.setSmuggling(planStep.isSmuggling());
+                            } else {
+                                suspectLastStep.setFinanceCity("NONE");
+                                suspectLastStep.setLogisticsCity("NONE");
+                                suspectLastStep.setSmuggling(false);
+                            }
+                        } else {
+                            final String name = suspectName;
+                            GameSession.ActiveDecoy decoy = session.getActiveDecoys().stream()
+                                    .filter(d -> d.getCityNode() != null)
+                                    .findFirst()
+                                    .orElse(null);
+                            if (decoy != null) {
+                                suspectLastStep.setSuspectLocation(decoy.getCityNode());
+                                suspectLastStep.setPhase("DECOY");
+                            } else {
+                                continue;
+                            }
+                        }
+                    } else {
+                        suspectLastStep = suspectPlan.stream().filter(s -> s.getTurn() == lastTurn).findFirst().orElse(null);
+                        if (suspectLastStep == null) continue;
+                    }
 
                     // 1. Biometric Scan Alert
                     if ("BIOMETRIC_SCAN".equals(resType) && resCity.equals(suspectLastStep.getSuspectLocation())) {
@@ -874,11 +1247,18 @@ public class GameSessionService {
             ));
         }
 
+        if (session.isMultiplayer()) {
+            String attackerUsername = session.getPlayerA().equals(session.getActivePlayer()) ? session.getPlayerB() : session.getPlayerA();
+            session.setActivePlayer(attackerUsername);
+            session.setPlayerRole("ATTACKER");
+            session.setTurnDeadline(java.time.LocalDateTime.now().plusMinutes(session.getTurnTimerDurationMinutes()));
+        }
+
         return repository.save(session);
     }
 
     private void updateHeatLevel(GameSession session, PlanStep currentStep, ScenarioConfig config) {
-        if (currentStep == null) return;
+        if (currentStep == null && !session.isMultiplayer()) return;
         
         // 1. Decay detection heat for all hostile cities by 10%
         if (session.getCityHeat() == null) {
@@ -946,8 +1326,8 @@ public class GameSessionService {
 
         // 5. Calculate base Operations Heat
         int baseHeat = 10;
-        String phase = currentStep.getPhase();
-        String loc = currentStep.getSuspectLocation();
+        String phase = currentStep != null ? currentStep.getPhase() : (session.getActiveAttackerPhase() != null ? session.getActiveAttackerPhase() : "TRAIL_BREAKING");
+        String loc = currentStep != null ? currentStep.getSuspectLocation() : session.getSuspectLocation();
 
         if ("TRAIL_BREAKING".equals(phase) || "FINANCE_SOURCING".equals(phase)) {
             baseHeat = 15;

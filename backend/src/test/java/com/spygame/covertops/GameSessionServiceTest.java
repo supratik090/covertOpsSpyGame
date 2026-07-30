@@ -157,4 +157,66 @@ public class GameSessionServiceTest {
             assertTrue(escapeClue, "Escape announcement should be logged");
         }
     }
+
+    @Test
+    public void testMultiplayerGameFlow() {
+        when(repository.save(any(GameSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Create multiplayer lobby as Player A (Attacker)
+        GameSession session = sessionService.createMultiplayerSession("operation_silent_edge", "ATTACKER", "PlayerA", 5);
+        assertNotNull(session);
+        assertTrue(session.isMultiplayer());
+        assertEquals("PlayerA", session.getPlayerA());
+        assertEquals("ATTACKER", session.getPlayerARole());
+        assertEquals("DEFENDER", session.getPlayerBRole());
+        assertEquals("LOBBY_WAITING", session.getLobbyStatus());
+
+        // Player B joins
+        UUID sessionId = UUID.randomUUID();
+        session.setId(sessionId);
+        when(repository.findById(sessionId)).thenReturn(java.util.Optional.of(session));
+
+        GameSession joined = sessionService.joinSession(sessionId, "PlayerB");
+        assertEquals("PlayerB", joined.getPlayerB());
+        assertEquals("IN_PROGRESS", joined.getLobbyStatus());
+        assertEquals("PlayerA", joined.getActivePlayer()); // Attacker (PlayerA) starts
+
+        // Add mock attacker safehouse in islamabad
+        List<GameSession.Safehouse> safehouses = new java.util.ArrayList<>();
+        GameSession.Safehouse sh = new GameSession.Safehouse();
+        sh.setCityNode("islamabad");
+        sh.setOwnerFaction("HOSTILE");
+        sh.setSafehouseCode("TEST_CODE");
+        safehouses.add(sh);
+        session.setSafehouses(safehouses);
+
+        // Player A (Attacker) ends turn
+        EndTurnRequest attackerRequest = new EndTurnRequest();
+        attackerRequest.setSuspectMoveTarget("islamabad");
+        attackerRequest.setTargetSafehouseCode("TEST_CODE");
+        
+        // Setup real PlayerAttackerService inside sessionService
+        com.spygame.covertops.service.PlayerAttackerService playerAttackerService = new com.spygame.covertops.service.PlayerAttackerService();
+        ReflectionTestUtils.setField(playerAttackerService, "repository", repository);
+        ReflectionTestUtils.setField(sessionService, "playerAttackerService", playerAttackerService);
+
+        GameSession afterAttacker = sessionService.processEndTurn(sessionId, attackerRequest, "PlayerA");
+
+        assertEquals("PlayerB", afterAttacker.getActivePlayer()); // Switches to Player B (Defender)
+        assertEquals("islamabad", afterAttacker.getSuspectLocation()); // Suspect moved
+        assertEquals("ACTIVE", afterAttacker.getStatus());
+
+        // Player B (Defender) ends turn
+        EndTurnRequest defenderRequest = new EndTurnRequest();
+        
+        // Setup real PlayerDefenderService inside sessionService
+        com.spygame.covertops.service.PlayerDefenderService playerDefenderService = new com.spygame.covertops.service.PlayerDefenderService();
+        ReflectionTestUtils.setField(playerDefenderService, "repository", repository);
+        ReflectionTestUtils.setField(sessionService, "defenderService", playerDefenderService);
+
+        GameSession afterDefender = sessionService.processEndTurn(sessionId, defenderRequest, "PlayerB");
+
+        assertEquals("PlayerA", afterDefender.getActivePlayer()); // Switches back to Player A
+        assertEquals(2, afterDefender.getCurrentTurn()); // Turn advanced
+    }
 }

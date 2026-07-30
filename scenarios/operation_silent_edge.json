@@ -2,6 +2,7 @@
   "scenarioId": "operation_silent_edge",
   "title": "Major terrorist attack planned on North Indian cities",
   "briefing": "Major terrorist attack planned on North Indian cities. Investigate the network to identify and eliminate the active threat agent from our top suspect list: Tariq Mahmood, Zubair Khan, Faisal Shah. Deter the Hostile Faction from executing their planned operation before Turn 25.",
+  "attackerBriefing": "Major terrorist attack planned on North Indian cities. Execute attack with precision. Evade active security patrols, acquire logistical and financial assets, infiltrate the border, and neutralize the target VIP.",
   "targetCity": "new_delhi",
   "targetVip": "High-Profile Minister",
   "attackForm": "ASSASSINATION",

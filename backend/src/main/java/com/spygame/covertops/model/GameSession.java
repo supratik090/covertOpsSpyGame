@@ -36,7 +36,90 @@ public class GameSession {
     private java.util.Map<String, Integer> cityHeat = new java.util.HashMap<>();
     private java.util.Map<String, Integer> sweepCooldownCities = new java.util.HashMap<>();
 
+    private String playerRole = "DEFENDER";
+    private int attackerBudget;
+    private String suspectLocation;
+    private String activeAttackerPhase = "TRAIL_BREAKING";
+    private List<ActiveDecoy> activeDecoys = new ArrayList<>();
+    private java.util.Map<String, Integer> secureSafehouseTurns = new java.util.HashMap<>();
+    private boolean infiltrationGoAheadApproved;
+    private boolean strikeGoAheadApproved;
+    private String ownerUsername;
+
+    // Multiplayer properties
+    private boolean isMultiplayer = false;
+    private String playerA;
+    private String playerB;
+    private String activePlayer;
+    private String playerARole;
+    private String playerBRole;
+    private int turnTimerDurationMinutes = 5;
+    private java.time.LocalDateTime turnDeadline;
+    private String lobbyStatus = "LOBBY_WAITING"; // LOBBY_WAITING, IN_PROGRESS, TERMINATED
+    private boolean playerATurnSubmitted = false;
+    private boolean playerBTurnSubmitted = false;
+
+    public boolean isMultiplayer() { return isMultiplayer; }
+    public void setMultiplayer(boolean multiplayer) { isMultiplayer = multiplayer; }
+
+    public String getPlayerA() { return playerA; }
+    public void setPlayerA(String playerA) { this.playerA = playerA; }
+
+    public String getPlayerB() { return playerB; }
+    public void setPlayerB(String playerB) { this.playerB = playerB; }
+
+    public String getActivePlayer() { return activePlayer; }
+    public void setActivePlayer(String activePlayer) { this.activePlayer = activePlayer; }
+
+    public String getPlayerARole() { return playerARole; }
+    public void setPlayerARole(String playerARole) { this.playerARole = playerARole; }
+
+    public String getPlayerBRole() { return playerBRole; }
+    public void setPlayerBRole(String playerBRole) { this.playerBRole = playerBRole; }
+
+    public int getTurnTimerDurationMinutes() { return turnTimerDurationMinutes; }
+    public void setTurnTimerDurationMinutes(int turnTimerDurationMinutes) { this.turnTimerDurationMinutes = turnTimerDurationMinutes; }
+
+    public java.time.LocalDateTime getTurnDeadline() { return turnDeadline; }
+    public void setTurnDeadline(java.time.LocalDateTime turnDeadline) { this.turnDeadline = turnDeadline; }
+
+    public String getLobbyStatus() { return lobbyStatus; }
+    public void setLobbyStatus(String lobbyStatus) { this.lobbyStatus = lobbyStatus; }
+
+    public boolean isPlayerATurnSubmitted() { return playerATurnSubmitted; }
+    public void setPlayerATurnSubmitted(boolean playerATurnSubmitted) { this.playerATurnSubmitted = playerATurnSubmitted; }
+
+    public boolean isPlayerBTurnSubmitted() { return playerBTurnSubmitted; }
+    public void setPlayerBTurnSubmitted(boolean playerBTurnSubmitted) { this.playerBTurnSubmitted = playerBTurnSubmitted; }
+
     public GameSession() {}
+
+    public String getPlayerRole() { return playerRole; }
+    public void setPlayerRole(String playerRole) { this.playerRole = playerRole; }
+
+    public int getAttackerBudget() { return attackerBudget; }
+    public void setAttackerBudget(int attackerBudget) { this.attackerBudget = attackerBudget; }
+
+    public String getSuspectLocation() { return suspectLocation; }
+    public void setSuspectLocation(String suspectLocation) { this.suspectLocation = suspectLocation; }
+
+    public String getActiveAttackerPhase() { return activeAttackerPhase; }
+    public void setActiveAttackerPhase(String activeAttackerPhase) { this.activeAttackerPhase = activeAttackerPhase; }
+
+    public List<ActiveDecoy> getActiveDecoys() { return activeDecoys; }
+    public void setActiveDecoys(List<ActiveDecoy> activeDecoys) { this.activeDecoys = activeDecoys; }
+
+    public java.util.Map<String, Integer> getSecureSafehouseTurns() { return secureSafehouseTurns; }
+    public void setSecureSafehouseTurns(java.util.Map<String, Integer> secureSafehouseTurns) { this.secureSafehouseTurns = secureSafehouseTurns; }
+
+    public boolean isInfiltrationGoAheadApproved() { return infiltrationGoAheadApproved; }
+    public void setInfiltrationGoAheadApproved(boolean infiltrationGoAheadApproved) { this.infiltrationGoAheadApproved = infiltrationGoAheadApproved; }
+
+    public boolean isStrikeGoAheadApproved() { return strikeGoAheadApproved; }
+    public void setStrikeGoAheadApproved(boolean strikeGoAheadApproved) { this.strikeGoAheadApproved = strikeGoAheadApproved; }
+
+    public String getOwnerUsername() { return ownerUsername; }
+    public void setOwnerUsername(String ownerUsername) { this.ownerUsername = ownerUsername; }
 
     public java.util.Map<String, List<PlanStep>> getSuspectPlans() { return suspectPlans; }
     public void setSuspectPlans(java.util.Map<String, List<PlanStep>> suspectPlans) { this.suspectPlans = suspectPlans; }
@@ -282,5 +365,27 @@ public class GameSession {
 
         public String getDiscoveredByAgent() { return discoveredByAgent; }
         public void setDiscoveredByAgent(String discoveredByAgent) { this.discoveredByAgent = discoveredByAgent; }
+    }
+
+    public static class ActiveDecoy {
+        private String type; // CCTV, SATELLITE
+        private String cityNode;
+        private int turnsRemaining = 10;
+
+        public ActiveDecoy() {}
+
+        public ActiveDecoy(String type, String cityNode) {
+            this.type = type;
+            this.cityNode = cityNode;
+        }
+
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+
+        public String getCityNode() { return cityNode; }
+        public void setCityNode(String cityNode) { this.cityNode = cityNode; }
+
+        public int getTurnsRemaining() { return turnsRemaining; }
+        public void setTurnsRemaining(int turnsRemaining) { this.turnsRemaining = turnsRemaining; }
     }
 }
