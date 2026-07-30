@@ -46,6 +46,18 @@ public class GameSession {
     private boolean strikeGoAheadApproved;
     private String ownerUsername;
 
+    // Logistics and Finance tracking
+    private String requestedFinanceCity;
+    private int financeCollectionTurnsRemaining = -1;
+    private boolean financeCollected = false;
+    private String requestedLogisticsCity;
+    private int logisticsCollectionTurnsRemaining = -1;
+    private boolean logisticsCollected = false;
+    private String handoverCity;
+    private int handoverTurnsRemaining = -1;
+    private boolean handoverCompleted = false;
+    private String suspectSafehouseCode;
+
     // Multiplayer properties
     private boolean isMultiplayer = false;
     private String playerA;
@@ -105,6 +117,36 @@ public class GameSession {
 
     public String getActiveAttackerPhase() { return activeAttackerPhase; }
     public void setActiveAttackerPhase(String activeAttackerPhase) { this.activeAttackerPhase = activeAttackerPhase; }
+
+    public String getRequestedFinanceCity() { return requestedFinanceCity; }
+    public void setRequestedFinanceCity(String requestedFinanceCity) { this.requestedFinanceCity = requestedFinanceCity; }
+
+    public int getFinanceCollectionTurnsRemaining() { return financeCollectionTurnsRemaining; }
+    public void setFinanceCollectionTurnsRemaining(int financeCollectionTurnsRemaining) { this.financeCollectionTurnsRemaining = financeCollectionTurnsRemaining; }
+
+    public boolean isFinanceCollected() { return financeCollected; }
+    public void setFinanceCollected(boolean financeCollected) { this.financeCollected = financeCollected; }
+
+    public String getRequestedLogisticsCity() { return requestedLogisticsCity; }
+    public void setRequestedLogisticsCity(String requestedLogisticsCity) { this.requestedLogisticsCity = requestedLogisticsCity; }
+
+    public int getLogisticsCollectionTurnsRemaining() { return logisticsCollectionTurnsRemaining; }
+    public void setLogisticsCollectionTurnsRemaining(int logisticsCollectionTurnsRemaining) { this.logisticsCollectionTurnsRemaining = logisticsCollectionTurnsRemaining; }
+
+    public boolean isLogisticsCollected() { return logisticsCollected; }
+    public void setLogisticsCollected(boolean logisticsCollected) { this.logisticsCollected = logisticsCollected; }
+
+    public String getHandoverCity() { return handoverCity; }
+    public void setHandoverCity(String handoverCity) { this.handoverCity = handoverCity; }
+
+    public int getHandoverTurnsRemaining() { return handoverTurnsRemaining; }
+    public void setHandoverTurnsRemaining(int handoverTurnsRemaining) { this.handoverTurnsRemaining = handoverTurnsRemaining; }
+
+    public boolean isHandoverCompleted() { return handoverCompleted; }
+    public void setHandoverCompleted(boolean handoverCompleted) { this.handoverCompleted = handoverCompleted; }
+
+    public String getSuspectSafehouseCode() { return suspectSafehouseCode; }
+    public void setSuspectSafehouseCode(String suspectSafehouseCode) { this.suspectSafehouseCode = suspectSafehouseCode; }
 
     public List<ActiveDecoy> getActiveDecoys() { return activeDecoys; }
     public void setActiveDecoys(List<ActiveDecoy> activeDecoys) { this.activeDecoys = activeDecoys; }

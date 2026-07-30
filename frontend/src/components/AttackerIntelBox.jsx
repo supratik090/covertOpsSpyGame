@@ -17,7 +17,18 @@ export default function AttackerIntelBox({
   addToast,
   isWaiting,
   localTargetSafehouseCode,
-  setLocalTargetSafehouseCode
+  setLocalTargetSafehouseCode,
+  localRequestFinance,
+  setLocalRequestFinance,
+  localCollectFinance,
+  setLocalCollectFinance,
+  localRequestLogistics,
+  setLocalRequestLogistics,
+  localCollectLogistics,
+  setLocalCollectLogistics,
+  localBeginHandover,
+  setLocalBeginHandover,
+  setSelectedCityNode
 }) {
   if (!cityId || !session) return null;
 
@@ -26,7 +37,7 @@ export default function AttackerIntelBox({
   const currentLoc = session.suspectLocation;
   const isCurrentlyHere = currentLoc === cityId;
 
-  // Determine territory details (for Attacker: Home means safe attacker land, Hostile means defender land)
+  // Territory details
   const nodeData = activeScenario?.nodes?.find(n => n.id === cityId);
   const isFriendlyRaw = nodeData ? nodeData.territory === 'HOME_TERRITORY' : false;
   const isFriendly = session.playerRole === 'ATTACKER' ? !isFriendlyRaw : isFriendlyRaw;
@@ -35,11 +46,6 @@ export default function AttackerIntelBox({
   const currentLocNode = activeScenario?.nodes?.find(n => n.id === currentLoc);
   const currentConnections = currentLocNode?.connections || [];
   const isConnected = currentConnections.includes(cityId);
-
-  // Sourcing checks
-  const isFinanceCity = activeScenario?.financeMapping && activeScenario.financeMapping[cityId];
-  const isLogisticsCity = activeScenario?.logisticsMapping && activeScenario.logisticsMapping[cityId];
-  const isHandoverCity = !isFinanceCity && !isLogisticsCity && nodeData && nodeData.territory === 'HOSTILE_TERRITORY';
 
   // Safehouses in this city
   const citySafehouses = session.safehouses?.filter(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE') || [];
@@ -177,8 +183,266 @@ export default function AttackerIntelBox({
     );
   };
 
-  const financeSourced = session.uncoveredFinanceCities?.includes(cityId);
-  const logisticsSourced = session.uncoveredLogisticsCities?.includes(cityId);
+  // Sourcing UI Builders
+  const renderFinanceSourcing = () => {
+    const isCollected = session.financeCollected;
+    const requestedCity = session.requestedFinanceCity;
+    const turnsRemaining = session.financeCollectionTurnsRemaining;
+
+    if (isCollected) {
+      return <span className="cia-tag green font-mono">✓ FINANCE ACQUIRED</span>;
+    }
+
+    if (localCollectFinance) {
+      return (
+        <button
+          onClick={() => setLocalCollectFinance(false)}
+          className="cyber-btn sm amber w-full text-[10px]"
+          disabled={isWaiting}
+        >
+          ✕ CANCEL FINANCE COLLECTION
+        </button>
+      );
+    }
+
+    if (localRequestFinance) {
+      return (
+        <button
+          onClick={() => setLocalRequestFinance(false)}
+          className="cyber-btn sm amber w-full text-[10px]"
+          disabled={isWaiting}
+        >
+          ✕ CANCEL FINANCE REQUEST
+        </button>
+      );
+    }
+
+    if (requestedCity) {
+      if (requestedCity === cityId) {
+        if (turnsRemaining > 0) {
+          return (
+            <span className="text-amber font-mono text-[10px]">
+              🔒 IN TRANSIT (Ready in {turnsRemaining} turns here)
+            </span>
+          );
+        } else {
+          if (isCurrentlyHere) {
+            return (
+              <button
+                onClick={() => setLocalCollectFinance(true)}
+                className="cyber-btn sm green w-full text-[10px]"
+                disabled={isWaiting}
+              >
+                📥 COLLECT FINANCE
+              </button>
+            );
+          } else {
+            return (
+              <span className="text-red font-mono text-[10px]">
+                ⚠️ READY: Return to this city to collect
+              </span>
+            );
+          }
+        }
+      } else {
+        return (
+          <span className="text-dim font-mono text-[10px]">
+            Opened at {requestedCity.replace(/_/g, ' ').toUpperCase()} ({turnsRemaining > 0 ? `${turnsRemaining} turns left` : 'READY TO COLLECT'})
+          </span>
+        );
+      }
+    } else {
+      // Sourcing unrequested
+      if (isCurrentlyHere) {
+        return (
+          <button
+            onClick={() => setLocalRequestFinance(true)}
+            className="cyber-btn sm red w-full text-[10px]"
+            disabled={isWaiting}
+          >
+            💰 REQUEST FINANCE SOURCING
+          </button>
+        );
+      } else {
+        return (
+          <span className="text-dim font-mono text-[10px]">
+            Arrive here to request finance channels
+          </span>
+        );
+      }
+    }
+  };
+
+  const renderLogisticsSourcing = () => {
+    const isCollected = session.logisticsCollected;
+    const requestedCity = session.requestedLogisticsCity;
+    const turnsRemaining = session.logisticsCollectionTurnsRemaining;
+
+    if (isCollected) {
+      return <span className="cia-tag green font-mono">✓ LOGISTICS ACQUIRED</span>;
+    }
+
+    if (localCollectLogistics) {
+      return (
+        <button
+          onClick={() => setLocalCollectLogistics(false)}
+          className="cyber-btn sm amber w-full text-[10px]"
+          disabled={isWaiting}
+        >
+          ✕ CANCEL LOGISTICS COLLECTION
+        </button>
+      );
+    }
+
+    if (localRequestLogistics) {
+      return (
+        <button
+          onClick={() => setLocalRequestLogistics(false)}
+          className="cyber-btn sm amber w-full text-[10px]"
+          disabled={isWaiting}
+        >
+          ✕ CANCEL LOGISTICS REQUEST
+        </button>
+      );
+    }
+
+    if (requestedCity) {
+      if (requestedCity === cityId) {
+        if (turnsRemaining > 0) {
+          return (
+            <span className="text-amber font-mono text-[10px]">
+              🔒 IN TRANSIT (Ready in {turnsRemaining} turns here)
+            </span>
+          );
+        } else {
+          if (isCurrentlyHere) {
+            return (
+              <button
+                onClick={() => setLocalCollectLogistics(true)}
+                className="cyber-btn sm green w-full text-[10px]"
+                disabled={isWaiting}
+              >
+                📥 COLLECT LOGISTICS
+              </button>
+            );
+          } else {
+            return (
+              <span className="text-red font-mono text-[10px]">
+                ⚠️ READY: Return to this city to collect
+              </span>
+            );
+          }
+        }
+      } else {
+        return (
+          <span className="text-dim font-mono text-[10px]">
+            Opened at {requestedCity.replace(/_/g, ' ').toUpperCase()} ({turnsRemaining > 0 ? `${turnsRemaining} turns left` : 'READY TO COLLECT'})
+          </span>
+        );
+      }
+    } else {
+      if (isCurrentlyHere) {
+        return (
+          <button
+            onClick={() => setLocalRequestLogistics(true)}
+            className="cyber-btn sm red w-full text-[10px]"
+            disabled={isWaiting}
+          >
+            📦 REQUEST LOGISTICS PIPELINE
+          </button>
+        );
+      } else {
+        return (
+          <span className="text-dim font-mono text-[10px]">
+            Arrive here to request logistical lines
+          </span>
+        );
+      }
+    }
+  };
+
+  const renderHandoverSourcing = () => {
+    const isFinanceReady = session.financeCollected;
+    const isLogisticsReady = session.logisticsCollected;
+    const isCompleted = session.handoverCompleted;
+    const handoverCity = session.handoverCity;
+    const turnsRemaining = session.handoverTurnsRemaining;
+
+    if (!isFinanceReady || !isLogisticsReady) {
+      return (
+        <span className="text-dim font-mono text-[10px]">
+          LOCKED: Awaiting Sourcing Collection
+        </span>
+      );
+    }
+
+    if (isCompleted) {
+      return <span className="cia-tag green font-mono">✓ HANDOVER PROTOCOL ESTABLISHED</span>;
+    }
+
+    if (localBeginHandover) {
+      return (
+        <button
+          onClick={() => setLocalBeginHandover(false)}
+          className="cyber-btn sm amber w-full text-[10px]"
+          disabled={isWaiting}
+        >
+          ✕ CANCEL HANDOVER INITIATION
+        </button>
+      );
+    }
+
+    if (handoverCity) {
+      if (handoverCity === cityId) {
+        if (isCurrentlyHere) {
+          return (
+            <span className="text-cyber font-mono text-[10px]" style={{ color: '#00f0ff' }}>
+              ⚡ HANDOVER UNDERWAY: Stay here ({turnsRemaining} turns left)
+            </span>
+          );
+        } else {
+          return (
+            <span className="text-red font-mono text-[10px] blink">
+              ⚠️ WARNING: Handover interrupted! Return here immediately
+            </span>
+          );
+        }
+      } else {
+        return (
+          <span className="text-dim font-mono text-[10px]">
+            Active at {handoverCity.replace(/_/g, ' ').toUpperCase()}
+          </span>
+        );
+      }
+    } else {
+      const hostileNode = nodeData && nodeData.territory === 'HOSTILE_TERRITORY';
+      if (hostileNode) {
+        if (isCurrentlyHere) {
+          return (
+            <button
+              onClick={() => setLocalBeginHandover(true)}
+              className="cyber-btn sm green w-full text-[10px]"
+              disabled={isWaiting}
+            >
+              🤝 INITIATE HANDOVER
+            </button>
+          );
+        } else {
+          return (
+            <span className="text-dim font-mono text-[10px]">
+              Arrive at this hostile city to begin handover
+            </span>
+          );
+        }
+      } else {
+        return (
+          <span className="text-dim font-mono text-[10px]">
+            Handover must be executed in a hostile target city
+          </span>
+        );
+      }
+    }
+  };
 
   return (
     <div className="cia-intel-box cyber-panel animate-fade-in" style={{ borderColor: '#ff3b30' }}>
@@ -262,41 +526,161 @@ export default function AttackerIntelBox({
         {/* Operative Mobility */}
         <div className="cia-section">
           <h4 className="cia-sub-title" style={{ color: '#ff3b30' }}><Compass size={12} /> OPERATIVE MOBILITY</h4>
-          <div className="cia-list">
+          <div className="cia-list" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {isCurrentlyHere ? (
-              <div className="cia-list-item flex items-center justify-between" style={{ borderLeftColor: '#00ff66' }}>
-                <span className="value text-cyber" style={{ color: '#00ff66' }}>🎯 OPERATIVE PRESENT AT LOCATION</span>
-                <span className="label font-mono text-[9px] text-success">ACTIVE</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {(() => {
+                  const connectedSafehouses = session.safehouses?.filter(s => 
+                    s.ownerFaction === 'HOSTILE' && currentConnections.includes(s.cityNode)
+                  ) || [];
+
+                  if (connectedSafehouses.length === 0) {
+                    return (
+                      <span className="text-dim font-mono text-center py-2" style={{ fontSize: '10px', color: '#ff8888', border: '1px dashed rgba(255,59,48,0.2)', borderRadius: '4px' }}>
+                        ✕ Cannot move: no safehouses established in adjacent cities.
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {connectedSafehouses.map((s, idx) => {
+                        const isTarget = localSuspectMove === s.cityNode && localTargetSafehouseCode === s.safehouseCode;
+                        const cityName = s.cityNode.replace(/_/g, ' ').toUpperCase();
+                        
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              if (isWaiting) return;
+                              if (isTarget) {
+                                setLocalSuspectMove('');
+                                setLocalTargetSafehouseCode('');
+                                addToast("Operative move cancelled.", "info");
+                              } else {
+                                setLocalSuspectMove(s.cityNode);
+                                setLocalTargetSafehouseCode(s.safehouseCode);
+                                addToast(`Move to ${cityName} — #${s.safehouseCode} queued.`, "success");
+                              }
+                            }}
+                            className="cyber-btn sm"
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              fontSize: '10px',
+                              padding: '5px 8px',
+                              width: '100%',
+                              textAlign: 'left',
+                              background: isTarget ? 'rgba(255, 204, 0, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                              borderColor: isTarget ? '#ffcc00' : 'rgba(255, 255, 255, 0.08)',
+                              color: isTarget ? '#ffcc00' : '#a0a0a0',
+                            }}
+                            disabled={isWaiting}
+                          >
+                            <span>Move to {cityName}</span>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+                              {isTarget ? '✓ QUEUED' : `🏠 #${s.safehouseCode}`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
-              <div 
-                className={`cia-list-item flex items-center justify-between ${isMoveQueued ? 'active-select' : ''}`} 
-                style={{ borderLeftColor: isMoveQueued ? '#ffcc00' : isConnected ? '#00f0ff' : '#444' }}
-              >
-                <span className="value font-bold" style={{ color: isMoveQueued ? '#ffcc00' : isConnected ? '#00f0ff' : '#666' }}>
-                  {isMoveQueued ? 'ROUTE PLOTTED TO THIS NODE' : isConnected ? 'CONNECTED CORRIDOR' : 'OUT OF REACH'}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span className="value text-dim" style={{ fontSize: '10px' }}>
+                  Operative is currently in <strong style={{ color: '#fff' }}>{currentLoc.replace(/_/g, ' ').toUpperCase()}</strong>.
                 </span>
-                <span className="label font-mono text-[9px]">
-                  {isMoveQueued ? 'QUEUED' : isConnected ? 'REACHABLE' : 'LOCKED'}
-                </span>
+                {isConnected ? (
+                  (() => {
+                    const thisCitySafehouses = session.safehouses?.filter(s => 
+                      s.ownerFaction === 'HOSTILE' && s.cityNode === cityId
+                    ) || [];
+
+                    if (thisCitySafehouses.length === 0) {
+                      return (
+                        <span className="text-dim font-mono" style={{ fontSize: '10px', color: '#ff8888' }}>
+                          ✕ Cannot move here: no safehouse established in this city.
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
+                        {thisCitySafehouses.map((s, idx) => {
+                          const isTarget = localSuspectMove === cityId && localTargetSafehouseCode === s.safehouseCode;
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                if (isWaiting) return;
+                                if (isTarget) {
+                                  setLocalSuspectMove('');
+                                  setLocalTargetSafehouseCode('');
+                                  addToast("Move cancelled.", "info");
+                                } else {
+                                  setLocalSuspectMove(cityId);
+                                  setLocalTargetSafehouseCode(s.safehouseCode);
+                                  addToast(`Move to ${cityId.replace(/_/g, ' ').toUpperCase()} — #${s.safehouseCode} queued.`, "success");
+                                }
+                              }}
+                              className="cyber-btn sm"
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                fontSize: '10px',
+                                padding: '5px 8px',
+                                width: '100%',
+                                background: isTarget ? 'rgba(255, 204, 0, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                                borderColor: isTarget ? '#ffcc00' : 'rgba(255, 255, 255, 0.08)',
+                                color: isTarget ? '#ffcc00' : '#a0a0a0',
+                              }}
+                              disabled={isWaiting}
+                            >
+                              <span>Move Suspect here</span>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                {isTarget ? '✓ QUEUED' : `🏠 #${s.safehouseCode}`}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <span className="text-dim font-mono" style={{ fontSize: '9px' }}>LOCKED: Out of range from current location.</span>
+                )}
               </div>
             )}
-            
-            {!isCurrentlyHere && isConnected && (
-              <button
-                onClick={handleMoveSelection}
-                className={`cia-dispatch-btn font-mono w-full text-center py-2 mt-2 ${isMoveQueued ? 'active' : ''}`}
-                style={{
-                  background: isMoveQueued ? 'rgba(255, 204, 0, 0.15)' : 'rgba(255, 59, 48, 0.1)',
-                  borderColor: isMoveQueued ? '#ffcc00' : '#ff3b30',
-                  color: isMoveQueued ? '#ffcc00' : '#ff3b30',
-                  fontSize: '11px'
-                }}
-                disabled={isWaiting}
-              >
-                {isMoveQueued ? '✕ CANCEL PLOTTED ROUTE' : '➡️ PLOT SUSPECT ROUTE HERE'}
-              </button>
-            )}
+          </div>
+        </div>
+
+        {/* New Milestones (Sourcing & Handover) Section */}
+        <div className="cia-section">
+          <h4 className="cia-sub-title" style={{ color: '#ff3b30' }}><Archive size={12} /> CLEARANCES & SOURCING</h4>
+          <div className="cia-grid-item">
+            <div className="cia-sub-item">
+              <span className="label font-mono"><DollarSign size={10} /> FINANCIAL RAILS:</span>
+              <div className="mt-1">
+                {renderFinanceSourcing()}
+              </div>
+            </div>
+            <div className="cia-sub-item mt-3">
+              <span className="label font-mono"><Archive size={10} /> LOGISTICS PIPELINE:</span>
+              <div className="mt-1">
+                {renderLogisticsSourcing()}
+              </div>
+            </div>
+            <div className="cia-sub-item mt-3">
+              <span className="label font-mono"><Activity size={10} /> HANDOVER TARGET SITE:</span>
+              <div className="mt-1">
+                {renderHandoverSourcing()}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -326,47 +710,6 @@ export default function AttackerIntelBox({
             )}
           </div>
         </div>
-
-        {/* Asset Sourcing Hub status */}
-        {(isFinanceCity || isLogisticsCity || isHandoverCity) && (
-          <div className="cia-section">
-            <h4 className="cia-sub-title" style={{ color: '#ff3b30' }}><Archive size={12} /> CLEARANCES & SOURCING</h4>
-            <div className="cia-grid-item">
-              {isFinanceCity && (
-                <div className="cia-sub-item">
-                  <span className="label font-mono"><DollarSign size={10} /> FINANCIAL RAILS:</span>
-                  <div className="mt-1">
-                    {financeSourced ? (
-                      <span className="cia-tag green font-mono">✓ FINANCE SOURCED</span>
-                    ) : (
-                      <span className="cia-tag red font-mono blink">AWAITING VISIT</span>
-                    )}
-                  </div>
-                </div>
-              )}
-              {isLogisticsCity && (
-                <div className="cia-sub-item mt-2">
-                  <span className="label font-mono"><Archive size={10} /> LOGISTICS bluePRINT:</span>
-                  <div className="mt-1">
-                    {logisticsSourced ? (
-                      <span className="cia-tag green font-mono">✓ LOGISTICS SOURCED</span>
-                    ) : (
-                      <span className="cia-tag red font-mono blink">AWAITING VISIT</span>
-                    )}
-                  </div>
-                </div>
-              )}
-              {isHandoverCity && (
-                <div className="cia-sub-item mt-2">
-                  <span className="label font-mono"><Activity size={10} /> HANDOVER TARGET SITE:</span>
-                  <div className="mt-1">
-                    <span className="cia-tag cyan font-mono">HANDOVER AREA</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Connected Nodes Footer */}
@@ -386,8 +729,9 @@ export default function AttackerIntelBox({
                     key={connId}
                     onClick={() => {
                       if (isWaiting) return;
-                      // Just highlight the city node on the map
-                      // Find parent setter if passed
+                      if (setSelectedCityNode) {
+                        setSelectedCityNode(connId);
+                      }
                     }}
                     className="cyber-btn sm"
                     style={{ flex: '1 1 0px', textTransform: 'uppercase', fontSize: '8.5px', padding: '5px 8px', whiteSpace: 'nowrap', textAlign: 'center' }}

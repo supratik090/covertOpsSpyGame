@@ -87,6 +87,7 @@ body {
   display: grid;
   grid-template-columns: var(--tab-width) 1fr;
   grid-template-rows: var(--status-height) 1fr;
+  height: 100dvh;
   height: 100vh; width: 100vw; overflow: hidden;
 }
 .app-layout.no-sidebar {
@@ -1983,9 +1984,10 @@ body {
   .app-layout {
     grid-template-columns: 1fr !important;
     grid-template-rows: var(--status-height) 1fr 60px !important;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
+    height: 100vh !important;
+    height: 100dvh !important;
+    width: 100vw !important;
+    overflow: hidden !important;
   }
 
   /* 2. Bottom Navigation Bar */

@@ -69,8 +69,9 @@ public class GameSessionController {
 
     // GET /api/game/list
     @GetMapping("/list")
-    public List<GameSession> listGames() {
-        return sessionService.listSessions();
+    public List<GameSession> listGames(jakarta.servlet.http.HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
+        return sessionService.listSessions(username);
     }
 
     // DELETE /api/game/{id}

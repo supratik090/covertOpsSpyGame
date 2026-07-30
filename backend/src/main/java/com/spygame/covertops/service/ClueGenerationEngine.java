@@ -373,6 +373,21 @@ public class ClueGenerationEngine {
             }
         }
 
+        // 6. Generate clues about combat team movements
+        if (session.getTacticalTeams() != null) {
+            for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
+                if (team.getCooldownRemaining() > 0) {
+                    turnClues.add(new GameSession.Clue(
+                            currentTurn,
+                            "COMBAT_TEAM_MOVEMENT",
+                            "TACTICAL ALARM: Combat team " + team.getName() + " has relocated to " + team.getCurrentCity().toUpperCase() + ".",
+                            team.getCurrentCity(),
+                            "Red Cell Intelligence"
+                    ));
+                }
+            }
+        }
+
         return turnClues;
     }
 }

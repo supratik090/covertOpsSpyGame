@@ -2,13 +2,21 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { getSuspectImage } from '../assets/suspectImages';
 
-export default function ClueCard({ clue, index, assessment, onSetAssessment, suspects = [] }) {
+export default function ClueCard({ clue, index, assessment, onSetAssessment, suspects = [], isAttacker }) {
   const isSweepAlert = clue.source === 'SECURITY_SWEEP_ALERT';
 
   // Match suspect by scanning clue text for their first name
-  const matchedSuspect = suspects.find(name =>
+  let matchedSuspect = suspects.find(name =>
     clue.clueText && clue.clueText.toLowerCase().includes(name.split(' ')[0].toLowerCase())
   );
+
+  if (isAttacker && !matchedSuspect) {
+    const txt = (clue.clueText || '').toLowerCase();
+    if (txt.includes('suspect') || txt.includes('operative') || txt.includes('rotated safehouses')) {
+      matchedSuspect = 'Faizal Khan';
+    }
+  }
+
   const suspectImg = getSuspectImage(matchedSuspect);
 
   const getAssessmentClass = (status) => {

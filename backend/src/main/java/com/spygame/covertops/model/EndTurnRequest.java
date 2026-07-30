@@ -23,6 +23,12 @@ public class EndTurnRequest {
     private boolean triggerStrike;
     private boolean triggerExfiltration;
 
+    private boolean requestFinance;
+    private boolean collectFinance;
+    private boolean requestLogistics;
+    private boolean collectLogistics;
+    private boolean beginHandover;
+
     public EndTurnRequest() {}
 
     public List<Map<String, Object>> getCovertActions() { return covertActions; }
@@ -72,4 +78,19 @@ public class EndTurnRequest {
 
     public boolean isTriggerExfiltration() { return triggerExfiltration; }
     public void setTriggerExfiltration(boolean triggerExfiltration) { this.triggerExfiltration = triggerExfiltration; }
+
+    public boolean isRequestFinance() { return requestFinance; }
+    public void setRequestFinance(boolean requestFinance) { this.requestFinance = requestFinance; }
+
+    public boolean isCollectFinance() { return collectFinance; }
+    public void setCollectFinance(boolean collectFinance) { this.collectFinance = collectFinance; }
+
+    public boolean isRequestLogistics() { return requestLogistics; }
+    public void setRequestLogistics(boolean requestLogistics) { this.requestLogistics = requestLogistics; }
+
+    public boolean isCollectLogistics() { return collectLogistics; }
+    public void setCollectLogistics(boolean collectLogistics) { this.collectLogistics = collectLogistics; }
+
+    public boolean isBeginHandover() { return beginHandover; }
+    public void setBeginHandover(boolean beginHandover) { this.beginHandover = beginHandover; }
 }

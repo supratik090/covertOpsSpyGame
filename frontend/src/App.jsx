@@ -55,6 +55,12 @@ export default function App() {
   const [localTriggerStrike, setLocalTriggerStrike] = useState(false);
   const [localTriggerExfiltration, setLocalTriggerExfiltration] = useState(false);
 
+  const [localRequestFinance, setLocalRequestFinance] = useState(false);
+  const [localCollectFinance, setLocalCollectFinance] = useState(false);
+  const [localRequestLogistics, setLocalRequestLogistics] = useState(false);
+  const [localCollectLogistics, setLocalCollectLogistics] = useState(false);
+  const [localBeginHandover, setLocalBeginHandover] = useState(false);
+
   // God Mode Replay
   const [replayPlan, setReplayPlan] = useState(null);
   const [replayTurn, setReplayTurn] = useState(1);
@@ -223,6 +229,11 @@ export default function App() {
       setLocalSeekPermissionType('');
       setLocalTriggerStrike(false);
       setLocalTriggerExfiltration(false);
+      setLocalRequestFinance(false);
+      setLocalCollectFinance(false);
+      setLocalRequestLogistics(false);
+      setLocalCollectLogistics(false);
+      setLocalBeginHandover(false);
 
       setActiveTab('OBJECTIVES');
       setScreen('GAME');
@@ -274,6 +285,11 @@ export default function App() {
       setLocalSeekPermissionType('');
       setLocalTriggerStrike(false);
       setLocalTriggerExfiltration(false);
+      setLocalRequestFinance(false);
+      setLocalCollectFinance(false);
+      setLocalRequestLogistics(false);
+      setLocalCollectLogistics(false);
+      setLocalBeginHandover(false);
 
       setActiveTab('OBJECTIVES');
       setScreen('GAME');
@@ -611,7 +627,13 @@ export default function App() {
         activeJammerTarget: localActiveJammerTarget,
         seekPermissionType: localSeekPermissionType,
         triggerStrike: localTriggerStrike,
-        triggerExfiltration: localTriggerExfiltration
+        triggerExfiltration: localTriggerExfiltration,
+        
+        requestFinance: localRequestFinance,
+        collectFinance: localCollectFinance,
+        requestLogistics: localRequestLogistics,
+        collectLogistics: localCollectLogistics,
+        beginHandover: localBeginHandover
       };
 
       const res = await fetchWithRetry(`${GAME_API_BASE}/${session.id}/end-turn`, {
@@ -645,8 +667,9 @@ export default function App() {
       const combatOpClues = newClues.filter(c =>
         c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT'
       );
+      const handoverClues = newClues.filter(c => c.source === 'HANDOVER_UNLOCKED');
 
-      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0) {
+      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0 || handoverClues.length > 0) {
         setEndTurnReport({
           newFinance,
           newLogistics,
@@ -658,7 +681,8 @@ export default function App() {
           newExposedHostileSH,
           sweepAlerts: sweepAlertClues,
           sweepLosses: sweepLossClues,
-          combatOps: combatOpClues
+          combatOps: combatOpClues,
+          handoverAlerts: handoverClues
         });
       }
 
@@ -680,6 +704,11 @@ export default function App() {
       setLocalSeekPermissionType('');
       setLocalTriggerStrike(false);
       setLocalTriggerExfiltration(false);
+      setLocalRequestFinance(false);
+      setLocalCollectFinance(false);
+      setLocalRequestLogistics(false);
+      setLocalCollectLogistics(false);
+      setLocalBeginHandover(false);
 
       setLostAgentsList(prev => [...prev, ...lostAgents]);
       
@@ -746,6 +775,16 @@ export default function App() {
     setScreen('SELECT');
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('spy_game_token');
+    localStorage.removeItem('covert_ops_operator_user');
+    localStorage.removeItem('spy_game_session_id');
+    setScreen('LOGIN');
+    setSession(null);
+    setSessions([]);
+    addToast("Logged out successfully.", "info");
+  };
+
   const hasActiveGame = sessions.some(s => s.status === 'ACTIVE');
   const activeScenario = scenarios.find(s => s.scenarioId === session?.scenarioId);
 
@@ -785,6 +824,7 @@ export default function App() {
           onJoinGame={handleJoinGame}
           loading={loading}
           errorMsg={errorMsg}
+          onLogout={handleLogout}
         />
       )}
 
@@ -825,6 +865,16 @@ export default function App() {
                 localTriggerExfiltration={localTriggerExfiltration}
                 setLocalTriggerExfiltration={setLocalTriggerExfiltration}
                 addToast={addToast}
+                localRequestFinance={localRequestFinance}
+                setLocalRequestFinance={setLocalRequestFinance}
+                localCollectFinance={localCollectFinance}
+                setLocalCollectFinance={setLocalCollectFinance}
+                localRequestLogistics={localRequestLogistics}
+                setLocalRequestLogistics={setLocalRequestLogistics}
+                localCollectLogistics={localCollectLogistics}
+                setLocalCollectLogistics={setLocalCollectLogistics}
+                localBeginHandover={localBeginHandover}
+                setLocalBeginHandover={setLocalBeginHandover}
               />
             )}
 
@@ -861,6 +911,16 @@ export default function App() {
                 localBuiltSecureSafehouses={localBuiltSecureSafehouses}
                 localActiveJammerTarget={localActiveJammerTarget}
                 localDecoyDeployments={localDecoyDeployments}
+                localRequestFinance={localRequestFinance}
+                setLocalRequestFinance={setLocalRequestFinance}
+                localCollectFinance={localCollectFinance}
+                setLocalCollectFinance={setLocalCollectFinance}
+                localRequestLogistics={localRequestLogistics}
+                setLocalRequestLogistics={setLocalRequestLogistics}
+                localCollectLogistics={localCollectLogistics}
+                setLocalCollectLogistics={setLocalCollectLogistics}
+                localBeginHandover={localBeginHandover}
+                setLocalBeginHandover={setLocalBeginHandover}
               />
             )}
 
@@ -883,6 +943,7 @@ export default function App() {
                 session={session}
                 localAssessments={localAssessments}
                 onSetClueAssessment={setClueAssessment}
+                isAttacker={session ? session.playerRole === 'ATTACKER' : false}
               />
             )}
 
@@ -912,6 +973,7 @@ export default function App() {
                 showGodMode={showGodMode}
                 setShowGodMode={setShowGodMode}
                 session={session}
+                isAttacker={session ? session.playerRole === 'ATTACKER' : false}
               />
             )}
           </main>
@@ -931,6 +993,7 @@ export default function App() {
         <EndTurnReportModal
           report={endTurnReport}
           onClose={() => setEndTurnReport(null)}
+          isAttacker={session ? session.playerRole === 'ATTACKER' : false}
         />
       )}
 

@@ -1,123 +1,108 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Sliders, Shield, Target, AlertTriangle, Play, CornerDownRight } from 'lucide-react';
+import { Sliders, Shield, Target, AlertTriangle } from 'lucide-react';
 
 export default function GodModeView({ 
-  replayPlan, 
   replayTurn, 
   setReplayTurn, 
-  showGodMode, 
-  setShowGodMode,
   session 
 }) {
-  const [activePlanType, setActivePlanType] = useState('PRIMARY'); // 'PRIMARY' or 'FALLBACK'
+  const currentTurn = session?.currentTurn || 1;
 
-  if (!replayPlan) {
-    return (
-      <div className="clues-view">
-        <div className="clues-header">
-          <h2>GOD MODE DEV TOOLS</h2>
-          <p className="clues-subtitle">Suspect plan telemetry not yet loaded.</p>
-        </div>
-        <div className="empty-state">
-          <Sliders size={48} />
-          <p>No active plan plan found in memory. Start a session first.</p>
-        </div>
-      </div>
+  // Track the actual positions of the Attacker dynamically from turn logs
+  const getSuspectLocationForTurn = (t) => {
+    const moves = (session?.discoveredClues || []).filter(c => 
+      (c.source === 'SUSPECT_RELOCATION' || c.source === 'SAFEHOUSE_ROTATION') && c.turnDiscovered <= t
     );
-  }
+    if (moves.length > 0) {
+      const lastMove = moves[moves.length - 1];
+      const txt = lastMove.clueText.toLowerCase();
+      if (txt.includes('rotated safehouses inside ')) {
+        return lastMove.clueText.substring(lastMove.clueText.indexOf('inside ') + 7).replace(' to shake surveillance.', '').trim();
+      } else if (txt.includes('relocated to ')) {
+        return lastMove.clueText.substring(lastMove.clueText.indexOf('to ') + 3).trim();
+      }
+    }
+    return session?.suspectLocation || 'KARACHI';
+  };
 
-  const primarySteps = replayPlan.primaryPlan || [];
-  const fallbackSteps = replayPlan.fallbackPlan || [];
-  const steps = activePlanType === 'PRIMARY' ? primarySteps : fallbackSteps;
-
-  // Helper to find combat team operations for a specific turn from session clues
-  const getCombatOpsForTurn = (turnNum) => {
-    if (!session || !session.discoveredClues) return [];
-    return session.discoveredClues.filter(c => 
-      c.turnDiscovered === turnNum && 
-      (c.source === 'TACTICAL_FORCE' || c.clueText.includes('COMBAT') || c.clueText.includes('raid'))
+  // Find Defender activity/relocations for this turn
+  const getDefenderEventsForTurn = (t) => {
+    return (session?.discoveredClues || []).filter(c => 
+      c.turnDiscovered === t && 
+      (c.source === 'TACTICAL_FORCE' || c.source === 'SECURITY_SWEEP_LOSS' || c.source === 'SECURITY_SWEEP_ALERT')
     );
   };
 
+  // Get other major actions (finance, logistics, handovers, safehouse builds)
+  const getMajorActionsForTurn = (t) => {
+    const ignoreSources = [
+      'SUSPECT_RELOCATION', 'SAFEHOUSE_ROTATION', 'TACTICAL_FORCE',
+      'SECURITY_SWEEP_ALERT', 'SECURITY_SWEEP_LOSS'
+    ];
+    return (session?.discoveredClues || []).filter(c => 
+      c.turnDiscovered === t && 
+      !ignoreSources.some(src => c.source.startsWith(src))
+    );
+  };
+
+  const steps = [];
+  for (let t = 1; t <= currentTurn; t++) {
+    steps.push({
+      turn: t,
+      suspectLocation: getSuspectLocationForTurn(t),
+      defenderEvents: getDefenderEventsForTurn(t),
+      actions: getMajorActionsForTurn(t)
+    });
+  }
+
+  const selectedStep = steps.find(s => s.turn === (replayTurn > currentTurn ? currentTurn : replayTurn)) || steps[steps.length - 1];
+
   return (
     <div className="clues-view">
-      <div className="clues-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="clues-header">
         <div className="clues-header-left">
-          <h2>GOD MODE TIMELINE FEED</h2>
-          <p className="clues-subtitle">Chronological intelligence feed showing attacker trajectory and defender combat responses</p>
+          <h2 style={{ fontSize: '13px', margin: 0 }}>TACTICAL TIMELINE TELEMETRY</h2>
+          <p className="clues-subtitle" style={{ fontSize: '9.5px', marginTop: '2px' }}>God View tracking turn-by-turn history of positions, combat deployments, and strategic milestones</p>
         </div>
-        <button 
-          onClick={() => setShowGodMode(!showGodMode)}
-          className={`cyber-btn sm ${showGodMode ? 'active-accept' : 'red'}`}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          {showGodMode ? <Eye size={14} /> : <EyeOff size={14} />}
-          {showGodMode ? 'MAP OVERLAY ACTIVE' : 'ACTIVATE MAP OVERLAY'}
-        </button>
       </div>
 
-      {/* Plan Type Selector Tabs */}
-      <div className="godmode-tab-bar">
-        <button
-          onClick={() => setActivePlanType('PRIMARY')}
-          className={`godmode-tab-btn ${activePlanType === 'PRIMARY' ? 'active' : ''}`}
-        >
-          PRIMARY OPERATIONAL PLAN ({primarySteps.length} Steps)
-        </button>
-        <button
-          onClick={() => setActivePlanType('FALLBACK')}
-          className={`godmode-tab-btn ${activePlanType === 'FALLBACK' ? 'active' : ''}`}
-        >
-          FALLBACK EMERGENCY PLAN ({fallbackSteps.length} Steps)
-        </button>
-      </div>
-
-      <div className="godmode-scroll-container">
-        {steps.length === 0 ? (
-          <div className="empty-state mt-6">
-            <AlertTriangle size={48} className="text-amber" />
-            <p>No steps populated for this plan. Attacker has not activated this operational branch.</p>
-          </div>
-        ) : (
-          <>
-            {/* Timeline Controls */}
-            <div className="resource-section full-width">
-              <div className="resource-header">
-                <Sliders size={16} />
-                <h3>TIMELINE RANGE SCANNER</h3>
-              </div>
-              <div className="god-mode-controls flex items-center gap-4 bg-[rgba(5,8,17,0.7)] p-4 border border-[var(--border-subtle)] rounded-[var(--radius-sm)] mt-2">
-                <input 
-                  type="range" 
-                  min="1" 
-                  max={steps.length} 
-                  value={replayTurn > steps.length ? steps.length : replayTurn} 
-                  onChange={(e) => setReplayTurn(parseInt(e.target.value, 10))} 
-                  className="w-full cursor-pointer accent-purple-500"
-                  style={{ flex: 1 }}
-                />
-                <span className="font-mono text-purple-400 font-bold whitespace-nowrap">
-                  PREVIEW LIMIT: TURN {replayTurn > steps.length ? steps.length : replayTurn} / {steps.length}
-                </span>
-              </div>
+      {steps.length === 0 ? (
+        <div className="empty-state">
+          <AlertTriangle size={48} />
+          <p>No turns executed yet in this session.</p>
+        </div>
+      ) : (
+        <>
+          {/* Timeline Range Scanner */}
+          <div className="resource-section full-width">
+            <div className="resource-header">
+              <Sliders size={12} />
+              <h3 style={{ fontSize: '10px', margin: 0 }}>TIMELINE SCANNER</h3>
             </div>
+            <div className="god-mode-controls flex items-center gap-4 bg-[rgba(5,8,17,0.7)] p-4 border border-[var(--border-subtle)] rounded-[var(--radius-sm)] mt-2">
+              <input 
+                type="range" 
+                min="1" 
+                max={currentTurn} 
+                value={replayTurn > currentTurn ? currentTurn : replayTurn} 
+                onChange={(e) => setReplayTurn(parseInt(e.target.value, 10))} 
+                className="w-full cursor-pointer accent-purple-500"
+                style={{ flex: 1 }}
+              />
+              <span className="font-mono text-purple-400 font-bold whitespace-nowrap" style={{ fontSize: '10px' }}>
+                PREVIEW: TURN {replayTurn > currentTurn ? currentTurn : replayTurn} / {currentTurn}
+              </span>
+            </div>
+          </div>
 
-            {/* Facebook style Timeline Feed */}
-            <div className="timeline-feed-container mt-8 relative pl-8">
-              {/* Vertical line connecting nodes */}
-              <div className="timeline-vertical-line"></div>
+          {/* Replay feed list */}
+          <div className="timeline-feed-container mt-8 relative pl-8">
+            <div className="timeline-vertical-line"></div>
 
             {steps.map((step, idx) => {
-              const isActive = (replayTurn > steps.length ? steps.length : replayTurn) === step.turn;
-              const combatOps = getCombatOpsForTurn(step.turn);
-              const hasCombat = combatOps.length > 0;
-
-              // Extract tag fields checking for validity
-              const showLocation = step.suspectLocation && step.suspectLocation !== 'NONE';
-              const showFinance = step.financeCity && step.financeCity !== 'NONE';
-              const showLogistics = step.logisticsCity && step.logisticsCity !== 'NONE';
-              const showExfiltration = step.escapeNode && step.escapeNode !== 'NONE';
-              const showAction = step.action && step.action !== 'IDLE' && step.action !== 'NONE';
+              const isActive = (replayTurn > currentTurn ? currentTurn : replayTurn) === step.turn;
+              const hasActions = step.actions.length > 0;
+              const hasDefender = step.defenderEvents.length > 0;
 
               return (
                 <div 
@@ -127,75 +112,44 @@ export default function GodModeView({
                   }`}
                   onClick={() => setReplayTurn(step.turn)}
                 >
-                  {/* Timeline dot */}
-                  <div className={`timeline-node-dot ${isActive ? 'active' : ''} ${hasCombat ? 'combat-alert' : ''}`}>
+                  <div className={`timeline-node-dot ${isActive ? 'active' : ''} ${hasDefender ? 'combat-alert' : ''}`}>
                     <span>{step.turn}</span>
                   </div>
 
-                  {/* Timeline Card */}
                   <div className={`timeline-card-body cyber-panel p-4 ${isActive ? 'border-purple-500' : ''}`}>
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-mono text-xs text-purple-400 font-bold">TURN {step.turn} REPORT</span>
-                      {hasCombat && (
-                        <span className="flex items-center gap-1 font-mono text-[9px] px-2 py-0.5 rounded bg-[rgba(255,59,48,0.15)] text-red-400 border border-[rgba(255,59,48,0.3)]">
-                          <Shield size={10} /> TACTICAL ENGAGEMENT
-                        </span>
-                      )}
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-mono text-purple-400 font-bold" style={{ fontSize: '10px' }}>TURN {step.turn} LOGS</span>
                     </div>
 
-                    <h4 className="font-mono text-sm text-[var(--text-primary)] mb-3">
-                      Phase: <span className="text-purple-300 font-bold">
-                        {step.phase === 'HOME_TRANSIT' ? 'ATTACK PREP' : step.phase?.replace(/_/g, ' ')}
-                      </span>
-                    </h4>
-
-                    {/* Cyber Tags row - Hide if value doesn't exist */}
                     <div className="flex flex-wrap gap-2 mb-3">
-                      {showLocation && (() => {
-                        const targetSafehouse = session?.safehouses?.find(s => s.cityNode === step.suspectLocation && s.ownerFaction === 'HOSTILE');
-                        const safehouseCode = targetSafehouse ? targetSafehouse.safehouseCode : '';
-                        return (
-                          <span className="timeline-tag location">
-                            📍 LOCATION: {step.suspectLocation?.replace(/_/g, ' ').toUpperCase()} {safehouseCode ? `(#${safehouseCode})` : ''}
-                          </span>
-                        );
-                      })()}
-                      {showFinance && (
-                        <span className="timeline-tag finance">
-                          💳 FINANCE: {step.financeCity?.replace(/_/g, ' ').toUpperCase()} {step.financeMethod ? `(${step.financeMethod.replace(/_/g, ' ')})` : ''}
-                        </span>
-                      )}
-                      {showLogistics && (
-                        <span className="timeline-tag logistics">
-                          📦 LOGISTICS: {step.logisticsCity?.replace(/_/g, ' ').toUpperCase()} {step.logisticsMethod ? `(${step.logisticsMethod.replace(/_/g, ' ')})` : ''}
-                        </span>
-                      )}
-                      {step.smuggling && (
-                        <span className="timeline-tag smuggling">
-                          🚨 INFILTRATION ZONE: {step.smugglingMethod ? step.smugglingMethod.replace(/_/g, ' ').toUpperCase() : 'ACTIVE'}
-                        </span>
-                      )}
-                      {showExfiltration && (
-                        <span className="timeline-tag exfiltration" style={{ background: 'rgba(235, 94, 40, 0.08)', color: '#eb5e28', border: '1px solid rgba(235, 94, 40, 0.2)' }}>
-                          🚪 EXFILTRATION NODE: {step.escapeNode?.replace(/_/g, ' ').toUpperCase()} {step.escapeMethod ? `(${step.escapeMethod.replace(/_/g, ' ')})` : ''}
-                        </span>
-                      )}
-                      {showAction && (
-                        <span className="timeline-tag action" style={{ background: 'rgba(255, 59, 48, 0.1)', color: 'var(--red)', border: '1px solid rgba(255, 59, 48, 0.3)', fontWeight: 'bold' }}>
-                          🎯 ACTION: {step.action?.replace(/_/g, ' ').toUpperCase()}
-                        </span>
-                      )}
+                      <span className="timeline-tag location" style={{ background: 'rgba(163, 114, 240, 0.08)', color: '#a372f0', border: '1px solid rgba(163, 114, 240, 0.2)', fontSize: '9px', padding: '3px 6px' }}>
+                        📍 ATTACKER POSITION: {step.suspectLocation?.replace(/_/g, ' ').toUpperCase()}
+                      </span>
                     </div>
 
-                    {/* Defender Combat Actions Subpanel */}
-                    {hasCombat && (
-                      <div className="mt-3 p-3 bg-[rgba(255,59,48,0.04)] border border-[rgba(255,59,48,0.2)] rounded-[var(--radius-sm)]">
-                        <span className="font-mono text-[10px] text-red-400 font-bold flex items-center gap-1.5 mb-1.5">
-                          <Target size={11} /> DEFENDER COMBAT OPERATIONS
+                    {/* Attacker major actions */}
+                    {hasActions && (
+                      <div className="mt-2 p-2.5 bg-[rgba(0,240,255,0.03)] border border-[rgba(0,240,255,0.15)] rounded mb-2">
+                        <span className="font-mono text-[9px] text-cyan-400 font-bold flex items-center gap-1.5 mb-1">
+                          <Target size={11} /> ATTACKER OPERATIONS
                         </span>
-                        {combatOps.map((op, opIdx) => (
-                          <p key={opIdx} className="font-mono text-xs text-[var(--text-secondary)] leading-relaxed m-0 mt-1">
-                            {op.clueText}
+                        {step.actions.map((op, opIdx) => (
+                          <p key={opIdx} className="font-mono text-[10px] text-[var(--text-secondary)] leading-relaxed m-0 mt-1">
+                            • {op.clueText}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Defender logs */}
+                    {hasDefender && (
+                      <div className="mt-2 p-2.5 bg-[rgba(255,59,48,0.03)] border border-[rgba(255,59,48,0.15)] rounded">
+                        <span className="font-mono text-[9px] text-red-400 font-bold flex items-center gap-1.5 mb-1">
+                          <Shield size={11} /> DEFENDER INTELLIGENCE
+                        </span>
+                        {step.defenderEvents.map((op, opIdx) => (
+                          <p key={opIdx} className="font-mono text-[10px] text-[var(--text-secondary)] leading-relaxed m-0 mt-1">
+                            • {op.clueText}
                           </p>
                         ))}
                       </div>
@@ -204,10 +158,9 @@ export default function GodModeView({
                 </div>
               );
             })}
-            </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

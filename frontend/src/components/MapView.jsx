@@ -38,7 +38,17 @@ export default function MapView({
   localBuiltSafehouses = [],
   localBuiltSecureSafehouses = [],
   localActiveJammerTarget,
-  localDecoyDeployments = []
+  localDecoyDeployments = [],
+  localRequestFinance,
+  setLocalRequestFinance,
+  localCollectFinance,
+  setLocalCollectFinance,
+  localRequestLogistics,
+  setLocalRequestLogistics,
+  localCollectLogistics,
+  setLocalCollectLogistics,
+  localBeginHandover,
+  setLocalBeginHandover
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -282,9 +292,13 @@ export default function MapView({
         attackerTechIcons.push(`<span class="city-marker-tech-icon">⚡</span>`);
       });
 
-      const techMarkersHtml = isAttacker
-        ? (attackerTechIcons.length > 0 ? `<div class="city-marker-tech">${attackerTechIcons.join('')}</div>` : '')
-        : (techIcons.length > 0 ? `<div class="city-marker-tech">${techIcons.join('')}</div>` : '');
+      const combinedTech = (isAttacker && showGodMode)
+        ? [...attackerTechIcons, ...techIcons]
+        : (isAttacker ? attackerTechIcons : techIcons);
+
+      const techMarkersHtml = combinedTech.length > 0
+        ? `<div class="city-marker-tech">${combinedTech.join('')}</div>`
+        : '';
 
       const isSelected = selectedCityNode === cityId;
 
@@ -577,7 +591,7 @@ export default function MapView({
       {/* Title */}
       <div className="map-title z-10 pointer-events-none">
         <h2>Tactical Map Feed</h2>
-        <span>SATELLITE INTEL SCAN — BORDER RADAR TELEMETRY</span>
+       
       </div>
 
       {/* Toolbar */}
@@ -785,6 +799,17 @@ export default function MapView({
             isWaiting={isWaiting}
             localTargetSafehouseCode={localTargetSafehouseCode}
             setLocalTargetSafehouseCode={setLocalTargetSafehouseCode}
+            localRequestFinance={localRequestFinance}
+            setLocalRequestFinance={setLocalRequestFinance}
+            localCollectFinance={localCollectFinance}
+            setLocalCollectFinance={setLocalCollectFinance}
+            localRequestLogistics={localRequestLogistics}
+            setLocalRequestLogistics={setLocalRequestLogistics}
+            localCollectLogistics={localCollectLogistics}
+            setLocalCollectLogistics={setLocalCollectLogistics}
+            localBeginHandover={localBeginHandover}
+            setLocalBeginHandover={setLocalBeginHandover}
+            setSelectedCityNode={setSelectedCityNode}
           />
         ) : (
           <CIAIntelBox 

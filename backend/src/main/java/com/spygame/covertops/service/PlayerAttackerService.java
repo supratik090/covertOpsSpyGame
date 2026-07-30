@@ -62,7 +62,135 @@ public class PlayerAttackerService {
             activateExfiltration(session);
         }
 
+        // 8. Process Finance / Logistics Request/Collection Actions
+        if (request.isRequestFinance()) {
+            requestFinance(session);
+        }
+        if (request.isCollectFinance()) {
+            collectFinance(session, config);
+        }
+        if (request.isRequestLogistics()) {
+            requestLogistics(session);
+        }
+        if (request.isCollectLogistics()) {
+            collectLogistics(session, config);
+        }
+        if (request.isBeginHandover()) {
+            beginHandover(session, config);
+        }
+
         return repository.save(session);
+    }
+
+    private void requestFinance(GameSession session) {
+        if (session.getRequestedFinanceCity() != null) {
+            throw new IllegalStateException("Finance has already been requested.");
+        }
+        session.setRequestedFinanceCity(session.getSuspectLocation());
+        session.setFinanceCollectionTurnsRemaining(5);
+        session.setActiveAttackerPhase("FINANCE_SOURCING");
+        session.getDiscoveredClues().add(new GameSession.Clue(
+                session.getCurrentTurn(),
+                "FINANCE_REQUESTED",
+                "Finance channel opened in " + session.getSuspectLocation().toUpperCase() + ". Return here in 5 turns to collect."
+        ));
+    }
+
+    private void collectFinance(GameSession session, ScenarioConfig config) {
+        if (session.isFinanceCollected()) {
+            throw new IllegalStateException("Finance has already been collected.");
+        }
+        if (session.getFinanceCollectionTurnsRemaining() > 0) {
+            throw new IllegalStateException("Finance collection channels not yet ready.");
+        }
+        if (session.getRequestedFinanceCity() == null || !session.getRequestedFinanceCity().equals(session.getSuspectLocation())) {
+            throw new IllegalStateException("Operative must be at the requested finance city to collect.");
+        }
+        session.setFinanceCollected(true);
+        session.getUncoveredFinanceCities().add(session.getSuspectLocation());
+        session.getDiscoveredClues().add(new GameSession.Clue(
+                session.getCurrentTurn(),
+                "FINANCE_SOURCED",
+                "Capital acquired. Finance sourcing completed."
+        ));
+        checkUnlockedPhase(session, config);
+    }
+
+    private void requestLogistics(GameSession session) {
+        if (session.getRequestedLogisticsCity() != null) {
+            throw new IllegalStateException("Logistics has already been requested.");
+        }
+        session.setRequestedLogisticsCity(session.getSuspectLocation());
+        session.setLogisticsCollectionTurnsRemaining(5);
+        session.setActiveAttackerPhase("LOGISTICS_SOURCING");
+        session.getDiscoveredClues().add(new GameSession.Clue(
+                session.getCurrentTurn(),
+                "LOGISTICS_REQUESTED",
+                "Logistical supply lines mapped in " + session.getSuspectLocation().toUpperCase() + ". Return here in 5 turns to collect."
+        ));
+    }
+
+    private void collectLogistics(GameSession session, ScenarioConfig config) {
+        if (session.isLogisticsCollected()) {
+            throw new IllegalStateException("Logistics has already been collected.");
+        }
+        if (session.getLogisticsCollectionTurnsRemaining() > 0) {
+            throw new IllegalStateException("Logistics collection channels not yet ready.");
+        }
+        if (session.getRequestedLogisticsCity() == null || !session.getRequestedLogisticsCity().equals(session.getSuspectLocation())) {
+            throw new IllegalStateException("Operative must be at the requested logistics city to collect.");
+        }
+        session.setLogisticsCollected(true);
+        session.getUncoveredLogisticsCities().add(session.getSuspectLocation());
+        session.getDiscoveredClues().add(new GameSession.Clue(
+                session.getCurrentTurn(),
+                "LOGISTICS_SOURCED",
+                "Logistical blueprints acquired. Logistics sourcing completed."
+        ));
+        checkUnlockedPhase(session, config);
+    }
+
+    private void beginHandover(GameSession session, ScenarioConfig config) {
+        if (!session.isFinanceCollected() || !session.isLogisticsCollected()) {
+            throw new IllegalStateException("Cannot initiate handover before both finance and logistics are collected.");
+        }
+        if (session.getHandoverCity() == null) {
+            throw new IllegalStateException("No handover city has been allocated yet.");
+        }
+        if (!session.getSuspectLocation().equals(session.getHandoverCity())) {
+            throw new IllegalStateException("Operative must be at the allocated handover city: " + session.getHandoverCity().replace("_", " ").toUpperCase() + " to initiate handover.");
+        }
+        session.setHandoverTurnsRemaining(3);
+        session.setActiveAttackerPhase("HANDOVER");
+        session.getDiscoveredClues().add(new GameSession.Clue(
+                session.getCurrentTurn(),
+                "HANDOVER_INITIATED",
+                "Handover protocol initiated at " + session.getSuspectLocation().toUpperCase() + ". Remain here for 3 turns to complete handover."
+        ));
+    }
+
+    private void checkUnlockedPhase(GameSession session, ScenarioConfig config) {
+        if (session.isFinanceCollected() && session.isLogisticsCollected()) {
+            session.setActiveAttackerPhase("HANDOVER");
+            
+            // Choose a random friendly city (HOSTILE_TERRITORY represents Attacker home soil)
+            List<String> friendlyCities = config.getNodes().stream()
+                    .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                    .map(Node::getId)
+                    .collect(Collectors.toList());
+            if (friendlyCities.isEmpty()) {
+                friendlyCities = config.getNodes().stream().map(Node::getId).collect(Collectors.toList());
+            }
+            Random rand = new Random();
+            String chosenHandoverCity = friendlyCities.get(rand.nextInt(friendlyCities.size()));
+            session.setHandoverCity(chosenHandoverCity);
+
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    session.getCurrentTurn(),
+                    "HANDOVER_UNLOCKED",
+                    "Sourcing completed. Handover site confirmed: " + chosenHandoverCity.replace("_", " ").toUpperCase() + ". Navigate there to initiate handover protocol."
+            ));
+        }
     }
 
     private void buildSafehouse(GameSession session, String cityNode, boolean isSecure, ScenarioConfig config) {
@@ -119,7 +247,7 @@ public class PlayerAttackerService {
         if ("INFILTRATION".equalsIgnoreCase(type)) {
             // Stage 1 Validation Checklist:
             // Check if Finance & Logistics are cleared and Handover complete
-            if ("HANDOVER".equals(session.getActiveAttackerPhase())) {
+            if (session.isHandoverCompleted()) {
                 session.setInfiltrationGoAheadApproved(true);
                 session.setActiveAttackerPhase("BORDER_CROSSING");
                 session.getDiscoveredClues().add(new GameSession.Clue(
@@ -154,15 +282,14 @@ public class PlayerAttackerService {
             return;
         }
 
-        // Handle moving between safehouses in the same city
+        // Handle moving between safehouses in the same city (Loopholes lockdowns)
         if (current.equals(targetCity)) {
-            // Verify if safehouseCode exists
             boolean safehouseExists = session.getSafehouses().stream()
-                    .anyMatch(s -> s.getCityNode().equals(targetCity) && "HOSTILE".equals(s.getOwnerFaction()));
+                    .anyMatch(s -> s.getCityNode().equals(targetCity) && "HOSTILE".equals(s.getOwnerFaction()) && s.getSafehouseCode().equals(safehouseCode));
             if (!safehouseExists) {
-                throw new IllegalArgumentException("Cannot relocate to safehouse: No hostile safehouses found in " + targetCity);
+                throw new IllegalArgumentException("Cannot relocate to safehouse: Safehouse code " + safehouseCode + " not found in " + targetCity);
             }
-            // Just move safehouse
+            session.setSuspectSafehouseCode(safehouseCode);
             session.getDiscoveredClues().add(new GameSession.Clue(
                     session.getCurrentTurn(),
                     "SAFEHOUSE_ROTATION",
@@ -179,10 +306,11 @@ public class PlayerAttackerService {
             throw new IllegalArgumentException("Invalid node connection.");
         }
 
-        // Validate lockdown
-        boolean isLockedDown = session.getHostilePatrolCities().contains(targetCity) || session.getSurprisePatrolCities().contains(targetCity);
-        if (isLockedDown) {
-            throw new IllegalStateException("Node " + targetCity + " is currently in lockdown. Suspect cannot move.");
+        // Validate lockdown (moving into or out of a locked-down city is forbidden)
+        boolean isStartLocked = session.getHostilePatrolCities().contains(current) || session.getSurprisePatrolCities().contains(current);
+        boolean isEndLocked = session.getHostilePatrolCities().contains(targetCity) || session.getSurprisePatrolCities().contains(targetCity);
+        if (isStartLocked || isEndLocked) {
+            throw new IllegalStateException("Node connection is blocked: City grid lockdown is active.");
         }
 
         // If crossing border, must have infiltration approved
@@ -195,51 +323,38 @@ public class PlayerAttackerService {
 
         session.setSuspectLocation(targetCity);
 
-        // Track sourcing visits
-        if (config.getFinanceMapping() != null && config.getFinanceMapping().containsKey(targetCity)) {
-            if (!session.getUncoveredFinanceCities().contains(targetCity)) {
-                session.getUncoveredFinanceCities().add(targetCity);
-                session.getDiscoveredClues().add(new GameSession.Clue(
-                        session.getCurrentTurn(),
-                        "FINANCE_SOURCED",
-                        "Capital acquired. Finance sourcing completed in " + targetCity.toUpperCase() + ".",
-                        targetCity,
-                        "Cell Logistics"
-                ));
+        session.getDiscoveredClues().add(new GameSession.Clue(
+                session.getCurrentTurn(),
+                "SUSPECT_RELOCATION",
+                "Operative relocated to " + targetCity.replace("_", " ").toUpperCase()
+        ));
+
+        // Track occupied safehouse code
+        if (safehouseCode != null && !safehouseCode.isEmpty()) {
+            boolean safehouseExists = session.getSafehouses().stream()
+                    .anyMatch(s -> s.getCityNode().equals(targetCity) && "HOSTILE".equals(s.getOwnerFaction()) && s.getSafehouseCode().equals(safehouseCode));
+            if (safehouseExists) {
+                session.setSuspectSafehouseCode(safehouseCode);
             }
+        } else {
+            String firstSH = session.getSafehouses().stream()
+                    .filter(s -> s.getCityNode().equals(targetCity) && "HOSTILE".equals(s.getOwnerFaction()))
+                    .map(GameSession.Safehouse::getSafehouseCode)
+                    .findFirst()
+                    .orElse(null);
+            session.setSuspectSafehouseCode(firstSH);
         }
 
-        if (config.getLogisticsMapping() != null && config.getLogisticsMapping().containsKey(targetCity)) {
-            if (!session.getUncoveredLogisticsCities().contains(targetCity)) {
-                session.getUncoveredLogisticsCities().add(targetCity);
-                session.getDiscoveredClues().add(new GameSession.Clue(
-                        session.getCurrentTurn(),
-                        "LOGISTICS_SOURCED",
-                        "Logistical blueprints acquired. Logistics sourcing completed in " + targetCity.toUpperCase() + ".",
-                        targetCity,
-                        "Cell Logistics"
-                ));
+        // Update activeAttackerPhase status based on new milestones
+        if (session.isHandoverCompleted()) {
+            if (!session.isInfiltrationGoAheadApproved()) {
+                session.setActiveAttackerPhase("HANDOVER");
             }
-        }
-
-        // Update activeAttackerPhase status
-        boolean financeComplete = config.getFinanceMapping() == null || config.getFinanceMapping().isEmpty() ||
-                session.getUncoveredFinanceCities().containsAll(config.getFinanceMapping().keySet());
-        boolean logisticsComplete = config.getLogisticsMapping() == null || config.getLogisticsMapping().isEmpty() ||
-                session.getUncoveredLogisticsCities().containsAll(config.getLogisticsMapping().keySet());
-
-        if (financeComplete && logisticsComplete && isHandoverCity(targetCity, config)) {
+        } else if (session.isFinanceCollected() && session.isLogisticsCollected()) {
             session.setActiveAttackerPhase("HANDOVER");
-            session.getDiscoveredClues().add(new GameSession.Clue(
-                    session.getCurrentTurn(),
-                    "HANDOVER_ACHIEVED",
-                    "Handover achieved in " + targetCity.toUpperCase() + ". Operative is ready to request border infiltration clearance.",
-                    targetCity,
-                    "Command Dispatch"
-            ));
-        } else if (!financeComplete && config.getFinanceMapping().containsKey(targetCity)) {
+        } else if (session.getRequestedFinanceCity() != null && !session.isFinanceCollected()) {
             session.setActiveAttackerPhase("FINANCE_SOURCING");
-        } else if (!logisticsComplete && config.getLogisticsMapping().containsKey(targetCity)) {
+        } else if (session.getRequestedLogisticsCity() != null && !session.isLogisticsCollected()) {
             session.setActiveAttackerPhase("LOGISTICS_SOURCING");
         } else if (!"BORDER_CROSSING".equals(session.getActiveAttackerPhase()) &&
                    !"EXFILTRATION".equals(session.getActiveAttackerPhase())) {

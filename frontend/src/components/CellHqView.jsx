@@ -1,6 +1,7 @@
 import React from 'react';
 import { Shield, Coins, MapPin, Activity, HelpCircle, CheckCircle, ChevronRight, Key } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getSuspectImage } from '../assets/suspectImages';
 
 const CellHqView = ({
   session,
@@ -20,13 +21,12 @@ const CellHqView = ({
   const budget = session.attackerBudget || 0;
   const location = session.suspectLocation || 'NONE';
 
-  const financeSourced = activeScenario?.financeMapping 
-    ? Object.keys(activeScenario.financeMapping).every(c => session.uncoveredFinanceCities?.includes(c))
-    : false;
-  const logisticsSourced = activeScenario?.logisticsMapping 
-    ? Object.keys(activeScenario.logisticsMapping).every(c => session.uncoveredLogisticsCities?.includes(c))
-    : false;
-  const handoverAchieved = (currentPhase === 'HANDOVER' || isApprovedInf) && financeSourced && logisticsSourced;
+  const financeSourced = session.financeCollected || false;
+  const logisticsSourced = session.logisticsCollected || false;
+  const handoverAchieved = session.handoverCompleted || false;
+
+  const suspectName = session.actualAttacker || 'Faizal Khan';
+  const suspectImg = getSuspectImage(suspectName);
 
   const handleQueuePermission = (type) => {
     if (localSeekPermissionType === type) {
@@ -79,12 +79,27 @@ const CellHqView = ({
       animate={{ opacity: 1, x: 0 }}
       style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', overflowY: 'auto' }}
     >
-      <div className="auth-brand" style={{ marginBottom: '8px' }}>
-        <span className="auth-brand-line">OPERATIONS CELL</span>
-        <span className="auth-brand-name">RED DRAGON</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <div className="auth-brand" style={{ marginBottom: '8px' }}>
+          <span className="auth-brand-line">OPERATIONS CELL</span>
+          <span className="auth-brand-name">RED DRAGON</span>
+        </div>
+        {suspectImg && (
+          <img 
+            src={suspectImg} 
+            alt={suspectName} 
+            style={{ 
+              width: '42px', 
+              height: '42px', 
+              borderRadius: '50%', 
+              border: '2px solid var(--red)',
+              boxShadow: '0 0 8px rgba(255, 59, 48, 0.4)'
+            }} 
+          />
+        )}
       </div>
 
-      <h1 className="select-title" style={{ fontSize: '14px', marginBottom: '8px' }}>CELL HQ DASHBOARD</h1>
+      <h1 className="select-title" style={{ fontSize: '14px', marginBottom: '8px' }}>CELL HQ DASHBOARD - {suspectName.toUpperCase()}</h1>
 
       {/* Stats Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
@@ -132,9 +147,9 @@ const CellHqView = ({
 
             {/* Stage 1 Checklist */}
             <div style={{ marginTop: '4px', marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              {renderCheckItem("Finance sourcing phase: COMPLETE", financeSourced || isApprovedInf)}
-              {renderCheckItem("Logistics sourcing phase: COMPLETE", logisticsSourced || isApprovedInf)}
-              {renderCheckItem("Phase status: HANDOVER achieved", handoverAchieved || isApprovedInf)}
+              {renderCheckItem(`Finance sourcing phase: ${financeSourced ? 'COMPLETE' : 'AWAITING COLLECTION'}`, financeSourced || isApprovedInf)}
+              {renderCheckItem(`Logistics sourcing phase: ${logisticsSourced ? 'COMPLETE' : 'AWAITING COLLECTION'}`, logisticsSourced || isApprovedInf)}
+              {renderCheckItem(`Phase status: ${handoverAchieved ? 'HANDOVER ACHIEVED' : 'AWAITING HANDOVER'}`, handoverAchieved || isApprovedInf)}
             </div>
             
             {!isApprovedInf && (

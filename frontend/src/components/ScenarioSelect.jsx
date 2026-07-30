@@ -12,7 +12,8 @@ const ScenarioSelect = ({
   onDeleteGame,
   onJoinGame,
   loading,
-  errorMsg
+  errorMsg,
+  onLogout
 }) => {
   const [playerRole, setPlayerRole] = useState('DEFENDER');
   const [gameMode, setGameMode] = useState('SINGLE'); // 'SINGLE', 'MULTIPLAYER'
@@ -35,9 +36,20 @@ const ScenarioSelect = ({
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
       >
-        <div className="auth-brand">
-          <span className="auth-brand-line">PROTOCOL</span>
-          <span className="auth-brand-name">NIGHTFALL</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div className="auth-brand" style={{ margin: 0 }}>
+            <span className="auth-brand-line">PROTOCOL</span>
+            <span className="auth-brand-name">NIGHTFALL</span>
+          </div>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="cyber-btn sm red"
+              style={{ fontSize: '9px', padding: '4px 10px', textTransform: 'uppercase', height: '24px', flexShrink: 0 }}
+            >
+              LOGOUT
+            </button>
+          )}
         </div>
         <h1 className="select-title">COMMAND DESK: OPERATIONS CENTER</h1>
 
@@ -57,6 +69,7 @@ const ScenarioSelect = ({
                 )}
                 <div className="scenario-meta" style={{ marginTop: '6px' }}>
                   <div>TURN: <span className="val cyan">{activeSession.currentTurn}/{activeSession.maxTurns}</span></div>
+                  <div>ROLE: <span className={`val ${activeSession.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{activeSession.playerRole}</span></div>
                   <div>STATUS: <span className="val green">ACTIVE</span></div>
                 </div>
               </div>
@@ -93,6 +106,7 @@ const ScenarioSelect = ({
                     <h3 style={{ fontSize: '11px' }}>{getScenarioTitle(s.scenarioId)}</h3>
                     <div className="scenario-meta" style={{ marginTop: '4px' }}>
                       <div>TURN: <span className="val cyan">{s.currentTurn}/{s.maxTurns}</span></div>
+                      <div>ROLE: <span className={`val ${s.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{s.playerRole}</span></div>
                       <div>STATUS: <span className={`val ${s.status === 'SUCCESS' ? 'cyan' : 'red'}`}>{s.status}</span></div>
                     </div>
                   </div>
