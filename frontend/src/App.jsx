@@ -10,6 +10,7 @@ import DossierView from './components/DossierView';
 import GodModeView from './components/GodModeView';
 import ResourcesView from './components/ResourcesView';
 import ObjectiveBoardView from './components/ObjectiveBoardView';
+import HintsView from './components/HintsView';
 import Toast from './components/Toast';
 import EndTurnReportModal from './components/EndTurnReportModal';
 import GameOverModal from './components/GameOverModal';
@@ -21,6 +22,7 @@ export default function App() {
   const [screen, setScreen] = useState('LOGIN'); // 'LOGIN', 'SELECT', 'GAME'
   const [activeTab, setActiveTab] = useState('MAP'); // 'MAP', 'AGENTS', 'CLUES', 'RESOURCES'
   const [scenarios, setScenarios] = useState([]);
+  const [sessions, setSessions] = useState([]);
   const [selectedScenarioId, setSelectedScenarioId] = useState('');
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -72,6 +74,19 @@ export default function App() {
     }
   };
 
+  const fetchSessions = async () => {
+    try {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/list`, {}, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch session list", err);
+    }
+  };
+
   const addToast = (message, type = 'info') => {
     const id = Date.now() + Math.random().toString(36).substr(2, 9);
     setToasts((prev) => [...prev, { id, message, type }]);
@@ -108,6 +123,7 @@ export default function App() {
       setShowGodMode(false);
       setReplayPlan(null);
       fetchReplayData(data.id, true);
+      fetchSessions();
       addToast("Operation initiated successfully.", "success");
     } catch (err) {
       addToast(err.message, "error");
@@ -146,6 +162,58 @@ export default function App() {
       setReplayPlan(null);
       fetchReplayData(data.id, true);
       addToast("Campaign feed reconnected.", "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load a specific session by ID (from the saved games list)
+  const handleLoadGame = async (sessionId) => {
+    setLoading(true);
+    try {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/${sessionId}`, {}, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
+      if (!res.ok) throw new Error('Failed to load session.');
+      const data = await res.json();
+      setSession(data);
+      localStorage.setItem('spy_game_session_id', data.id);
+      const loadedAssessments = {};
+      data.discoveredClues.forEach((c, idx) => {
+        loadedAssessments[idx] = c.assessment || 'UNASSESSED';
+      });
+      setLocalAssessments(loadedAssessments);
+      setCovertActions([]);
+      setLocalAgentTasks({});
+      setLocalSafehouseBuilds([]);
+      setLocalTechDeploys([]);
+      setLostAgentsList([]);
+      setActiveTab('MAP');
+      setScreen('GAME');
+      setShowGodMode(false);
+      setReplayPlan(null);
+      fetchReplayData(data.id, true);
+      addToast("Operation resumed.", "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete a session by ID
+  const handleDeleteGame = async (sessionId) => {
+    setLoading(true);
+    try {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/${sessionId}`, { method: 'DELETE' }, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
+      if (!res.ok) throw new Error('Failed to delete session.');
+      if (localStorage.getItem('spy_game_session_id') === sessionId) {
+        localStorage.removeItem('spy_game_session_id');
+      }
+      fetchSessions();
+      addToast("Campaign record purged.", "success");
     } catch (err) {
       addToast(err.message, "error");
     } finally {
@@ -331,8 +399,11 @@ export default function App() {
       const newClues = (updated.discoveredClues || []).slice(prevClueCount);
       const sweepAlertClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_ALERT');
       const sweepLossClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_LOSS');
+      const combatOpClues = newClues.filter(c =>
+        c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT'
+      );
 
-      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0) {
+      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0) {
         setEndTurnReport({
           newFinance,
           newLogistics,
@@ -343,7 +414,8 @@ export default function App() {
           lostSafehouses,
           newExposedHostileSH,
           sweepAlerts: sweepAlertClues,
-          sweepLosses: sweepLossClues
+          sweepLosses: sweepLossClues,
+          combatOps: combatOpClues
         });
       }
 
@@ -410,13 +482,16 @@ export default function App() {
     setSelectedAgent(null);
     setSelectedTeam(null);
     setSelectedCityNode(null);
+    fetchSessions();
   };
 
   const onLoginSuccess = () => {
     fetchScenarios();
+    fetchSessions();
     setScreen('SELECT');
   };
 
+  const hasActiveGame = sessions.some(s => s.status === 'ACTIVE');
   const activeScenario = scenarios.find(s => s.scenarioId === session?.scenarioId);
 
   const unassessedCluesCount = session
@@ -444,10 +519,13 @@ export default function App() {
       {screen === 'SELECT' && (
         <ScenarioSelect
           scenarios={scenarios}
+          sessions={sessions}
           selectedScenarioId={selectedScenarioId}
           setSelectedScenarioId={setSelectedScenarioId}
           onStartNewGame={handleStartNewGame}
-          onContinueGame={handleContinueGame}
+          onLoadGame={handleLoadGame}
+          onDeleteGame={handleDeleteGame}
+          hasActiveGame={hasActiveGame}
           loading={loading}
           errorMsg={errorMsg}
         />
@@ -469,6 +547,12 @@ export default function App() {
                 session={session}
                 activeScenario={activeScenario}
                 onClose={() => setActiveTab('MAP')}
+              />
+            )}
+
+            {activeTab === 'HINTS' && (
+              <HintsView
+                session={session}
               />
             )}
 

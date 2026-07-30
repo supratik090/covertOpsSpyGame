@@ -1,9 +1,10 @@
-import { Shield, Map, BookOpen, Users, Search, FolderOpen, Package, Eye } from 'lucide-react';
+import { Shield, Map, BookOpen, Lightbulb, Users, Search, FolderOpen, Package, Eye } from 'lucide-react';
 
 const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, actionCount }) => {
   const tabs = [
     { id: 'MAP', label: 'MAP', icon: Map, badge: 0 },
     { id: 'OBJECTIVES', label: 'OBJECTIVES', icon: BookOpen, badge: 0 },
+    { id: 'HINTS', label: 'HINTS', icon: Lightbulb, badge: 0 },
     { id: 'AGENTS', label: 'AGENTS', icon: Users, badge: 0 },
     { id: 'CLUES', label: 'CLUES', icon: Search, badge: clueCount },
     { id: 'DOSSIER', label: 'DOSSIER', icon: FolderOpen, badge: acceptedCount },

@@ -34,6 +34,7 @@ public class GameSession {
     private List<String> surprisePatrolCities = new ArrayList<>();
     private java.util.Map<String, List<PlanStep>> suspectPlans = new java.util.HashMap<>();
     private java.util.Map<String, Integer> cityHeat = new java.util.HashMap<>();
+    private java.util.Map<String, Integer> sweepCooldownCities = new java.util.HashMap<>();
 
     public GameSession() {}
 
@@ -42,6 +43,9 @@ public class GameSession {
 
     public java.util.Map<String, Integer> getCityHeat() { return cityHeat; }
     public void setCityHeat(java.util.Map<String, Integer> cityHeat) { this.cityHeat = cityHeat; }
+
+    public java.util.Map<String, Integer> getSweepCooldownCities() { return sweepCooldownCities; }
+    public void setSweepCooldownCities(java.util.Map<String, Integer> sweepCooldownCities) { this.sweepCooldownCities = sweepCooldownCities; }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }

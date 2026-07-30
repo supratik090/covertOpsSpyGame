@@ -36,7 +36,27 @@ public class GameSessionService {
 
     // Creates a new Game Session, fetching scenario from MongoDB database
     // and pre-generating a fresh Master and Backup plan for this game.
+    // List all sessions
+    public List<GameSession> listSessions() {
+        return repository.findAll();
+    }
+
+    // Delete a session by ID
+    public void deleteSession(UUID sessionId) {
+        if (!repository.existsById(sessionId)) {
+            throw new IllegalArgumentException("Session not found with ID: " + sessionId);
+        }
+        repository.deleteById(sessionId);
+    }
+
     public GameSession createSession(String scenarioId) {
+        // Prevent creating a new game if any ACTIVE session already exists
+        List<GameSession> existing = repository.findAll();
+        for (GameSession s : existing) {
+            if ("ACTIVE".equals(s.getStatus())) {
+                throw new IllegalStateException("An active operation already exists. Complete or delete it before starting a new one.");
+            }
+        }
         try {
             ScenarioConfig config = scenarioConfigRepository.findById(scenarioId)
                     .orElseThrow(() -> new IllegalArgumentException("Scenario config not found in database for ID: " + scenarioId));
@@ -277,6 +297,14 @@ public class GameSessionService {
                 }
             }
             session.setSafehouses(safehousesLeft);
+
+            // After warned sweep resolves, set cooldown on swept cities
+            if (session.getSweepCooldownCities() == null) {
+                session.setSweepCooldownCities(new java.util.HashMap<>());
+            }
+            for (String sweptCity : swept) {
+                session.getSweepCooldownCities().put(sweptCity, 3);
+            }
         }
 
         // 2. Resolve Surprise Sweeps (surprisePatrolCities): 33% chance of capture/destruction for each resource independently
@@ -333,6 +361,14 @@ public class GameSessionService {
                 }
             }
             session.setSafehouses(safehousesLeft);
+
+            // After surprise sweep resolves, set cooldown on swept cities
+            if (session.getSweepCooldownCities() == null) {
+                session.setSweepCooldownCities(new java.util.HashMap<>());
+            }
+            for (String sweptCity : swept) {
+                session.getSweepCooldownCities().put(sweptCity, 3);
+            }
         }
 
         // Apply task assignments
@@ -749,21 +785,38 @@ public class GameSessionService {
         List<String> nextWarnedPatrols = new ArrayList<>();
         List<String> nextSurprisePatrols = new ArrayList<>();
 
-        // Collect all hostile cities
-        List<String> hostileNodeIds = config.getNodes().stream()
+        // Decrement sweep cooldowns and remove expired
+        if (session.getSweepCooldownCities() != null) {
+            java.util.Map<String, Integer> cooldowns = new java.util.HashMap<>();
+            for (java.util.Map.Entry<String, Integer> entry : session.getSweepCooldownCities().entrySet()) {
+                int remaining = entry.getValue() - 1;
+                if (remaining > 0) {
+                    cooldowns.put(entry.getKey(), remaining);
+                }
+            }
+            session.setSweepCooldownCities(cooldowns);
+        }
+
+        // Build eligible city pool (exclude cities on cooldown)
+        List<String> allHostileIds = config.getNodes().stream()
                 .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
                 .map(com.spygame.covertops.model.Node::getId)
+                .collect(java.util.stream.Collectors.toList());
+        java.util.Set<String> onCooldown = session.getSweepCooldownCities() != null
+                ? session.getSweepCooldownCities().keySet() : java.util.Collections.emptySet();
+        List<String> eligibleHostileCities = allHostileIds.stream()
+                .filter(id -> !onCooldown.contains(id))
                 .collect(java.util.stream.Collectors.toList());
 
         java.util.Random sweepRand = new java.util.Random();
         int nextTurn = session.getCurrentTurn();
 
-        if (!hostileNodeIds.isEmpty()) {
+        if (!eligibleHostileCities.isEmpty()) {
             // First determine if any high-heat city gets targeted as warned sweep
             List<String> highHeatHostileCities = new ArrayList<>();
             if (session.getCityHeat() != null) {
                 for (Map.Entry<String, Integer> entry : session.getCityHeat().entrySet()) {
-                    if (entry.getValue() > 50 && hostileNodeIds.contains(entry.getKey())) {
+                    if (entry.getValue() > 50 && eligibleHostileCities.contains(entry.getKey())) {
                         highHeatHostileCities.add(entry.getKey());
                     }
                 }
@@ -775,9 +828,9 @@ public class GameSessionService {
             } else {
                 // Standard rolling logic for warned sweeps
                 double warnedSweepChance = nextTurn <= 8 ? 0.20 : (nextTurn <= 16 ? 0.40 : 0.60);
-                int maxWarned = nextTurn <= 16 ? 1 : 2;
+                int maxWarned = 2;
                 if (sweepRand.nextDouble() < warnedSweepChance) {
-                    List<String> shuffleHostile = new ArrayList<>(hostileNodeIds);
+                    List<String> shuffleHostile = new ArrayList<>(eligibleHostileCities);
                     java.util.Collections.shuffle(shuffleHostile, sweepRand);
                     for (int i = 0; i < Math.min(maxWarned, shuffleHostile.size()); i++) {
                         nextWarnedPatrols.add(shuffleHostile.get(i));
@@ -789,7 +842,7 @@ public class GameSessionService {
             double surpriseSweepChance = nextTurn <= 8 ? 0.15 : (nextTurn <= 16 ? 0.30 : 0.45);
             int maxSurprise = nextTurn <= 16 ? 1 : 2;
             if (sweepRand.nextDouble() < surpriseSweepChance) {
-                List<String> potentialSurpriseCities = hostileNodeIds.stream()
+                List<String> potentialSurpriseCities = eligibleHostileCities.stream()
                         .filter(id -> !nextWarnedPatrols.contains(id))
                         .collect(java.util.stream.Collectors.toList());
                 if (!potentialSurpriseCities.isEmpty()) {

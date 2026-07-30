@@ -280,7 +280,7 @@ export default function CIAIntelBox({
                         setActiveAgentId(activeAgentId === a.id ? null : a.id);
                       }}
                     >
-                      <span className="value text-cyber">AGENT: {a.codename || a.name}</span>
+                      <span className="value text-cyber">AGENT: {a.codename}</span>
                       <span className="label font-mono text-[9px]">
                         {isMoved ? `TRANSIT -> ${localAgentMoves[a.id].toUpperCase()}` : (
                           isIdle ? <span className="text-amber blink">⚠ NO TASK ASSIGNED</span> : effectiveTask.replace(/_/g, ' ')

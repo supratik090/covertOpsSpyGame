@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spygame.covertops.model.GameSession;
 import com.spygame.covertops.model.ScenarioConfig;
 import com.spygame.covertops.service.GameSessionService;
+import com.spygame.covertops.service.HintGenerationService;
 import com.spygame.covertops.service.PlayerDefenderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +25,9 @@ public class GameSessionController {
     @Autowired
     private PlayerDefenderService defenderService;
 
+    @Autowired
+    private HintGenerationService hintService;
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     // POST /api/game/create?scenarioId=operation_silent_edge
@@ -36,6 +40,18 @@ public class GameSessionController {
     @GetMapping("/scenarios")
     public List<ScenarioConfig> getScenarios() {
         return sessionService.getAvailableScenarios();
+    }
+
+    // GET /api/game/list
+    @GetMapping("/list")
+    public List<GameSession> listGames() {
+        return sessionService.listSessions();
+    }
+
+    // DELETE /api/game/{id}
+    @DeleteMapping("/{id}")
+    public void deleteGame(@PathVariable UUID id) {
+        sessionService.deleteSession(id);
     }
 
     // GET /api/game/{id}
@@ -104,6 +120,12 @@ public class GameSessionController {
             @PathVariable UUID id,
             @RequestBody com.spygame.covertops.model.EndTurnRequest request) {
         return sessionService.processEndTurn(id, request);
+    }
+
+    // GET /api/game/{id}/hints
+    @GetMapping("/{id}/hints")
+    public List<HintGenerationService.Hint> getHints(@PathVariable UUID id) {
+        return hintService.generateHints(id);
     }
 
     // GET /api/game/{id}/replay

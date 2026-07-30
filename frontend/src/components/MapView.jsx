@@ -227,7 +227,24 @@ export default function MapView({
         return t.currentCity === cityId;
       }).length;
 
-      const techCount = session.espionageResources.filter(r => r.cityNode === cityId).length;
+      const cityTech = session.espionageResources.filter(r => r.cityNode === cityId);
+      const techIcons = [];
+      cityTech.forEach(r => {
+        let icon;
+        switch (r.type) {
+          case 'SATELLITE': icon = '🛰️'; break;
+          case 'CCTV': icon = '📹'; break;
+          case 'WIRE_TAP': icon = '🔍'; break;
+          case 'PHONE_TAP': icon = '📞'; break;
+          case 'FINANCE_MONITOR': icon = '💰'; break;
+          case 'BIOMETRIC_SCAN': icon = '🔴'; break;
+          case 'BORDER_GUARD': icon = '🚧'; break;
+          case 'SIGNAL_JAMMER': icon = '📡'; break;
+          default: icon = '🛰️';
+        }
+        techIcons.push(`<span class="city-marker-tech-icon">${icon}</span>`);
+      });
+      const techMarkersHtml = techIcons.length > 0 ? `<div class="city-marker-tech">${techIcons.join('')}</div>` : '';
       const isSelected = selectedCityNode === cityId;
 
       // Determine if any agent at this city is idle (no task or NONE)
@@ -252,7 +269,7 @@ export default function MapView({
           ${hasExposedHostileSH ? `<div class="city-marker-exposed-hostile">👁️</div>` : ''}
           ${agentsCount > 0 ? `<div class="city-marker-badge agents">${agentsCount}</div>` : ''}
           ${teamsCount > 0 ? `<div class="city-marker-badge teams">${teamsCount}</div>` : ''}
-          ${techCount > 0 ? `<div class="city-marker-tech">🛰️</div>` : ''}
+          ${techMarkersHtml}
           ${hasIdleAgent ? `<div class="city-marker-idle">⚠</div>` : ''}
           ${isSweptZone ? '<div class="city-marker-sweep-label">⚠ SWEEP</div>' : ''}
           <div class="city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}">${cityId.replace('_', ' ').toUpperCase()}</div>

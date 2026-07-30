@@ -249,37 +249,101 @@ public class ClueGenerationEngine {
                     if (suspectLastStep == null) continue;
 
                     if ("CCTV".equals(resource.getType()) && resCity.equals(suspectLastStep.getSuspectLocation())) {
-                        turnClues.add(new GameSession.Clue(
+                        GameSession.Clue cctvClue = new GameSession.Clue(
                                 currentTurn,
                                 "CCTV_SCAN",
                                 "CCTV Scan: Visual match confirmed for target " + suspectName + " in " + resCity + " traffic logs.",
                                 resCity,
                                 "Surveillance Tech"
-                        ));
+                        );
+                        cctvClue.setAssessment("ACCEPT");
+                        turnClues.add(cctvClue);
                     }
 
                     if ("WIRE_TAP".equals(resource.getType()) && resCity.equals(suspectLastStep.getFinanceCity())) {
-                        turnClues.add(new GameSession.Clue(
+                        GameSession.Clue wireClue = new GameSession.Clue(
                                 currentTurn,
                                 "WIRE_TAP",
                                 "Wiretap Intercept: Encrypted account wires registered to " + suspectName + " in " + resCity + " servers.",
                                 resCity,
                                 "Surveillance Tech"
-                        ));
+                        );
+                        wireClue.setAssessment("ACCEPT");
+                        turnClues.add(wireClue);
                     }
 
                     if ("PHONE_TAP".equals(resource.getType()) && resCity.equals(suspectLastStep.getSuspectLocation())) {
-                        turnClues.add(new GameSession.Clue(
+                        GameSession.Clue phoneClue = new GameSession.Clue(
                                 currentTurn,
                                 "PHONE_TAP",
                                 "Phone Tap: Cellular intercept confirms " + suspectName + " registered to cell tower node in " + resCity + ".",
                                 resCity,
                                 "Surveillance Tech"
-                        ));
+                        );
+                        phoneClue.setAssessment("ACCEPT");
+                        turnClues.add(phoneClue);
+                    }
+
+                    // 6. Satellite Scan: detect suspect presence and movement in/out of covered city
+                    if ("SATELLITE".equals(resource.getType()) && resCity.equals(suspectLastStep.getSuspectLocation())) {
+                        Node node = config.getNodes().stream().filter(n -> n.getId().equals(resCity)).findFirst().orElse(null);
+                        String cityName = node != null ? node.getName() : resCity;
+                        PlanStep suspectTwoTurnsAgo = suspectPlan.stream().filter(s -> s.getTurn() == lastTurn - 1).findFirst().orElse(null);
+                        String movementDetail;
+                        if (suspectTwoTurnsAgo != null && !resCity.equals(suspectTwoTurnsAgo.getSuspectLocation())) {
+                            Node prevNode = config.getNodes().stream().filter(n -> n.getId().equals(suspectTwoTurnsAgo.getSuspectLocation())).findFirst().orElse(null);
+                            String prevCityName = prevNode != null ? prevNode.getName() : suspectTwoTurnsAgo.getSuspectLocation();
+                            movementDetail = suspectName + " moved into " + cityName + " from " + prevCityName + ".";
+                        } else {
+                            movementDetail = suspectName + " was tracked to " + cityName + " via satellite reconnaissance.";
+                        }
+                        GameSession.Clue satClue = new GameSession.Clue(
+                                currentTurn,
+                                "SATELLITE_SCAN",
+                                "Satellite Imagery Analysis: " + movementDetail,
+                                resCity,
+                                "Satellite Recon"
+                        );
+                        satClue.setAssessment("ACCEPT");
+                        turnClues.add(satClue);
                     }
                 }
             }
         }
+
+        // 5. Trusted Intelligence Milestone Every 6 Turns (turn 6, 12, 18...)
+        if (currentTurn % 6 == 0) {
+            List<PlanStep> fullPlan = session.getAiMasterPlan().getPrimaryPlan();
+            if (fullPlan != null) {
+                boolean financePhaseDone = fullPlan.stream().anyMatch(s -> s.getTurn() <= currentTurn && s.getFinanceCity() != null && !s.getFinanceCity().isEmpty());
+                boolean logisticsPhaseDone = fullPlan.stream().anyMatch(s -> s.getTurn() <= currentTurn && s.getLogisticsCity() != null && !s.getLogisticsCity().isEmpty());
+                boolean crossingPhaseDone = fullPlan.stream().anyMatch(s -> s.getTurn() <= currentTurn && (s.isSmuggling() || "BORDER_CROSSING".equals(s.getPhase())));
+                boolean attackPhaseReached = fullPlan.stream().anyMatch(s -> s.getTurn() <= currentTurn && "ATTACK".equals(s.getPhase()));
+
+                StringBuilder milestoneBuilder = new StringBuilder();
+                milestoneBuilder.append("TRUSTED INTELLIGENCE BRIEF (Cycle ").append(currentTurn / 6).append("): Threat cell activity summary — ");
+                if (financePhaseDone) milestoneBuilder.append("Financing confirmed. ");
+                else milestoneBuilder.append("No financial trail detected yet. ");
+                if (logisticsPhaseDone) milestoneBuilder.append("Logistics network active. ");
+                else milestoneBuilder.append("Logistics sourcing not yet observed. ");
+                if (crossingPhaseDone) milestoneBuilder.append("Border crossing operations in progress. ");
+                if (attackPhaseReached) milestoneBuilder.append("ATTENTION — Attack phase reached, imminent threat. ");
+                if (!financePhaseDone && !logisticsPhaseDone && !crossingPhaseDone && !attackPhaseReached) {
+                    milestoneBuilder.append("Cell appears to be in early planning stages.");
+                }
+
+                GameSession.Clue milestoneClue = new GameSession.Clue(
+                        currentTurn,
+                        "TRUSTED_INTEL",
+                        milestoneBuilder.toString(),
+                        "HQ",
+                        "Strategic Analysis Unit"
+                );
+                milestoneClue.setAssessment("ACCEPT");
+                turnClues.add(milestoneClue);
+            }
+        }
+
         return turnClues;
     }
 }

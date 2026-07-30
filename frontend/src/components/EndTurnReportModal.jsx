@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ShieldAlert, ShieldCheck, Radio, AlertTriangle, Skull, UserX, Home, Siren } from 'lucide-react';
+import { X, ShieldAlert, ShieldCheck, Radio, AlertTriangle, Skull, UserX, Home, Siren, Crosshair } from 'lucide-react';
 
 export default function EndTurnReportModal({ report, onClose }) {
   if (!report) return null;
@@ -14,7 +14,8 @@ export default function EndTurnReportModal({ report, onClose }) {
     report.lostSafehouses?.length > 0 ||
     report.newExposedHostileSH?.length > 0 ||
     report.sweepAlerts?.length > 0 ||
-    report.sweepLosses?.length > 0;
+    report.sweepLosses?.length > 0 ||
+    report.combatOps?.length > 0;
 
   if (!hasContent) return null;
 
@@ -82,6 +83,25 @@ export default function EndTurnReportModal({ report, onClose }) {
         {/* Report Content */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '360px', overflowY: 'auto' }}>
           
+          {/* Combat Operations */}
+          {report.combatOps?.length > 0 && (
+            <div style={{
+              border: '1px solid rgba(255, 59, 48, 0.35)',
+              background: 'rgba(255, 59, 48, 0.04)',
+              padding: '14px',
+              borderRadius: '6px'
+            }}>
+              <span style={{ color: '#ff3b30', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Crosshair size={14} /> COMBAT OPERATIONS
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                {report.combatOps.map((clue, idx) => (
+                  <li key={idx} style={{ color: '#ff6b60' }}>{clue.clueText}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Sweep Alerts */}
           {report.sweepAlerts?.length > 0 && (
             <div style={{
