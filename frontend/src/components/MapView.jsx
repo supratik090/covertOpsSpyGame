@@ -591,7 +591,7 @@ export default function MapView({
       {/* Title */}
       <div className="map-title z-10 pointer-events-none">
         <h2>Tactical Map Feed</h2>
-       
+
       </div>
 
       {/* Toolbar */}

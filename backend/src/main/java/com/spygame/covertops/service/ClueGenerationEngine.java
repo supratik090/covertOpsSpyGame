@@ -50,7 +50,7 @@ public class ClueGenerationEngine {
     public List<GameSession.Clue> generateTurnClues(GameSession session, ScenarioConfig config) {
         List<GameSession.Clue> turnClues = new ArrayList<>();
         int currentTurn = session.getCurrentTurn();
-        int lastTurn = currentTurn - 1;
+        int tMinus6 = currentTurn - 6;
 
         String actualAttacker = session.getActualAttacker() != null ? session.getActualAttacker() : "Suspect";
         List<String> allSuspects = session.getAttackerNames() != null && !session.getAttackerNames().isEmpty()
@@ -59,11 +59,10 @@ public class ClueGenerationEngine {
 
         List<PlanStep> plan = session.getAiMasterPlan().getPrimaryPlan();
 
-        // 1. T-7 Historical Footprint Disclosure (T >= 8)
-        if (currentTurn >= 8) {
-            int tMinus7 = currentTurn - 7;
+        // 1. T-6 Historical Footprint Disclosure (T >= 7)
+        if (currentTurn >= 7) {
             PlanStep historicStep = plan.stream()
-                    .filter(s -> s.getTurn() == tMinus7)
+                    .filter(s -> s.getTurn() == tMinus6)
                     .findFirst()
                     .orElse(null);
 
@@ -76,32 +75,27 @@ public class ClueGenerationEngine {
                 turnClues.add(new GameSession.Clue(
                         currentTurn,
                         "HISTORICAL_INTEL",
-                        "CONFIRMED FOOTPRINT: Intel confirms the actual threat agent (" + actualAttacker + ") occupied a safehouse in " + cityName + " 7 turns ago (Turn " + tMinus7 + ").",
+                        "CONFIRMED FOOTPRINT: Intel confirms the actual threat agent (" + actualAttacker + ") occupied a safehouse in " + cityName + " 6 turns ago (Turn " + tMinus6 + ").",
                         historicStep.getSuspectLocation(),
                         "HQ Archival Intelligence"
                 ));
             }
         }
 
-        PlanStep lastStep = plan.stream()
-                .filter(s -> s.getTurn() == lastTurn)
-                .findFirst()
-                .orElse(null);
-
-        // 1.1 Automatic Border Crossing Footprints (no agent required)
-        if (session.getSuspectPlans() != null) {
+        // 1.1 Automatic Border Crossing Footprints (no agent required) from T-6
+        if (session.getSuspectPlans() != null && currentTurn >= 7) {
             for (String suspectName : allSuspects) {
                 List<PlanStep> suspectPlan = session.getSuspectPlans().get(suspectName);
                 if (suspectPlan == null) continue;
-                PlanStep suspectLastStep = suspectPlan.stream().filter(s -> s.getTurn() == lastTurn).findFirst().orElse(null);
-                if (suspectLastStep != null && (suspectLastStep.isSmuggling() || "BORDER_CROSSING".equals(suspectLastStep.getPhase()))) {
-                    Node node = config.getNodes().stream().filter(n -> n.getId().equals(suspectLastStep.getSuspectLocation())).findFirst().orElse(null);
-                    String cityName = node != null ? node.getName() : suspectLastStep.getSuspectLocation();
+                PlanStep suspectHistoricStep = suspectPlan.stream().filter(s -> s.getTurn() == tMinus6).findFirst().orElse(null);
+                if (suspectHistoricStep != null && (suspectHistoricStep.isSmuggling() || "BORDER_CROSSING".equals(suspectHistoricStep.getPhase()))) {
+                    Node node = config.getNodes().stream().filter(n -> n.getId().equals(suspectHistoricStep.getSuspectLocation())).findFirst().orElse(null);
+                    String cityName = node != null ? node.getName() : suspectHistoricStep.getSuspectLocation();
                     turnClues.add(new GameSession.Clue(
                             currentTurn,
                             "BORDER_CROSSING_FOOTPRINT",
-                            "INTELLIGENCE REPORT: Local border patrol reported unauthorized crossing activity near " + cityName + " border line. Forensic analysis indicates suspect " + suspectName + " was present.",
-                            suspectLastStep.getSuspectLocation(),
+                            "INTELLIGENCE REPORT: Local border patrol reported unauthorized crossing activity near " + cityName + " border line 6 turns ago. Forensic analysis indicates suspect " + suspectName + " was present.",
+                            suspectHistoricStep.getSuspectLocation(),
                             "Border Control"
                     ));
                 }
@@ -124,10 +118,15 @@ public class ClueGenerationEngine {
                 continue;
             }
 
-            // Evaluate if actual events occurred in this city last turn (T-1)
-            boolean wasSuspectPresent = lastStep != null && cityId.equals(lastStep.getSuspectLocation());
-            boolean wasFinanceActive = lastStep != null && cityId.equals(lastStep.getFinanceCity());
-            boolean wasLogisticsActive = lastStep != null && cityId.equals(lastStep.getLogisticsCity());
+            // Evaluate if actual events occurred in this city 6 turns ago (T-6)
+            PlanStep tMinus6Step = plan.stream()
+                    .filter(s -> s.getTurn() == tMinus6)
+                    .findFirst()
+                    .orElse(null);
+
+            boolean wasSuspectPresent = tMinus6Step != null && cityId.equals(tMinus6Step.getSuspectLocation());
+            boolean wasFinanceActive = tMinus6Step != null && cityId.equals(tMinus6Step.getFinanceCity());
+            boolean wasLogisticsActive = tMinus6Step != null && cityId.equals(tMinus6Step.getLogisticsCity());
 
             List<String> trueClues = new ArrayList<>();
             if (wasSuspectPresent) {
@@ -151,20 +150,20 @@ public class ClueGenerationEngine {
             // Select 1 False Clue (noise or decoy) formatted in the exact same way
             String falseClue = null;
             
-            // Check if any decoy suspect was active in this city last turn
+            // Check if any decoy suspect was active in this city 6 turns ago (T-6)
             List<String> potentialDecoyClues = new ArrayList<>();
             for (String suspectName : allSuspects) {
                 if (!suspectName.equals(actualAttacker) && session.getSuspectPlans() != null && session.getSuspectPlans().containsKey(suspectName)) {
                     List<PlanStep> decoyPlan = session.getSuspectPlans().get(suspectName);
-                    PlanStep decoyLastStep = decoyPlan.stream().filter(s -> s.getTurn() == lastTurn).findFirst().orElse(null);
-                    if (decoyLastStep != null) {
-                        if (cityId.equals(decoyLastStep.getSuspectLocation())) {
+                    PlanStep decoyHistoricStep = decoyPlan.stream().filter(s -> s.getTurn() == tMinus6).findFirst().orElse(null);
+                    if (decoyHistoricStep != null) {
+                        if (cityId.equals(decoyHistoricStep.getSuspectLocation())) {
                             potentialDecoyClues.add(String.format(suspectLocationTemplates.get(random.nextInt(suspectLocationTemplates.size())), suspectName, cityName));
                         }
-                        if (cityId.equals(decoyLastStep.getFinanceCity())) {
+                        if (cityId.equals(decoyHistoricStep.getFinanceCity())) {
                             potentialDecoyClues.add(String.format(financeTemplates.get(random.nextInt(financeTemplates.size())), suspectName, cityName));
                         }
-                        if (cityId.equals(decoyLastStep.getLogisticsCity())) {
+                        if (cityId.equals(decoyHistoricStep.getLogisticsCity())) {
                             potentialDecoyClues.add(String.format(logisticsTemplates.get(random.nextInt(logisticsTemplates.size())), suspectName, cityName));
                         }
                     }
@@ -172,10 +171,8 @@ public class ClueGenerationEngine {
             }
 
             if (!potentialDecoyClues.isEmpty()) {
-                // Pick one of the actual decoy events that occurred in this city
                 falseClue = potentialDecoyClues.get(random.nextInt(potentialDecoyClues.size()));
             } else {
-                // Fallback to random false clue if no decoy suspect was active here last turn
                 String randomSuspect = allSuspects.get(random.nextInt(allSuspects.size()));
                 int roll = random.nextInt(4);
                 if (roll == 0) {
@@ -195,7 +192,12 @@ public class ClueGenerationEngine {
             turnClues.add(new GameSession.Clue(currentTurn, "CITY_" + cityId, falseClue, cityId, agentInCity.getCodename()));
         }
 
-        // 3. Inspect Finance and Inspect Logistics Confirmed Clues
+        // 3. Inspect Finance and Inspect Logistics Confirmed Clues from T-6
+        PlanStep tMinus6Step = plan.stream()
+                .filter(s -> s.getTurn() == tMinus6)
+                .findFirst()
+                .orElse(null);
+
         for (Node node : config.getNodes()) {
             String cityId = node.getId();
             String cityName = node.getName();
@@ -206,11 +208,11 @@ public class ClueGenerationEngine {
                     .findFirst()
                     .orElse(null);
 
-            if (financeAgent != null && lastStep != null && cityId.equals(lastStep.getFinanceCity())) {
+            if (financeAgent != null && tMinus6Step != null && cityId.equals(tMinus6Step.getFinanceCity())) {
                 GameSession.Clue financeClue = new GameSession.Clue(
                         currentTurn,
                         "CONFIRMED_FINANCE",
-                        "CONFIRMED FINANCE: Wire transactions for suspect " + actualAttacker + " confirmed at finance hub in " + cityName + ".",
+                        "CONFIRMED FINANCE: Wire transactions for suspect " + actualAttacker + " confirmed at finance hub in " + cityName + " 6 turns ago.",
                         cityId,
                         financeAgent.getCodename()
                 );
@@ -224,11 +226,11 @@ public class ClueGenerationEngine {
                     .findFirst()
                     .orElse(null);
 
-            if (logisticsAgent != null && lastStep != null && cityId.equals(lastStep.getLogisticsCity())) {
+            if (logisticsAgent != null && tMinus6Step != null && cityId.equals(tMinus6Step.getLogisticsCity())) {
                 GameSession.Clue logisticsClue = new GameSession.Clue(
                         currentTurn,
                         "CONFIRMED_LOGISTICS",
-                        "CONFIRMED LOGISTICS: Specialist gear shipments for suspect " + actualAttacker + " confirmed departed/customs in " + cityName + ".",
+                        "CONFIRMED LOGISTICS: Specialist gear shipments for suspect " + actualAttacker + " confirmed departed/customs in " + cityName + " 6 turns ago.",
                         cityId,
                         logisticsAgent.getCodename()
                 );
@@ -237,22 +239,22 @@ public class ClueGenerationEngine {
             }
         }
 
-        // 4. Tech Scan Clues (Finance, Phone, and CCTV footage data) - explicitly naming suspect (decoys included)
-        if (session.getEspionageResources() != null && session.getSuspectPlans() != null) {
+        // 4. Tech Scan Clues (Finance, Phone, and CCTV footage data) - explicitly naming suspect (decoys included) from T-6
+        if (session.getEspionageResources() != null && session.getSuspectPlans() != null && currentTurn >= 7) {
             for (GameSession.ActiveResource resource : session.getEspionageResources()) {
                 String resCity = resource.getCityNode();
 
                 for (String suspectName : allSuspects) {
                     List<PlanStep> suspectPlan = session.getSuspectPlans().get(suspectName);
                     if (suspectPlan == null) continue;
-                    PlanStep suspectLastStep = suspectPlan.stream().filter(s -> s.getTurn() == lastTurn).findFirst().orElse(null);
-                    if (suspectLastStep == null) continue;
+                    PlanStep suspectHistoricStep = suspectPlan.stream().filter(s -> s.getTurn() == tMinus6).findFirst().orElse(null);
+                    if (suspectHistoricStep == null) continue;
 
-                    if ("CCTV".equals(resource.getType()) && resCity.equals(suspectLastStep.getSuspectLocation())) {
+                    if ("CCTV".equals(resource.getType()) && resCity.equals(suspectHistoricStep.getSuspectLocation())) {
                         GameSession.Clue cctvClue = new GameSession.Clue(
                                 currentTurn,
                                 "CCTV_SCAN",
-                                "CCTV Scan: Visual match confirmed for target " + suspectName + " in " + resCity + " traffic logs.",
+                                "CCTV Scan: Visual match confirmed for target " + suspectName + " in " + resCity + " traffic logs 6 turns ago.",
                                 resCity,
                                 "Surveillance Tech"
                         );
@@ -260,11 +262,11 @@ public class ClueGenerationEngine {
                         turnClues.add(cctvClue);
                     }
 
-                    if ("WIRE_TAP".equals(resource.getType()) && resCity.equals(suspectLastStep.getFinanceCity())) {
+                    if ("WIRE_TAP".equals(resource.getType()) && resCity.equals(suspectHistoricStep.getFinanceCity())) {
                         GameSession.Clue wireClue = new GameSession.Clue(
                                 currentTurn,
                                 "WIRE_TAP",
-                                "Wiretap Intercept: Encrypted account wires registered to " + suspectName + " in " + resCity + " servers.",
+                                "Wiretap Intercept: Encrypted account wires registered to " + suspectName + " in " + resCity + " servers 6 turns ago.",
                                 resCity,
                                 "Surveillance Tech"
                         );
@@ -272,11 +274,11 @@ public class ClueGenerationEngine {
                         turnClues.add(wireClue);
                     }
 
-                    if ("PHONE_TAP".equals(resource.getType()) && resCity.equals(suspectLastStep.getSuspectLocation())) {
+                    if ("PHONE_TAP".equals(resource.getType()) && resCity.equals(suspectHistoricStep.getSuspectLocation())) {
                         GameSession.Clue phoneClue = new GameSession.Clue(
                                 currentTurn,
                                 "PHONE_TAP",
-                                "Phone Tap: Cellular intercept confirms " + suspectName + " registered to cell tower node in " + resCity + ".",
+                                "Phone Tap: Cellular intercept confirms " + suspectName + " registered to cell tower node in " + resCity + " 6 turns ago.",
                                 resCity,
                                 "Surveillance Tech"
                         );
@@ -285,17 +287,17 @@ public class ClueGenerationEngine {
                     }
 
                     // 6. Satellite Scan: detect suspect presence and movement in/out of covered city
-                    if ("SATELLITE".equals(resource.getType()) && resCity.equals(suspectLastStep.getSuspectLocation())) {
+                    if ("SATELLITE".equals(resource.getType()) && resCity.equals(suspectHistoricStep.getSuspectLocation())) {
                         Node node = config.getNodes().stream().filter(n -> n.getId().equals(resCity)).findFirst().orElse(null);
                         String cityName = node != null ? node.getName() : resCity;
-                        PlanStep suspectTwoTurnsAgo = suspectPlan.stream().filter(s -> s.getTurn() == lastTurn - 1).findFirst().orElse(null);
+                        PlanStep suspectTwoTurnsAgo = suspectPlan.stream().filter(s -> s.getTurn() == tMinus6 - 1).findFirst().orElse(null);
                         String movementDetail;
                         if (suspectTwoTurnsAgo != null && !resCity.equals(suspectTwoTurnsAgo.getSuspectLocation())) {
                             Node prevNode = config.getNodes().stream().filter(n -> n.getId().equals(suspectTwoTurnsAgo.getSuspectLocation())).findFirst().orElse(null);
                             String prevCityName = prevNode != null ? prevNode.getName() : suspectTwoTurnsAgo.getSuspectLocation();
-                            movementDetail = suspectName + " moved into " + cityName + " from " + prevCityName + ".";
+                            movementDetail = suspectName + " moved into " + cityName + " from " + prevCityName + " 6 turns ago.";
                         } else {
-                            movementDetail = suspectName + " was tracked to " + cityName + " via satellite reconnaissance.";
+                            movementDetail = suspectName + " was tracked to " + cityName + " via satellite reconnaissance 6 turns ago.";
                         }
                         GameSession.Clue satClue = new GameSession.Clue(
                                 currentTurn,

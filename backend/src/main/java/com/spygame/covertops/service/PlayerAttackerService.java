@@ -218,6 +218,21 @@ public class PlayerAttackerService {
 
         if (isSecure) {
             session.getSecureSafehouseTurns().put(cityNode, 5);
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    session.getCurrentTurn(),
+                    "SAFEHOUSE_EXPOSED",
+                    "Alert: Signals intelligence indicates the enemy has created a secure safehouse.",
+                    cityNode,
+                    "Signals Intelligence"
+            ));
+        } else {
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    session.getCurrentTurn(),
+                    "SAFEHOUSE_EXPOSED",
+                    "Surveillance report: Operative established a standard safehouse.",
+                    cityNode,
+                    "Signals Intelligence"
+            ));
         }
     }
 

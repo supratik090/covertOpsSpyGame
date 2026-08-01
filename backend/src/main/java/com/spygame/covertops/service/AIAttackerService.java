@@ -52,16 +52,33 @@ public class AIAttackerService {
         int shCost = session.getSuspectLocation().toLowerCase().contains("mumbai") || session.getSuspectLocation().toLowerCase().contains("delhi") ? 150000 : 50000;
         
         if (!hasSafehouseInLoc && budget >= shCost) {
-            session.setAttackerBudget(budget - shCost);
+            boolean buildSecure = budget >= shCost * 2 && random.nextBoolean();
+            int finalCost = buildSecure ? shCost * 2 : shCost;
+            session.setAttackerBudget(budget - finalCost);
             String code = String.valueOf(100 + random.nextInt(900));
-            session.getSafehouses().add(new GameSession.Safehouse(session.getSuspectLocation(), "HOSTILE", code, false));
-            session.getDiscoveredClues().add(new GameSession.Clue(
-                    currentTurn,
-                    "SAFEHOUSE_EXPOSED",
-                    "NEW OPERATIONAL SAFEHOUSE: Operative established a hideout in " + session.getSuspectLocation().toUpperCase() + " (Code: " + code + ")",
-                    session.getSuspectLocation(),
-                    "Hostile Cell Operations"
-            ));
+            session.getSafehouses().add(new GameSession.Safehouse(session.getSuspectLocation(), "HOSTILE", "PURCHASED", !buildSecure, code));
+            
+            if (buildSecure) {
+                if (session.getSecureSafehouseTurns() == null) {
+                    session.setSecureSafehouseTurns(new java.util.HashMap<>());
+                }
+                session.getSecureSafehouseTurns().put(session.getSuspectLocation(), 5);
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        currentTurn,
+                        "SAFEHOUSE_EXPOSED",
+                        "Alert: Signals intelligence indicates the enemy has created a secure safehouse.",
+                        session.getSuspectLocation(),
+                        "Signals Intelligence"
+                ));
+            } else {
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        currentTurn,
+                        "SAFEHOUSE_EXPOSED",
+                        "NEW OPERATIONAL SAFEHOUSE: Operative established a hideout in " + session.getSuspectLocation().toUpperCase() + " (Code: " + code + ")",
+                        session.getSuspectLocation(),
+                        "Hostile Cell Operations"
+                ));
+            }
         }
 
         // 2. Resolve Sourcing Actions
