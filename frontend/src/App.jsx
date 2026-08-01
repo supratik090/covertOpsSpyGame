@@ -113,6 +113,15 @@ export default function App() {
       fetchScenarios();
       fetchSessions();
     }
+
+    const handleUnauthorized = () => {
+      handleLogout();
+    };
+
+    window.addEventListener('unauthorized_logout', handleUnauthorized);
+    return () => {
+      window.removeEventListener('unauthorized_logout', handleUnauthorized);
+    };
   }, []);
 
   useEffect(() => {
@@ -142,6 +151,11 @@ export default function App() {
               addToast("It is your turn! Prepare your operations.", "success");
             }
           }
+        } else if (res.status === 401) {
+          localStorage.removeItem('spy_game_token');
+          localStorage.removeItem('covert_ops_operator_user');
+          localStorage.removeItem('spy_game_session_id');
+          window.dispatchEvent(new Event('unauthorized_logout'));
         }
       } catch (err) {
         console.error("Failed to poll session status", err);

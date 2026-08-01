@@ -8,7 +8,7 @@
   "attackForm": "KIDNAPPING",
   "maxTurns": 25,
   "startingBudget": 4500000,
-  "mapBackground": "assets/maps/map_india_bangladesh.png",
+  "mapBackground": "assets/maps/india_bangladesh.svg",
   "nodes": [
     {
       "id": "dhaka",

@@ -321,6 +321,13 @@ public class PlayerAttackerService {
             throw new IllegalArgumentException("Invalid node connection.");
         }
 
+        // Validate that attacker has a safehouse in the current city before relocating
+        boolean currentHasSafehouse = session.getSafehouses().stream()
+                .anyMatch(s -> s.getCityNode().equals(current) && "HOSTILE".equals(s.getOwnerFaction()));
+        if (!currentHasSafehouse) {
+            throw new IllegalStateException("Cannot relocate suspect: You must build a safehouse in " + current.toUpperCase() + " before moving.");
+        }
+
         // Validate lockdown (moving into or out of a locked-down city is forbidden)
         boolean isStartLocked = session.getHostilePatrolCities().contains(current) || session.getSurprisePatrolCities().contains(current);
         boolean isEndLocked = session.getHostilePatrolCities().contains(targetCity) || session.getSurprisePatrolCities().contains(targetCity);

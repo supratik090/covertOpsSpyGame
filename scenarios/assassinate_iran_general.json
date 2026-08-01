@@ -8,7 +8,7 @@
   "attackForm": "ASSASSINATION",
   "maxTurns": 25,
   "startingBudget": 6000000,
-  "mapBackground": "assets/maps/map_middle_east.png",
+  "mapBackground": "assets/maps/middle_east.svg",
   "nodes": [
     {
       "id": "tel_aviv",

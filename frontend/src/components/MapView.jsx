@@ -147,7 +147,7 @@ export default function MapView({
       attributionControl: false
     });
 
-    map.fitBounds(bounds, { padding: [50, 50] });
+    map.fitBounds(bounds, { padding: [20, 20] });
 
     mapRef.current = map;
 
@@ -172,15 +172,20 @@ export default function MapView({
 
     const handleResize = () => {
       map.invalidateSize();
+      const currentCoords = Object.values(CITY_COORDINATES);
+      if (currentCoords.length > 0) {
+        const currentBounds = L.latLngBounds(currentCoords);
+        map.fitBounds(currentBounds, { padding: [20, 20] });
+      }
     };
     window.addEventListener('resize', handleResize);
 
     setTimeout(() => {
       map.invalidateSize();
-      const coords = Object.values(CITY_COORDINATES);
-      if (coords.length > 0) {
-        const bounds = L.latLngBounds(coords);
-        map.fitBounds(bounds, { padding: [30, 30] });
+      const currentCoords = Object.values(CITY_COORDINATES);
+      if (currentCoords.length > 0) {
+        const currentBounds = L.latLngBounds(currentCoords);
+        map.fitBounds(currentBounds, { padding: [20, 20] });
       }
     }, 350);
 
@@ -574,7 +579,7 @@ export default function MapView({
     if (map) {
       const coords = Object.values(CITY_COORDINATES);
       const bounds = L.latLngBounds(coords);
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.fitBounds(bounds, { padding: [20, 20] });
     }
   };
 

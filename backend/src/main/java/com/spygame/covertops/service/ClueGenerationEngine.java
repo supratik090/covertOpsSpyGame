@@ -375,8 +375,8 @@ public class ClueGenerationEngine {
             }
         }
 
-        // 6. Generate clues about combat team movements
-        if (session.getTacticalTeams() != null) {
+        // 6. Generate clues about combat team movements (Attacker only)
+        if (session.getTacticalTeams() != null && "ATTACKER".equals(session.getPlayerRole())) {
             for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
                 if (team.getCooldownRemaining() > 0) {
                     turnClues.add(new GameSession.Clue(

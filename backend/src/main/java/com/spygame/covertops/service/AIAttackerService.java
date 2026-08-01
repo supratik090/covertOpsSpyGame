@@ -35,6 +35,7 @@ public class AIAttackerService {
         int currentTurn = session.getCurrentTurn();
         int maxTurns = session.getMaxTurns();
         int turnsRemaining = maxTurns - currentTurn;
+        int clueTurn = "DEFENDER".equals(session.getPlayerRole()) ? currentTurn + 5 : currentTurn;
 
         String loc = session.getSuspectLocation();
         if (loc == null || loc.isEmpty() || "NONE".equals(loc)) {
@@ -64,7 +65,7 @@ public class AIAttackerService {
                 }
                 session.getSecureSafehouseTurns().put(session.getSuspectLocation(), 5);
                 session.getDiscoveredClues().add(new GameSession.Clue(
-                        currentTurn,
+                        clueTurn,
                         "SAFEHOUSE_EXPOSED",
                         "Alert: Signals intelligence indicates the enemy has created a secure safehouse.",
                         session.getSuspectLocation(),
@@ -72,7 +73,7 @@ public class AIAttackerService {
                 ));
             } else {
                 session.getDiscoveredClues().add(new GameSession.Clue(
-                        currentTurn,
+                        clueTurn,
                         "SAFEHOUSE_EXPOSED",
                         "NEW OPERATIONAL SAFEHOUSE: Operative established a hideout in " + session.getSuspectLocation().toUpperCase() + " (Code: " + code + ")",
                         session.getSuspectLocation(),
@@ -92,7 +93,7 @@ public class AIAttackerService {
                 session.setFinanceCollectionTurnsRemaining(5);
                 session.setActiveAttackerPhase("FINANCE_SOURCING");
                 session.getDiscoveredClues().add(new GameSession.Clue(
-                        currentTurn,
+                        clueTurn,
                         "FINANCE_REQUESTED",
                         "Finance pipeline request initialized in " + loc.toUpperCase() + ". Collection channels opening."
                 ));
@@ -105,7 +106,7 @@ public class AIAttackerService {
                 session.setFinanceCollected(true);
                 session.setActiveAttackerPhase("TRAIL_BREAKING");
                 session.getDiscoveredClues().add(new GameSession.Clue(
-                        currentTurn,
+                        clueTurn,
                         "FINANCE_SOURCED",
                         "Capital acquired. Finance sourcing completed."
                 ));
@@ -121,7 +122,7 @@ public class AIAttackerService {
                 session.setLogisticsCollectionTurnsRemaining(5);
                 session.setActiveAttackerPhase("LOGISTICS_SOURCING");
                 session.getDiscoveredClues().add(new GameSession.Clue(
-                        currentTurn,
+                        clueTurn,
                         "LOGISTICS_REQUESTED",
                         "Logistical lines mapped in " + loc.toUpperCase() + ". Sourcing Assembly Kits."
                 ));
@@ -134,7 +135,7 @@ public class AIAttackerService {
                 session.setLogisticsCollected(true);
                 session.setActiveAttackerPhase("TRAIL_BREAKING");
                 session.getDiscoveredClues().add(new GameSession.Clue(
-                        currentTurn,
+                        clueTurn,
                         "LOGISTICS_SOURCED",
                         "Equipment acquired. Logistics sourcing completed."
                 ));
@@ -150,7 +151,7 @@ public class AIAttackerService {
                     session.setHandoverCompleted(true);
                     session.setActiveAttackerPhase("BORDER_CROSSING");
                     session.getDiscoveredClues().add(new GameSession.Clue(
-                            currentTurn,
+                            clueTurn,
                             "HANDOVER_COMPLETED",
                             "Meeting finalized. Handover complete. Operative authorized for border infiltration."
                     ));
@@ -158,7 +159,7 @@ public class AIAttackerService {
                 } else if (session.getHandoverTurnsRemaining() == 3) {
                     session.setActiveAttackerPhase("HANDOVER");
                     session.getDiscoveredClues().add(new GameSession.Clue(
-                            currentTurn,
+                            clueTurn,
                             "HANDOVER_INITIATED",
                             "Handover protocol initiated at " + loc.toUpperCase() + ". Operational materials exchanged."
                     ));
@@ -171,7 +172,7 @@ public class AIAttackerService {
         if (session.isHandoverCompleted() && !session.isInfiltrationGoAheadApproved()) {
             session.setInfiltrationGoAheadApproved(true);
             session.getDiscoveredClues().add(new GameSession.Clue(
-                    currentTurn,
+                    clueTurn,
                     "INFILTRATION_APPROVED",
                     "HQ border clearance approved. Path to home soil opened."
             ));
@@ -191,18 +192,67 @@ public class AIAttackerService {
             }
         }
 
-        // 6. Dynamic Routing: Calculate next target node
-        String targetDestination = determineNextTargetDestination(session, config);
-        
-        // Find best adjacent node to move to targetDestination
-        String nextStepNode = findOptimalPathNode(session, loc, targetDestination, config, turnsRemaining);
-        if (nextStepNode != null && !nextStepNode.equals(loc)) {
-            session.setSuspectLocation(nextStepNode);
-            session.getDiscoveredClues().add(new GameSession.Clue(
-                    currentTurn,
-                    "SUSPECT_RELOCATION",
-                    "Operative relocated to " + nextStepNode.replace("_", " ").toUpperCase()
-            ));
+        // 6. Dynamic Routing: Calculate next target node (Only allowed to relocate if we have a safehouse in current city)
+        final String finalLoc = loc;
+        boolean hasSafehouseInLocCurrent = session.getSafehouses().stream()
+                .anyMatch(s -> s.getCityNode().equals(finalLoc) && "HOSTILE".equals(s.getOwnerFaction()));
+        if (hasSafehouseInLocCurrent) {
+            String targetDestination = determineNextTargetDestination(session, config);
+            
+            // Find best adjacent node to move to targetDestination
+            String nextStepNode = findOptimalPathNode(session, loc, targetDestination, config, turnsRemaining);
+            if (nextStepNode != null && !nextStepNode.equals(loc)) {
+                // Check if crossing the border
+                Node startNode = getNode(loc, config);
+                Node endNode = getNode(nextStepNode, config);
+                boolean isBorderCrossing = startNode != null && endNode != null && !startNode.getTerritory().equals(endNode.getTerritory());
+                
+                // Check if border guard or transit checkpoint is active in the target city
+                boolean isBorderGuardActive = false;
+                boolean isTransitCheckpointActive = false;
+                if (session.getEspionageResources() != null) {
+                    isBorderGuardActive = session.getEspionageResources().stream()
+                            .anyMatch(r -> "BORDER_GUARD".equals(r.getType()) && r.getCityNode().equals(nextStepNode));
+                    isTransitCheckpointActive = session.getEspionageResources().stream()
+                            .anyMatch(r -> "TRANSIT_CHECKPOINT".equals(r.getType()) && r.getCityNode().equals(nextStepNode));
+                }
+                
+                if (isBorderCrossing) {
+                    if (isTransitCheckpointActive) {
+                        if (random.nextDouble() < 0.80) {
+                            String cityName = endNode.getName();
+                            session.setStatus("SUCCESS"); // Defender victory
+                            session.getDiscoveredClues().add(new GameSession.Clue(
+                                    clueTurn,
+                                    "TRANSIT_CHECKPOINT",
+                                    "TRANSIT CAPTURE: Suspect " + session.getActualAttacker() + " was intercepted and captured by border patrol at transit checkpoint in " + cityName + ". Threat neutralized.",
+                                    nextStepNode,
+                                    "Transit Security Command"
+                            ));
+                            return session;
+                        }
+                    } else if (isBorderGuardActive) {
+                        if (random.nextDouble() < 0.50) {
+                            String cityName = endNode.getName();
+                            session.getDiscoveredClues().add(new GameSession.Clue(
+                                    clueTurn,
+                                    "BORDER_GUARD",
+                                    "BORDER INTERDICTION: Infiltration foiled in " + cityName + ". Target detected attempting border crossing. Relocation blocked.",
+                                    nextStepNode,
+                                    "Border Guard Command"
+                            ));
+                            return session;
+                        }
+                    }
+                }
+                
+                session.setSuspectLocation(nextStepNode);
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        clueTurn,
+                        "SUSPECT_RELOCATION",
+                        "Operative relocated to " + nextStepNode.replace("_", " ").toUpperCase()
+                ));
+            }
         }
 
         return session;
@@ -222,8 +272,9 @@ public class AIAttackerService {
             session.setHandoverCity(chosen);
             session.setHandoverTurnsRemaining(3);
 
+            int clueTurn = "DEFENDER".equals(session.getPlayerRole()) ? session.getCurrentTurn() + 5 : session.getCurrentTurn();
             session.getDiscoveredClues().add(new GameSession.Clue(
-                    session.getCurrentTurn(),
+                    clueTurn,
                     "HANDOVER_UNLOCKED",
                     "Sourcing completed. Handover site confirmed: " + chosen.replace("_", " ").toUpperCase() + ". Navigate there to begin the meeting."
             ));
@@ -258,6 +309,12 @@ public class AIAttackerService {
     }
 
     private String findOptimalPathNode(GameSession session, String currentLoc, String targetDest, ScenarioConfig config, int turnsRemaining) {
+        // If current city is under lockdown, we cannot exit
+        boolean isCurrentLocked = session.getHostilePatrolCities().contains(currentLoc) || session.getSurprisePatrolCities().contains(currentLoc);
+        if (isCurrentLocked) {
+            return currentLoc;
+        }
+
         Node currentNode = getNode(currentLoc, config);
         if (currentNode == null || currentNode.getConnections() == null || currentNode.getConnections().isEmpty()) {
             return currentLoc;
@@ -268,6 +325,12 @@ public class AIAttackerService {
         double lowestThreat = Double.MAX_VALUE;
 
         for (String nextCity : options) {
+            // Cannot enter target city if it is under lockdown
+            boolean isTargetLocked = session.getHostilePatrolCities().contains(nextCity) || session.getSurprisePatrolCities().contains(nextCity);
+            if (isTargetLocked) {
+                continue;
+            }
+
             double threat = getThreatScore(session, nextCity, targetDest, config, turnsRemaining);
             if (threat < lowestThreat) {
                 lowestThreat = threat;

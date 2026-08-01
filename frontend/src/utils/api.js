@@ -17,8 +17,21 @@ export async function fetchWithRetry(input, init = {}, onRetry = null) {
       const res = await fetch(input, init);
       if (res.ok) return res;
 
+      if (res.status === 401) {
+        localStorage.removeItem('spy_game_token');
+        localStorage.removeItem('covert_ops_operator_user');
+        localStorage.removeItem('spy_game_session_id');
+        window.dispatchEvent(new Event('unauthorized_logout'));
+        const err = new Error(`HTTP 401: Unauthorized`);
+        err.status = 401;
+        throw err;
+      }
+
       lastError = new Error(`HTTP ${res.status}: ${res.statusText}`);
     } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
       lastError = err;
     }
 

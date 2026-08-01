@@ -89,6 +89,7 @@ public class GameSessionService {
             session.setPlayerBRole("ATTACKER".equals(session.getPlayerARole()) ? "DEFENDER" : "ATTACKER");
             session.setTurnTimerDurationMinutes(timerMinutes);
             session.setLobbyStatus("LOBBY_WAITING");
+            session.setAttackerBudget(config.getStartingBudget() != 0 ? config.getStartingBudget() : 300000);
 
             // Populate attacker names and select actual attacker first
             String actual = "Suspect";
@@ -257,9 +258,11 @@ public class GameSessionService {
             session.setPlayerRole(playerRole != null ? playerRole.toUpperCase() : "DEFENDER");
             session.setOwnerUsername(ownerUsername);
 
-            // If player is Attacker, set starting budget and starting location
+            // Always set starting attacker budget
+            session.setAttackerBudget(config.getStartingBudget() != 0 ? config.getStartingBudget() : 300000);
+
+            // If player is Attacker, set starting location
             if ("ATTACKER".equals(session.getPlayerRole())) {
-                session.setAttackerBudget(config.getStartingBudget() != 0 ? config.getStartingBudget() : 300000);
                 List<Node> hostileNodes = config.getNodes().stream()
                         .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
                         .collect(Collectors.toList());
@@ -787,6 +790,13 @@ public class GameSessionService {
                         if ("TRANSIT_CHECKPOINT".equals(type) || "ROADBLOCK".equals(type) || "CITY_GRID_LOCKDOWN".equals(type) || "LOCKDOWN".equals(type)) {
                             session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER",
                                     "Operation " + type + " in " + city + " aborted: City defense is only available in friendly cities."));
+                            continue;
+                        }
+                    }
+                    if ("TRANSIT_CHECKPOINT".equals(type)) {
+                        if (!isFriendlyBorderCity(city, config)) {
+                            session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER",
+                                    "Operation " + type + " in " + city + " aborted: Transit checkpoints can only be deployed in friendly cities connected to hostile territory."));
                             continue;
                         }
                     }
