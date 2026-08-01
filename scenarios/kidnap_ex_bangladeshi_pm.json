@@ -1,0 +1,223 @@
+{
+  "scenarioId": "kidnap_ex_bangladeshi_pm",
+  "title": "Kidnap Ex Bangladeshi PM",
+  "briefing": "A hostile network is plotting to kidnap the former Bangladeshi Prime Minister currently residing in India. Investigate the connections to locate and apprehend the suspect from our top threat list: Farhan Chowdhury, Kazi Rahman, Mustafizur Hasan. Protect the target and stop the hostile asset before Turn 25.",
+  "attackerBriefing": "Infiltrate the Indian border, locate the former Prime Minister residing in New Delhi, acquire the target, and secure extraction back into Bangladesh.",
+  "targetCity": "new_delhi",
+  "targetVip": "Ex-Prime Minister of Bangladesh",
+  "attackForm": "KIDNAPPING",
+  "maxTurns": 25,
+  "startingBudget": 4500000,
+  "mapBackground": "assets/maps/map_india_bangladesh.png",
+  "nodes": [
+    {
+      "id": "dhaka",
+      "name": "Dhaka HQ",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 91, "y": 64, "lat": 23.8103, "lng": 90.4125},
+      "connections": ["kolkata", "rajshahi", "moimonsingh", "sylhet", "chittagong"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"]
+    },
+    {
+      "id": "chittagong",
+      "name": "Chittagong Port",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 94, "y": 75, "lat": 22.3569, "lng": 91.7832},
+      "connections": ["dhaka", "sylhet"],
+      "availableFinance": ["DRUG_SALES", "ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"]
+    },
+    {
+      "id": "sylhet",
+      "name": "Sylhet Outpost",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 95, "y": 55, "lat": 24.8949, "lng": 91.8687},
+      "connections": ["dhaka", "chittagong", "siliguri", "guwahati", "moimonsingh"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"]
+    },
+    {
+      "id": "rajshahi",
+      "name": "Rajshahi Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 87, "y": 58, "lat": 24.3745, "lng": 88.6042},
+      "connections": ["dhaka", "moimonsingh", "kolkata", "patna"],
+      "availableFinance": ["HUNDI_HAWALA", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"]
+    },
+    {
+      "id": "moimonsingh",
+      "name": "Moimonsingh Outpost",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 91, "y": 56, "lat": 24.7471, "lng": 90.4203},
+      "connections": ["dhaka", "rajshahi", "sylhet"],
+      "availableFinance": ["TRIBAL_TOLLS", "RANSOMWARE_HACK"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"]
+    },
+    {
+      "id": "kolkata",
+      "name": "Kolkata Hub",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 85, "y": 70, "lat": 22.5726, "lng": 88.3639},
+      "connections": ["patna", "siliguri", "dhaka", "rajshahi"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH"
+    },
+    {
+      "id": "siliguri",
+      "name": "Siliguri Corridor",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 88, "y": 45, "lat": 26.7271, "lng": 88.3953},
+      "connections": ["patna", "kolkata", "guwahati", "sylhet"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH"
+    },
+    {
+      "id": "guwahati",
+      "name": "Guwahati Post",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 92, "y": 42, "lat": 26.1445, "lng": 91.7362},
+      "connections": ["siliguri", "sylhet"],
+      "defenses": "MEDIUM",
+      "counterEspionage": "MEDIUM"
+    },
+    {
+      "id": "patna",
+      "name": "Patna Node",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 80, "y": 60, "lat": 25.5941, "lng": 85.1376},
+      "connections": ["new_delhi", "kolkata", "siliguri", "rajshahi"],
+      "defenses": "MEDIUM",
+      "counterEspionage": "MEDIUM"
+    },
+    {
+      "id": "new_delhi",
+      "name": "New Delhi Capital",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 75, "y": 55, "lat": 28.6139, "lng": 77.2090},
+      "connections": ["patna"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME"
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "new_delhi"},
+    {"cityId": "kolkata"},
+    {"cityId": "dhaka"},
+    {"cityId": "chittagong"}
+  ],
+  "attackerNames": [
+    "Farhan Chowdhury",
+    "Kazi Rahman",
+    "Mustafizur Hasan"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Marcus Vance",
+      "codename": "PSHYCO",
+      "startingCity": "new_delhi",
+      "skills": {"humint": 80, "sigint": 90, "infiltration": 70, "survivability": 60}
+    },
+    {
+      "id": 2,
+      "name": "Evelyn Cross",
+      "codename": "VIXEN",
+      "startingCity": "kolkata",
+      "skills": {"humint": 70, "sigint": 60, "infiltration": 90, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "Alec Mercer",
+      "codename": "CIRCUS",
+      "startingCity": "new_delhi",
+      "skills": {"humint": 90, "sigint": 80, "infiltration": 50, "survivability": 50}
+    },
+    {
+      "id": 4,
+      "name": "Ethan Cole",
+      "codename": "MAVERICK",
+      "startingCity": "dhaka",
+      "skills": {"humint": 70, "sigint": 50, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "James Sterling",
+      "codename": "SPECTRE",
+      "startingCity": "chittagong",
+      "skills": {"humint": 85, "sigint": 30, "infiltration": 80, "survivability": 95}
+    },
+    {
+      "id": 6,
+      "name": "Jason Webb",
+      "codename": "TREADSTONE",
+      "startingCity": "dhaka",
+      "skills": {"humint": 40, "sigint": 40, "infiltration": 85, "survivability": 95}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "Ghost Patrol",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "dhaka",
+      "skills": {"combat": 90, "stealth": 95, "mobility": 60}
+    },
+    {
+      "id": 2,
+      "name": "Apex Strike",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "chittagong",
+      "skills": {"combat": 95, "stealth": 60, "mobility": 80}
+    },
+    {
+      "id": 3,
+      "name": "Vanguard Unit",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "new_delhi",
+      "skills": {"combat": 85, "stealth": 70, "mobility": 70}
+    },
+    {
+      "id": 4,
+      "name": "Delta Team",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "kolkata",
+      "skills": {"combat": 90, "stealth": 50, "mobility": 95}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 80000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 40000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "CCTV", "cityId": "dhaka"},
+    {"type": "WIRE_TAP", "cityId": "chittagong"}
+  ],
+  "logisticsMapping": {
+    "KIDNAPPING": {
+      "itemName": "Specialist Extraction Vehicle",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "KIDNAPPING": {
+      "itemName": "Underground Hawala Fund Transfer",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}
