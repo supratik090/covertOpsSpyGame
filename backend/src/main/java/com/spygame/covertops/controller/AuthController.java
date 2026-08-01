@@ -1,7 +1,11 @@
 package com.spygame.covertops.controller;
 
 import com.spygame.covertops.model.User;
+import com.spygame.covertops.model.UserSession;
 import com.spygame.covertops.repository.UserRepository;
+import com.spygame.covertops.repository.UserSessionRepository;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +22,9 @@ public class AuthController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserSessionRepository userSessionRepository;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -61,6 +68,15 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials.");
         }
 
-        return ResponseEntity.ok(Map.of("message", "Authentication successful.", "username", username));
+        String token = UUID.randomUUID().toString();
+        LocalDateTime expiry = LocalDateTime.now().plusHours(24);
+        UserSession session = new UserSession(token, username, expiry);
+        userSessionRepository.save(session);
+
+        return ResponseEntity.ok(Map.of(
+            "message", "Authentication successful.",
+            "username", username,
+            "token", token
+        ));
     }
 }

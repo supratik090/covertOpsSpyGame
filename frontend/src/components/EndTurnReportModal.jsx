@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, ShieldAlert, ShieldCheck, Radio, AlertTriangle, Skull, UserX, Home, Siren, Crosshair } from 'lucide-react';
 
-export default function EndTurnReportModal({ report, onClose }) {
+export default function EndTurnReportModal({ report, onClose, isAttacker }) {
   if (!report) return null;
 
   const hasContent = 
@@ -15,7 +15,8 @@ export default function EndTurnReportModal({ report, onClose }) {
     report.newExposedHostileSH?.length > 0 ||
     report.sweepAlerts?.length > 0 ||
     report.sweepLosses?.length > 0 ||
-    report.combatOps?.length > 0;
+    report.combatOps?.length > 0 ||
+    report.handoverAlerts?.length > 0;
 
   if (!hasContent) return null;
 
@@ -182,7 +183,7 @@ export default function EndTurnReportModal({ report, onClose }) {
             </div>
           )}
 
-          {/* Exposed Hostile Safehouses */}
+          {/* Exposed Safehouses */}
           {report.newExposedHostileSH?.length > 0 && (
             <div style={{
               border: '1px solid rgba(255, 200, 0, 0.3)',
@@ -191,13 +192,16 @@ export default function EndTurnReportModal({ report, onClose }) {
               borderRadius: '6px'
             }}>
               <span style={{ color: '#ffcc00', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <ShieldAlert size={14} /> ENEMY SAFEHOUSES EXPOSED
+                <ShieldAlert size={14} /> {isAttacker ? 'YOUR SAFEHOUSES EXPOSED' : 'ENEMY SAFEHOUSES EXPOSED'}
               </span>
               <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                 {report.newExposedHostileSH.map(s => (
                   <li key={s.cityNode}>
-                    Hostile safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>{s.safehouseCode || '???'}</span>
-                    {s.origin !== 'DEFAULT' ? ' — cell eliminated.' : '. Raid to dismantle.'}
+                    {isAttacker ? (
+                      <span>Your safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>{s.safehouseCode || '???'}</span> — evasion failed.</span>
+                    ) : (
+                      <span>Hostile safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>{s.safehouseCode || '???'}</span>{s.origin !== 'DEFAULT' ? ' — cell eliminated.' : '. Raid to dismantle.'}</span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -213,7 +217,7 @@ export default function EndTurnReportModal({ report, onClose }) {
               borderRadius: '6px'
             }}>
               <span style={{ color: '#ff4444', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <Home size={14} /> SAFEHOUSES COMPROMISED
+                <Home size={14} /> {isAttacker ? 'YOUR SAFEHOUSES COMPROMISED' : 'SAFEHOUSES COMPROMISED'}
               </span>
               <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                 {report.lostSafehouses.map(s => (
@@ -234,17 +238,25 @@ export default function EndTurnReportModal({ report, onClose }) {
               borderRadius: '6px'
             }}>
               <span style={{ color: 'var(--amber)', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <AlertTriangle size={14} /> ENEMY HOTSPOTS UNCOVERED
+                <AlertTriangle size={14} /> {isAttacker ? 'YOUR HOTSPOTS EXPOSED' : 'ENEMY HOTSPOTS UNCOVERED'}
               </span>
               <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                 {report.newFinance.map(city => (
                   <li key={city}>
-                    Financial rail hotspot detected in <strong className="text-cyber">{city.toUpperCase()}</strong>.
+                    {isAttacker ? (
+                      <span>Your financial rail hotspot detected in <strong className="text-cyber">{city.toUpperCase()}</strong>.</span>
+                    ) : (
+                      <span>Financial rail hotspot detected in <strong className="text-cyber">{city.toUpperCase()}</strong>.</span>
+                    )}
                   </li>
                 ))}
                 {report.newLogistics.map(city => (
                   <li key={city}>
-                    Logistics shield hotspot detected in <strong className="text-cyber">{city.toUpperCase()}</strong>.
+                    {isAttacker ? (
+                      <span>Your logistics pipeline hotspot detected in <strong className="text-cyber">{city.toUpperCase()}</strong>.</span>
+                    ) : (
+                      <span>Logistics shield hotspot detected in <strong className="text-cyber">{city.toUpperCase()}</strong>.</span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -263,15 +275,18 @@ export default function EndTurnReportModal({ report, onClose }) {
                 <ShieldCheck size={14} /> NEW OPERATIONAL SAFEHOUSE
               </span>
               <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                {report.newSafehouses.map(s => (
-                  <li key={s.cityNode}>
-                    {s.ownerFaction === 'DEFENDER' ? (
-                      <span>Friendly safehouse constructed in <strong className="text-cyber">{s.cityNode.toUpperCase()}</strong>.</span>
-                    ) : (
-                      <span className="text-threat">Hostile safehouse sighted in {s.cityNode.toUpperCase()}.</span>
-                    )}
-                  </li>
-                ))}
+                {report.newSafehouses.map(s => {
+                  const isFriendly = isAttacker ? s.ownerFaction === 'HOSTILE' : s.ownerFaction === 'DEFENDER';
+                  return (
+                    <li key={s.cityNode}>
+                      {isFriendly ? (
+                        <span>Friendly safehouse constructed in <strong className="text-cyber">{s.cityNode.toUpperCase()}</strong>.</span>
+                      ) : (
+                        <span className="text-threat">{isAttacker ? 'Counter-intelligence safehouse sighted' : 'Hostile safehouse sighted'} in {s.cityNode.toUpperCase()}.</span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -292,6 +307,25 @@ export default function EndTurnReportModal({ report, onClose }) {
                   <li key={idx}>
                     <strong style={{ color: '#10b981' }}>{r.type.replace(/_/g, ' ')}</strong> successfully deployed to <span style={{ color: 'var(--text-primary)' }}>{r.cityNode.toUpperCase()}</span>.
                   </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Handover Target Site Confirmations */}
+          {report.handoverAlerts?.length > 0 && (
+            <div style={{
+              border: '1px solid rgba(0, 240, 255, 0.3)',
+              background: 'rgba(0, 240, 255, 0.04)',
+              padding: '14px',
+              borderRadius: '6px'
+            }}>
+              <span style={{ color: 'var(--cyan)', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Activity size={14} /> HANDOVER TARGET ALLOCATED
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                {report.handoverAlerts.map((clue, idx) => (
+                  <li key={idx} style={{ color: 'var(--cyan)' }}>{clue.clueText}</li>
                 ))}
               </ul>
             </div>

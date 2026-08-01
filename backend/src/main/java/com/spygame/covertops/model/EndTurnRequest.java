@@ -12,6 +12,23 @@ public class EndTurnRequest {
     private List<String> safehouseBuilds; // List of cityNodes to construct safehouses in
     private List<Map<String, String>> techDeployments; // List of { "type": type, "cityNode": cityNode }
 
+    // Attacker-specific request fields
+    private String suspectMoveTarget;
+    private String targetSafehouseCode;
+    private List<String> builtSafehouses;
+    private List<String> builtSecureSafehouses;
+    private List<Map<String, String>> decoyDeployments;
+    private String activeJammerTarget;
+    private String seekPermissionType;
+    private boolean triggerStrike;
+    private boolean triggerExfiltration;
+
+    private boolean requestFinance;
+    private boolean collectFinance;
+    private boolean requestLogistics;
+    private boolean collectLogistics;
+    private boolean beginHandover;
+
     public EndTurnRequest() {}
 
     public List<Map<String, Object>> getCovertActions() { return covertActions; }
@@ -34,4 +51,46 @@ public class EndTurnRequest {
 
     public List<Map<String, String>> getTechDeployments() { return techDeployments; }
     public void setTechDeployments(List<Map<String, String>> techDeployments) { this.techDeployments = techDeployments; }
+
+    public String getSuspectMoveTarget() { return suspectMoveTarget; }
+    public void setSuspectMoveTarget(String suspectMoveTarget) { this.suspectMoveTarget = suspectMoveTarget; }
+
+    public String getTargetSafehouseCode() { return targetSafehouseCode; }
+    public void setTargetSafehouseCode(String targetSafehouseCode) { this.targetSafehouseCode = targetSafehouseCode; }
+
+    public List<String> getBuiltSafehouses() { return builtSafehouses; }
+    public void setBuiltSafehouses(List<String> builtSafehouses) { this.builtSafehouses = builtSafehouses; }
+
+    public List<String> getBuiltSecureSafehouses() { return builtSecureSafehouses; }
+    public void setBuiltSecureSafehouses(List<String> builtSecureSafehouses) { this.builtSecureSafehouses = builtSecureSafehouses; }
+
+    public List<Map<String, String>> getDecoyDeployments() { return decoyDeployments; }
+    public void setDecoyDeployments(List<Map<String, String>> decoyDeployments) { this.decoyDeployments = decoyDeployments; }
+
+    public String getActiveJammerTarget() { return activeJammerTarget; }
+    public void setActiveJammerTarget(String activeJammerTarget) { this.activeJammerTarget = activeJammerTarget; }
+
+    public String getSeekPermissionType() { return seekPermissionType; }
+    public void setSeekPermissionType(String seekPermissionType) { this.seekPermissionType = seekPermissionType; }
+
+    public boolean isTriggerStrike() { return triggerStrike; }
+    public void setTriggerStrike(boolean triggerStrike) { this.triggerStrike = triggerStrike; }
+
+    public boolean isTriggerExfiltration() { return triggerExfiltration; }
+    public void setTriggerExfiltration(boolean triggerExfiltration) { this.triggerExfiltration = triggerExfiltration; }
+
+    public boolean isRequestFinance() { return requestFinance; }
+    public void setRequestFinance(boolean requestFinance) { this.requestFinance = requestFinance; }
+
+    public boolean isCollectFinance() { return collectFinance; }
+    public void setCollectFinance(boolean collectFinance) { this.collectFinance = collectFinance; }
+
+    public boolean isRequestLogistics() { return requestLogistics; }
+    public void setRequestLogistics(boolean requestLogistics) { this.requestLogistics = requestLogistics; }
+
+    public boolean isCollectLogistics() { return collectLogistics; }
+    public void setCollectLogistics(boolean collectLogistics) { this.collectLogistics = collectLogistics; }
+
+    public boolean isBeginHandover() { return beginHandover; }
+    public void setBeginHandover(boolean beginHandover) { this.beginHandover = beginHandover; }
 }

@@ -1,7 +1,25 @@
+import { useState, useEffect } from 'react';
 import { Shield, Map, BookOpen, Lightbulb, Users, Search, FolderOpen, Package, Eye } from 'lucide-react';
 
-const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, actionCount }) => {
-  const tabs = [
+const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, actionCount, playerRole }) => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mq.matches);
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const isAttacker = playerRole === 'ATTACKER';
+  let tabs = isAttacker ? [
+    { id: 'MAP', label: 'MAP', icon: Map, badge: 0 },
+    { id: 'OBJECTIVES', label: 'OBJECTIVES', icon: BookOpen, badge: 0 },
+    { id: 'HINTS', label: 'HINTS', icon: Lightbulb, badge: 0 },
+    { id: 'CELL_HQ', label: 'CELL HQ', icon: Users, badge: 0 },
+    { id: 'CLUES', label: 'CLUES', icon: Search, badge: clueCount },
+    { id: 'GOD_MODE', label: 'GOD MODE', icon: Eye, badge: 0 }
+  ] : [
     { id: 'MAP', label: 'MAP', icon: Map, badge: 0 },
     { id: 'OBJECTIVES', label: 'OBJECTIVES', icon: BookOpen, badge: 0 },
     { id: 'HINTS', label: 'HINTS', icon: Lightbulb, badge: 0 },
@@ -11,6 +29,10 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, act
     { id: 'RESOURCES', label: 'RESOURCES', icon: Package, badge: 0 },
     { id: 'GOD_MODE', label: 'GOD MODE', icon: Eye, badge: 0 }
   ];
+
+  if (isMobile && !isAttacker) {
+    tabs = tabs.filter(t => !['OBJECTIVES', 'AGENTS', 'RESOURCES'].includes(t.id));
+  }
 
   return (
     <div className="vtab-bar">

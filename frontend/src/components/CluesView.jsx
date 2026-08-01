@@ -5,7 +5,7 @@ import ClueCard from './ClueCard';
 // Sources considered "routine" surveillance intel — can be bulk-dismissed
 const ROUTINE_SOURCES = ['WIRE_TAP', 'PHONE_TAP', 'CCTV', 'SATELLITE', 'FINANCE_MONITOR'];
 
-export default function CluesView({ session, localAssessments, onSetClueAssessment }) {
+export default function CluesView({ session, localAssessments, onSetClueAssessment, isAttacker }) {
   const [intelFilter, setIntelFilter] = useState('ALL');
   const [clearedClues, setClearedClues] = useState([]);
   const filters = ['ALL', 'REJECT', 'DOUBT', 'UNASSESSED'];
@@ -14,6 +14,17 @@ export default function CluesView({ session, localAssessments, onSetClueAssessme
   const filteredClues = (session?.discoveredClues || []).map((clue, index) => ({ clue, index }))
     .filter(({ clue, index }) => {
       if (clearedClues.includes(index)) return false;
+
+      // Filter for Attacker: only show combat/tactical teams and sweeps/lockdowns/patrols clues
+      if (isAttacker) {
+        const txt = (clue.clueText || '').toLowerCase();
+        const isCombatTeam = txt.includes('combat team') || txt.includes('comat team') || txt.includes('tactical team');
+        const isSweep = txt.includes('sweep') || txt.includes('lockdown') || txt.includes('patrol');
+        if (!isCombatTeam && !isSweep) {
+          return false;
+        }
+      }
+
       const assessment = localAssessments[index] || 'UNASSESSED';
       if (assessment === 'ACCEPT') return false;
       // Rejected clues only appear in the REJECT tab, not in ALL
@@ -148,6 +159,7 @@ export default function CluesView({ session, localAssessments, onSetClueAssessme
                     assessment={localAssessments[index] || 'UNASSESSED'}
                     onSetAssessment={onSetClueAssessment}
                     suspects={suspects}
+                    isAttacker={isAttacker}
                   />
                 ))}
               </div>

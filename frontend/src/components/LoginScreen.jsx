@@ -33,6 +33,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
         if (res.ok) {
           const data = await res.json();
           localStorage.setItem('covert_ops_operator_user', data.username);
+          localStorage.setItem('spy_game_token', data.token);
           onLoginSuccess();
         } else {
           const errText = await res.text();

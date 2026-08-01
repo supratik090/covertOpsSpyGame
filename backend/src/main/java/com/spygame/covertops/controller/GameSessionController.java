@@ -30,10 +30,35 @@ public class GameSessionController {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // POST /api/game/create?scenarioId=operation_silent_edge
+    // POST /api/game/create?scenarioId=operation_silent_edge&playerRole=DEFENDER
     @PostMapping("/create")
-    public GameSession createGame(@RequestParam String scenarioId) {
-        return sessionService.createSession(scenarioId);
+    public GameSession createGame(
+            @RequestParam String scenarioId,
+            @RequestParam(required = false, defaultValue = "DEFENDER") String playerRole,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
+        return sessionService.createSession(scenarioId, playerRole, username);
+    }
+
+    // POST /api/game/create-multiplayer?scenarioId=...&playerRole=...&timerMinutes=5
+    @PostMapping("/create-multiplayer")
+    public GameSession createMultiplayerGame(
+            @RequestParam String scenarioId,
+            @RequestParam(required = false, defaultValue = "DEFENDER") String playerRole,
+            @RequestParam(required = false, defaultValue = "5") int timerMinutes,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
+        return sessionService.createMultiplayerSession(scenarioId, playerRole, username, timerMinutes);
+    }
+
+    // POST /api/game/join?gameToken=...
+    @PostMapping("/join")
+    public GameSession joinGame(
+            @RequestParam String gameToken,
+            jakarta.servlet.http.HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
+        UUID sessionId = UUID.fromString(gameToken);
+        return sessionService.joinSession(sessionId, username);
     }
 
     // GET /api/game/scenarios
@@ -44,8 +69,9 @@ public class GameSessionController {
 
     // GET /api/game/list
     @GetMapping("/list")
-    public List<GameSession> listGames() {
-        return sessionService.listSessions();
+    public List<GameSession> listGames(jakarta.servlet.http.HttpServletRequest request) {
+        String username = (String) request.getAttribute("username");
+        return sessionService.listSessions(username);
     }
 
     // DELETE /api/game/{id}
@@ -118,8 +144,10 @@ public class GameSessionController {
     @PostMapping("/{id}/end-turn")
     public GameSession endTurn(
             @PathVariable UUID id,
-            @RequestBody com.spygame.covertops.model.EndTurnRequest request) {
-        return sessionService.processEndTurn(id, request);
+            @RequestBody com.spygame.covertops.model.EndTurnRequest request,
+            jakarta.servlet.http.HttpServletRequest servletRequest) {
+        String username = (String) servletRequest.getAttribute("username");
+        return sessionService.processEndTurn(id, request, username);
     }
 
     // GET /api/game/{id}/hints

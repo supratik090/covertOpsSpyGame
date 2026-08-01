@@ -3,6 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import CityActionDrawer from './CityActionDrawer';
 import CIAIntelBox from './CIAIntelBox';
+import AttackerIntelBox from './AttackerIntelBox';
 import GodModeOverlay, { GodModePanel } from './GodModeOverlay';
 import { Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 
@@ -28,7 +29,26 @@ export default function MapView({
   onToggleCovertAction,
   localTechDeploys = [],
   localSafehouseBuilds = [],
-  addToast
+  addToast,
+  isWaiting,
+  localSuspectMove,
+  setLocalSuspectMove,
+  localTargetSafehouseCode,
+  setLocalTargetSafehouseCode,
+  localBuiltSafehouses = [],
+  localBuiltSecureSafehouses = [],
+  localActiveJammerTarget,
+  localDecoyDeployments = [],
+  localRequestFinance,
+  setLocalRequestFinance,
+  localCollectFinance,
+  setLocalCollectFinance,
+  localRequestLogistics,
+  setLocalRequestLogistics,
+  localCollectLogistics,
+  setLocalCollectLogistics,
+  localBeginHandover,
+  setLocalBeginHandover
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -206,27 +226,43 @@ export default function MapView({
 
     // Render city nodes
     const sweepCities = session.hostilePatrolCities || [];
+    const isAttacker = session.playerRole === 'ATTACKER';
+
     Object.entries(CITY_COORDINATES).forEach(([cityId, coords]) => {
       const nodeData = activeScenario?.nodes?.find(n => n.id === cityId);
-      const isFriendly = nodeData ? nodeData.territory === 'HOME_TERRITORY' : ['srinagar', 'jammu', 'amritsar', 'chandigarh', 'new_delhi'].includes(cityId);
+      const isFriendlyRaw = nodeData ? nodeData.territory === 'HOME_TERRITORY' : ['srinagar', 'jammu', 'amritsar', 'chandigarh', 'new_delhi'].includes(cityId);
+      const isFriendly = isAttacker ? !isFriendlyRaw : isFriendlyRaw;
       const isTarget = activeScenario?.targetCity ? cityId === activeScenario.targetCity : cityId === 'new_delhi';
-      const hasSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'DEFENDER');
+      
+      const hasDefenderSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'DEFENDER');
+      const hasHostileSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE');
       const hasExposedHostileSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered);
+      
+      const isSecureSafehouse = isAttacker && hasHostileSafehouse && (session.secureSafehouseTurns?.[cityId] > 0);
+      const showSafehouseIcon = isAttacker ? (hasHostileSafehouse ? (isSecureSafehouse ? '🛡️' : '🏠') : '') : (hasDefenderSafehouse ? '🏠' : '');
+      const showExposedHostileIcon = !isAttacker && hasExposedHostileSH;
+      
       const isSweptZone = sweepCities.includes(cityId);
 
-      // Calculate counts dynamically by factoring in local buffered turn moves
-      const agentsCount = session.agents.filter(a => {
+      // Render suspect if we are Attacker, or if God Mode is on for Defender
+      const isSuspectHere = isAttacker 
+        ? (session.suspectLocation === cityId)
+        : (showGodMode && session.suspectLocation === cityId);
+
+      // Calculate counts dynamically by factoring in local buffered turn moves (only show if not Attacker or if God Mode is enabled)
+      const agentsCount = (isAttacker && !showGodMode) ? 0 : session.agents.filter(a => {
         const plannedDest = localAgentMoves[a.id];
         if (plannedDest) return plannedDest === cityId;
         return a.currentCity === cityId;
       }).length;
 
-      const teamsCount = session.tacticalTeams.filter(t => {
+      const teamsCount = (isAttacker && !showGodMode) ? 0 : session.tacticalTeams.filter(t => {
         const plannedDest = localTeamMoves[t.id];
         if (plannedDest) return plannedDest === cityId;
         return t.currentCity === cityId;
       }).length;
 
+      // Extract tech resources
       const cityTech = session.espionageResources.filter(r => r.cityNode === cityId);
       const techIcons = [];
       cityTech.forEach(r => {
@@ -240,11 +276,30 @@ export default function MapView({
           case 'BIOMETRIC_SCAN': icon = '🔴'; break;
           case 'BORDER_GUARD': icon = '🚧'; break;
           case 'SIGNAL_JAMMER': icon = '📡'; break;
+          case 'ATTACKER_JAMMER': icon = '⚡'; break;
           default: icon = '🛰️';
         }
         techIcons.push(`<span class="city-marker-tech-icon">${icon}</span>`);
       });
-      const techMarkersHtml = techIcons.length > 0 ? `<div class="city-marker-tech">${techIcons.join('')}</div>` : '';
+
+      // Extract decoys & jammers for Attacker
+      const cityDecoys = session.activeDecoys ? session.activeDecoys.filter(d => d.cityNode === cityId) : [];
+      const attackerTechIcons = [];
+      cityDecoys.forEach(d => {
+        attackerTechIcons.push(`<span class="city-marker-tech-icon">${d.type === 'CCTV' ? '📹' : '🛰️'}</span>`);
+      });
+      cityTech.filter(r => r.type === 'ATTACKER_JAMMER').forEach(() => {
+        attackerTechIcons.push(`<span class="city-marker-tech-icon">⚡</span>`);
+      });
+
+      const combinedTech = (isAttacker && showGodMode)
+        ? [...attackerTechIcons, ...techIcons]
+        : (isAttacker ? attackerTechIcons : techIcons);
+
+      const techMarkersHtml = combinedTech.length > 0
+        ? `<div class="city-marker-tech">${combinedTech.join('')}</div>`
+        : '';
+
       const isSelected = selectedCityNode === cityId;
 
       // Determine if any agent at this city is idle (no task or NONE)
@@ -253,20 +308,21 @@ export default function MapView({
         if (plannedDest) return plannedDest === cityId;
         return a.currentCity === cityId;
       });
-      const hasIdleAgent = cityAgents.some(a => {
-        // Check buffered local task first, then the server-side activeTask
+      const hasIdleAgent = !isAttacker && cityAgents.some(a => {
         const effectiveTask = localAgentTasks[a.id] || a.activeTask;
         return !effectiveTask || effectiveTask === 'NONE' || effectiveTask === '';
       });
 
       // Construct dynamic HTML for Leaflet markers matching the index.css styling
       const markerHtml = `
-        <div class="city-marker-wrapper ${isSelected ? 'selected' : ''} ${hasIdleAgent ? 'has-idle' : ''} ${isSweptZone ? 'swept-zone' : ''}">
+        <div class="city-marker-wrapper ${isSelected ? 'selected' : ''} ${hasIdleAgent ? 'has-idle' : ''} ${isSweptZone ? 'swept-zone' : ''} ${isSuspectHere ? 'suspect-here-wrapper' : ''}">
           ${isSweptZone ? '<div class="city-marker-sweep-ring"></div>' : ''}
+          ${isSuspectHere ? '<div class="suspect-radar-ring"></div>' : ''}
           <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''}"></div>
           <div class="city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}"></div>
-          ${hasSafehouse ? `<div class="city-marker-safehouse">🛡️</div>` : ''}
-          ${hasExposedHostileSH ? `<div class="city-marker-exposed-hostile">👁️</div>` : ''}
+          ${showSafehouseIcon ? `<div class="city-marker-safehouse" style="display: flex; align-items: center; justify-content: center; font-size: 11px;">${showSafehouseIcon}</div>` : ''}
+          ${showExposedHostileIcon ? `<div class="city-marker-exposed-hostile">👁️</div>` : ''}
+          ${isSuspectHere ? `<div class="city-marker-badge suspect pulse-badge" style="background: #ff3b30; box-shadow: 0 0 15px #ff3b30; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 2px solid white; border-radius: 50%; width: 22px; height: 22px; transform: translate(12px, -24px); z-index: 1000;">🎯</div>` : ''}
           ${agentsCount > 0 ? `<div class="city-marker-badge agents">${agentsCount}</div>` : ''}
           ${teamsCount > 0 ? `<div class="city-marker-badge teams">${teamsCount}</div>` : ''}
           ${techMarkersHtml}
@@ -523,15 +579,19 @@ export default function MapView({
   };
 
   const selectedNodeData = activeScenario?.nodes?.find(n => n.id === selectedCityNode);
-  const isFriendly = selectedNodeData ? selectedNodeData.territory === 'HOME_TERRITORY' : ['srinagar', 'jammu', 'amritsar', 'chandigarh', 'new_delhi'].includes(selectedCityNode);
-  const hasSafehouse = session.safehouses.some(s => s.cityNode === selectedCityNode && s.ownerFaction === 'DEFENDER');
+  const isAttacker = session?.playerRole === 'ATTACKER';
+  const isFriendlyRaw = selectedNodeData ? selectedNodeData.territory === 'HOME_TERRITORY' : ['srinagar', 'jammu', 'amritsar', 'chandigarh', 'new_delhi'].includes(selectedCityNode);
+  const isFriendly = isAttacker ? !isFriendlyRaw : isFriendlyRaw;
+  const hasSafehouse = isAttacker
+    ? session.safehouses.some(s => s.cityNode === selectedCityNode && s.ownerFaction === 'HOSTILE')
+    : session.safehouses.some(s => s.cityNode === selectedCityNode && s.ownerFaction === 'DEFENDER');
 
   return (
     <div className={`map-container relative w-full h-full overflow-hidden ${isShaking ? 'shake-effect' : ''}`}>
       {/* Title */}
       <div className="map-title z-10 pointer-events-none">
         <h2>Tactical Map Feed</h2>
-        <span>SATELLITE INTEL SCAN — BORDER RADAR TELEMETRY</span>
+
       </div>
 
       {/* Toolbar */}
@@ -719,33 +779,65 @@ export default function MapView({
         })}
       </svg>
 
-      {/* CIA Intel Overlay (Left side) */}
+      {/* City Intel Overlay (Left side) */}
       {selectedCityNode && (
-        <CIAIntelBox 
-          cityId={selectedCityNode} 
-          session={session} 
-          nodesData={activeScenario?.nodes || []} 
-          selectedAgent={selectedAgent}
-          selectedTeam={selectedTeam}
-          onAssignAgentTask={onAssignAgentTask}
-          onRelocateAgent={onRelocateAgent}
-          onRelocateTacticalTeam={onRelocateTacticalTeam}
-          localAgentMoves={localAgentMoves}
-          localTeamMoves={localTeamMoves}
-          localAgentTasks={localAgentTasks}
-          onDeployTech={onDeployTech}
-          onBuildSafehouse={onBuildSafehouse}
-          covertActions={covertActions}
-          onToggleCovertAction={onToggleCovertAction}
-          onClose={() => setSelectedCityNode(null)}
-          setSelectedCityNode={setSelectedCityNode}
-          localTechDeploys={localTechDeploys}
-          localSafehouseBuilds={localSafehouseBuilds}
-        />
+        session.playerRole === 'ATTACKER' ? (
+          <AttackerIntelBox
+            cityId={selectedCityNode}
+            session={session}
+            activeScenario={activeScenario}
+            onClose={() => setSelectedCityNode(null)}
+            onBuildSafehouse={onBuildSafehouse}
+            onDeployTech={onDeployTech}
+            localBuiltSafehouses={localBuiltSafehouses}
+            localBuiltSecureSafehouses={localBuiltSecureSafehouses}
+            localActiveJammerTarget={localActiveJammerTarget}
+            localDecoyDeployments={localDecoyDeployments}
+            localSuspectMove={localSuspectMove}
+            setLocalSuspectMove={setLocalSuspectMove}
+            addToast={addToast}
+            isWaiting={isWaiting}
+            localTargetSafehouseCode={localTargetSafehouseCode}
+            setLocalTargetSafehouseCode={setLocalTargetSafehouseCode}
+            localRequestFinance={localRequestFinance}
+            setLocalRequestFinance={setLocalRequestFinance}
+            localCollectFinance={localCollectFinance}
+            setLocalCollectFinance={setLocalCollectFinance}
+            localRequestLogistics={localRequestLogistics}
+            setLocalRequestLogistics={setLocalRequestLogistics}
+            localCollectLogistics={localCollectLogistics}
+            setLocalCollectLogistics={setLocalCollectLogistics}
+            localBeginHandover={localBeginHandover}
+            setLocalBeginHandover={setLocalBeginHandover}
+            setSelectedCityNode={setSelectedCityNode}
+          />
+        ) : (
+          <CIAIntelBox 
+            cityId={selectedCityNode} 
+            session={session} 
+            nodesData={activeScenario?.nodes || []} 
+            selectedAgent={selectedAgent}
+            selectedTeam={selectedTeam}
+            onAssignAgentTask={onAssignAgentTask}
+            onRelocateAgent={onRelocateAgent}
+            onRelocateTacticalTeam={onRelocateTacticalTeam}
+            localAgentMoves={localAgentMoves}
+            localTeamMoves={localTeamMoves}
+            localAgentTasks={localAgentTasks}
+            onDeployTech={onDeployTech}
+            onBuildSafehouse={onBuildSafehouse}
+            covertActions={covertActions}
+            onToggleCovertAction={onToggleCovertAction}
+            onClose={() => setSelectedCityNode(null)}
+            setSelectedCityNode={setSelectedCityNode}
+            localTechDeploys={localTechDeploys}
+            localSafehouseBuilds={localSafehouseBuilds}
+          />
+        )
       )}
 
       {/* Drawer */}
-      {selectedCityNode && (
+      {selectedCityNode && session.playerRole !== 'ATTACKER' && (
         <CityActionDrawer
           cityId={selectedCityNode}
           isFriendly={isFriendly}
@@ -753,6 +845,8 @@ export default function MapView({
           onBuildSafehouse={onBuildSafehouse}
           onDeployTech={onDeployTech}
           onClose={() => setSelectedCityNode(null)}
+          playerRole={session.playerRole}
+          isWaiting={isWaiting}
         />
       )}
 

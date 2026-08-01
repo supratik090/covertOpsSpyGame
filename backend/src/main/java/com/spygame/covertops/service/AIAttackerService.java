@@ -4,12 +4,10 @@ import com.spygame.covertops.model.AIMasterPlan;
 import com.spygame.covertops.model.Node;
 import com.spygame.covertops.model.PlanStep;
 import com.spygame.covertops.model.ScenarioConfig;
+import com.spygame.covertops.model.GameSession;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -17,220 +15,333 @@ public class AIAttackerService {
 
     private final Random random = new Random();
 
-    // Generates a complete 25-turn plan containing both Primary and Fallback/Backup arrays.
+    // Generates a blank AI Master Plan object at startup to satisfy type constraints
     public AIMasterPlan generateMasterPlan(ScenarioConfig config, String actualAttacker) {
-        List<Node> hostileNodes = config.getNodes().stream()
-                .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
-                .collect(Collectors.toList());
-
-        List<Node> homeNodes = config.getNodes().stream()
-                .filter(n -> "HOME_TERRITORY".equals(n.getTerritory()))
-                .collect(Collectors.toList());
-
-        // Extract mappings
-        String financeMethod = "Direct Account Transfer";
-        if (config.getFinanceMapping() != null && config.getFinanceMapping().containsKey(config.getAttackForm())) {
-            financeMethod = (String) config.getFinanceMapping().get(config.getAttackForm()).getOrDefault("itemName", financeMethod);
-        }
-
-        String logisticsMethod = "Sniper Assembly Kits";
-        if (config.getLogisticsMapping() != null && config.getLogisticsMapping().containsKey(config.getAttackForm())) {
-            logisticsMethod = (String) config.getLogisticsMapping().get(config.getAttackForm()).getOrDefault("itemName", logisticsMethod);
-        }
-
-        // Generate primary path
-        List<PlanStep> primaryPlan = generateSinglePath(config, hostileNodes, homeNodes, financeMethod, logisticsMethod, false);
-
-        // Generate fallback path (with different locations, and +3 turn deadline offset)
-        List<PlanStep> fallbackPlan = generateSinglePath(config, hostileNodes, homeNodes, financeMethod, logisticsMethod, true);
-
-        AIMasterPlan masterPlan = new AIMasterPlan(primaryPlan, fallbackPlan);
+        AIMasterPlan masterPlan = new AIMasterPlan(new ArrayList<>(), new ArrayList<>());
         masterPlan.setBriefing(config.getBriefing());
         return masterPlan;
     }
 
     public List<PlanStep> generateDecoyPath(ScenarioConfig config) {
+        return new ArrayList<>();
+    }
+
+    // Dynamic per-turn decision execution loop for AI Attacker
+    public GameSession executeTurn(GameSession session, ScenarioConfig config) {
+        if (!"ACTIVE".equals(session.getStatus())) {
+            return session;
+        }
+
+        int currentTurn = session.getCurrentTurn();
+        int maxTurns = session.getMaxTurns();
+        int turnsRemaining = maxTurns - currentTurn;
+
+        String loc = session.getSuspectLocation();
+        if (loc == null || loc.isEmpty() || "NONE".equals(loc)) {
+            List<Node> hostileNodes = config.getNodes().stream()
+                    .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                    .collect(Collectors.toList());
+            loc = !hostileNodes.isEmpty() ? hostileNodes.get(0).getId() : "karachi";
+            session.setSuspectLocation(loc);
+        }
+
+        // 1. Heat Defense Check: construct safehouse if in a city without a safehouse and heat is rising
+        boolean hasSafehouseInLoc = session.getSafehouses().stream()
+                .anyMatch(s -> s.getCityNode().equals(session.getSuspectLocation()) && "HOSTILE".equals(s.getOwnerFaction()));
+        int budget = session.getAttackerBudget();
+        int shCost = session.getSuspectLocation().toLowerCase().contains("mumbai") || session.getSuspectLocation().toLowerCase().contains("delhi") ? 150000 : 50000;
+        
+        if (!hasSafehouseInLoc && budget >= shCost) {
+            boolean buildSecure = budget >= shCost * 2 && random.nextBoolean();
+            int finalCost = buildSecure ? shCost * 2 : shCost;
+            session.setAttackerBudget(budget - finalCost);
+            String code = String.valueOf(100 + random.nextInt(900));
+            session.getSafehouses().add(new GameSession.Safehouse(session.getSuspectLocation(), "HOSTILE", "PURCHASED", !buildSecure, code));
+            
+            if (buildSecure) {
+                if (session.getSecureSafehouseTurns() == null) {
+                    session.setSecureSafehouseTurns(new java.util.HashMap<>());
+                }
+                session.getSecureSafehouseTurns().put(session.getSuspectLocation(), 5);
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        currentTurn,
+                        "SAFEHOUSE_EXPOSED",
+                        "Alert: Signals intelligence indicates the enemy has created a secure safehouse.",
+                        session.getSuspectLocation(),
+                        "Signals Intelligence"
+                ));
+            } else {
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        currentTurn,
+                        "SAFEHOUSE_EXPOSED",
+                        "NEW OPERATIONAL SAFEHOUSE: Operative established a hideout in " + session.getSuspectLocation().toUpperCase() + " (Code: " + code + ")",
+                        session.getSuspectLocation(),
+                        "Hostile Cell Operations"
+                ));
+            }
+        }
+
+        // 2. Resolve Sourcing Actions
+        boolean isFinanceCollected = session.isFinanceCollected();
+        boolean isLogisticsCollected = session.isLogisticsCollected();
+
+        if (!isFinanceCollected && session.getRequestedFinanceCity() == null) {
+            Node node = getNode(loc, config);
+            if (node != null && "HOSTILE_TERRITORY".equals(node.getTerritory())) {
+                session.setRequestedFinanceCity(loc);
+                session.setFinanceCollectionTurnsRemaining(5);
+                session.setActiveAttackerPhase("FINANCE_SOURCING");
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        currentTurn,
+                        "FINANCE_REQUESTED",
+                        "Finance pipeline request initialized in " + loc.toUpperCase() + ". Collection channels opening."
+                ));
+                return session;
+            }
+        }
+
+        if (session.getRequestedFinanceCity() != null && !isFinanceCollected) {
+            if (session.getRequestedFinanceCity().equals(loc) && session.getFinanceCollectionTurnsRemaining() <= 0) {
+                session.setFinanceCollected(true);
+                session.setActiveAttackerPhase("TRAIL_BREAKING");
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        currentTurn,
+                        "FINANCE_SOURCED",
+                        "Capital acquired. Finance sourcing completed."
+                ));
+                checkHandoverUnlock(session, config);
+                return session;
+            }
+        }
+
+        if (isFinanceCollected && !isLogisticsCollected && session.getRequestedLogisticsCity() == null) {
+            Node node = getNode(loc, config);
+            if (node != null && "HOSTILE_TERRITORY".equals(node.getTerritory())) {
+                session.setRequestedLogisticsCity(loc);
+                session.setLogisticsCollectionTurnsRemaining(5);
+                session.setActiveAttackerPhase("LOGISTICS_SOURCING");
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        currentTurn,
+                        "LOGISTICS_REQUESTED",
+                        "Logistical lines mapped in " + loc.toUpperCase() + ". Sourcing Assembly Kits."
+                ));
+                return session;
+            }
+        }
+
+        if (session.getRequestedLogisticsCity() != null && !isLogisticsCollected) {
+            if (session.getRequestedLogisticsCity().equals(loc) && session.getLogisticsCollectionTurnsRemaining() <= 0) {
+                session.setLogisticsCollected(true);
+                session.setActiveAttackerPhase("TRAIL_BREAKING");
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        currentTurn,
+                        "LOGISTICS_SOURCED",
+                        "Equipment acquired. Logistics sourcing completed."
+                ));
+                checkHandoverUnlock(session, config);
+                return session;
+            }
+        }
+
+        // 3. Resolve Handover Meeting
+        if (isFinanceCollected && isLogisticsCollected && !session.isHandoverCompleted()) {
+            if (session.getHandoverCity() != null && session.getHandoverCity().equals(loc)) {
+                if (session.getHandoverTurnsRemaining() <= 0) {
+                    session.setHandoverCompleted(true);
+                    session.setActiveAttackerPhase("BORDER_CROSSING");
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            currentTurn,
+                            "HANDOVER_COMPLETED",
+                            "Meeting finalized. Handover complete. Operative authorized for border infiltration."
+                    ));
+                    return session;
+                } else if (session.getHandoverTurnsRemaining() == 3) {
+                    session.setActiveAttackerPhase("HANDOVER");
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            currentTurn,
+                            "HANDOVER_INITIATED",
+                            "Handover protocol initiated at " + loc.toUpperCase() + ". Operational materials exchanged."
+                    ));
+                    return session;
+                }
+            }
+        }
+
+        // 4. Infiltration Approval
+        if (session.isHandoverCompleted() && !session.isInfiltrationGoAheadApproved()) {
+            session.setInfiltrationGoAheadApproved(true);
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    currentTurn,
+                    "INFILTRATION_APPROVED",
+                    "HQ border clearance approved. Path to home soil opened."
+            ));
+        }
+
+        // 5. Strike execution
+        if (session.isInfiltrationGoAheadApproved() && !session.isStrikeGoAheadApproved()) {
+            if (loc.equalsIgnoreCase(config.getTargetCity())) {
+                session.setStrikeGoAheadApproved(true);
+                session.setActiveAttackerPhase("EXFILTRATION");
+                session.getDiscoveredClues().add(new GameSession.Clue(
+                        currentTurn,
+                        "STRIKE_EXECUTED",
+                        "💥 TARGET STRIKE EXECUTED successfully in " + loc.toUpperCase() + "! Exfiltration protocol active."
+                ));
+                return session;
+            }
+        }
+
+        // 6. Dynamic Routing: Calculate next target node
+        String targetDestination = determineNextTargetDestination(session, config);
+        
+        // Find best adjacent node to move to targetDestination
+        String nextStepNode = findOptimalPathNode(session, loc, targetDestination, config, turnsRemaining);
+        if (nextStepNode != null && !nextStepNode.equals(loc)) {
+            session.setSuspectLocation(nextStepNode);
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    currentTurn,
+                    "SUSPECT_RELOCATION",
+                    "Operative relocated to " + nextStepNode.replace("_", " ").toUpperCase()
+            ));
+        }
+
+        return session;
+    }
+
+    private void checkHandoverUnlock(GameSession session, ScenarioConfig config) {
+        if (session.isFinanceCollected() && session.isLogisticsCollected()) {
+            session.setActiveAttackerPhase("HANDOVER");
+            List<String> friendlyCities = config.getNodes().stream()
+                    .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                    .map(Node::getId)
+                    .collect(Collectors.toList());
+            if (friendlyCities.isEmpty()) {
+                friendlyCities = config.getNodes().stream().map(Node::getId).collect(Collectors.toList());
+            }
+            String chosen = friendlyCities.get(random.nextInt(friendlyCities.size()));
+            session.setHandoverCity(chosen);
+            session.setHandoverTurnsRemaining(3);
+
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    session.getCurrentTurn(),
+                    "HANDOVER_UNLOCKED",
+                    "Sourcing completed. Handover site confirmed: " + chosen.replace("_", " ").toUpperCase() + ". Navigate there to begin the meeting."
+            ));
+        }
+    }
+
+    private String determineNextTargetDestination(GameSession session, ScenarioConfig config) {
+        if (!session.isFinanceCollected()) {
+            if (session.getRequestedFinanceCity() != null) return session.getRequestedFinanceCity();
+            return config.getNodes().stream()
+                    .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                    .map(Node::getId)
+                    .findFirst().orElse("karachi");
+        }
+        if (!session.isLogisticsCollected()) {
+            if (session.getRequestedLogisticsCity() != null) return session.getRequestedLogisticsCity();
+            return config.getNodes().stream()
+                    .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                    .map(Node::getId)
+                    .findFirst().orElse("lahore");
+        }
+        if (!session.isHandoverCompleted()) {
+            return session.getHandoverCity();
+        }
+        if (!session.isStrikeGoAheadApproved()) {
+            return config.getTargetCity();
+        }
         List<Node> hostileNodes = config.getNodes().stream()
                 .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
                 .collect(Collectors.toList());
-
-        List<Node> homeNodes = config.getNodes().stream()
-                .filter(n -> "HOME_TERRITORY".equals(n.getTerritory()))
-                .collect(Collectors.toList());
-
-        String financeMethod = "Direct Account Transfer";
-        if (config.getFinanceMapping() != null && config.getFinanceMapping().containsKey(config.getAttackForm())) {
-            financeMethod = (String) config.getFinanceMapping().get(config.getAttackForm()).getOrDefault("itemName", financeMethod);
-        }
-
-        String logisticsMethod = "Sniper Assembly Kits";
-        if (config.getLogisticsMapping() != null && config.getLogisticsMapping().containsKey(config.getAttackForm())) {
-            logisticsMethod = (String) config.getLogisticsMapping().get(config.getAttackForm()).getOrDefault("itemName", logisticsMethod);
-        }
-
-        List<PlanStep> steps = generateSinglePath(config, hostileNodes, homeNodes, financeMethod, logisticsMethod, false);
-        
-        // Modify the final step to make sure they do not do the final strike action
-        if (!steps.isEmpty()) {
-            PlanStep finalStep = steps.get(steps.size() - 1);
-            finalStep.setPhase("DISPERSAL");
-            finalStep.setAction("DISPERSE");
-            if (steps.size() > 1) {
-                finalStep.setSuspectLocation(steps.get(steps.size() - 2).getSuspectLocation());
-                finalStep.setCovertTeamLocation(steps.get(steps.size() - 2).getSuspectLocation());
-            } else {
-                finalStep.setSuspectLocation("NONE");
-                finalStep.setCovertTeamLocation("NONE");
-            }
-            finalStep.setEscapeMethod("NONE");
-            finalStep.setEscapeNode("NONE");
-        }
-        return steps;
+        return !hostileNodes.isEmpty() ? hostileNodes.get(0).getId() : "karachi";
     }
 
-    private List<PlanStep> generateSinglePath(ScenarioConfig config, List<Node> hostileNodes, List<Node> homeNodes,
-                                              String financeMethod, String logisticsMethod, boolean isFallback) {
-        List<PlanStep> steps = new ArrayList<>();
-        int maxTurns = isFallback ? config.getMaxTurns() + 3 : config.getMaxTurns();
-
-        // 1. Pick Sourcing & Meeting Nodes in Hostile Territory
-        // To keep paths diverse between Primary and Fallback, we shuffle hostile nodes.
-        List<Node> hostileShuffle = new ArrayList<>(hostileNodes);
-        Collections.shuffle(hostileShuffle, random);
-
-        Node financeNode = hostileShuffle.get(0);
-        Node logisticsNode = hostileShuffle.get(1 % hostileShuffle.size());
-        Node handoverNode = hostileShuffle.get(2 % hostileShuffle.size());
-
-        // 2. Define Phase Turn Timings
-        int trailBreakingTurns = isFallback ? 3 : 2; // Trail-breaking turns (idle/moving)
-        int financeStart = trailBreakingTurns + 1;
-        int financeEnd = trailBreakingTurns + 5;
-        int logisticsStart = financeEnd + 1;
-        int logisticsEnd = financeEnd + 5;
-        int handoverStart = logisticsEnd + 1;
-        int handoverEnd = logisticsEnd + 3; // 3 rounds handover meeting
-        int crossingTurn = handoverEnd + 1; // Enters border node
-
-        // 3. Find path through Home territory to target
-        List<String> homeTransitPath = findTransitPath(config, crossingTurn, maxTurns, homeNodes);
-
-        String currentSuspectCity = hostileShuffle.get(3 % hostileShuffle.size()).getId();
-
-        for (int turn = 1; turn <= maxTurns; turn++) {
-            PlanStep step = new PlanStep();
-            step.setTurn(turn);
-
-            if (turn <= trailBreakingTurns) {
-                // PHASE: Trail Breaking (Moves between hostile nodes to shake trail)
-                step.setPhase("TRAIL_BREAKING");
-                step.setAction("MOVE");
-                currentSuspectCity = getNextConnectedHostile(config, currentSuspectCity, hostileNodes);
-                step.setSuspectLocation(currentSuspectCity);
-                step.setCovertTeamLocation(currentSuspectCity);
-            } else if (turn >= financeStart && turn <= financeEnd) {
-                // PHASE: Finance Sourcing (Stays in Finance city for 5 turns)
-                step.setPhase("FINANCE_SOURCING");
-                step.setAction(turn == financeStart ? "INITIATE_TRANSACTION" : "CLEAR_FUNDS");
-                currentSuspectCity = financeNode.getId();
-                step.setSuspectLocation(currentSuspectCity);
-                step.setFinanceCity(currentSuspectCity);
-                step.setFinanceMethod(financeMethod);
-                step.setCovertTeamLocation(currentSuspectCity);
-            } else if (turn >= logisticsStart && turn <= logisticsEnd) {
-                // PHASE: Logistics Sourcing (Stays in Logistics city for 5 turns)
-                step.setPhase("LOGISTICS_SOURCING");
-                step.setAction(turn == logisticsStart ? "PROCURE_CARGO" : "ASSEMBLE_PAYLOAD");
-                currentSuspectCity = logisticsNode.getId();
-                step.setSuspectLocation(currentSuspectCity);
-                step.setLogisticsCity(currentSuspectCity);
-                step.setLogisticsMethod(logisticsMethod);
-                step.setCovertTeamLocation(currentSuspectCity);
-            } else if (turn >= handoverStart && turn <= handoverEnd) {
-                // PHASE: Handover Meeting (Operatives meet in safehouse for 3 turns)
-                step.setPhase("HANDOVER");
-                step.setAction("SAFEHOUSE_MEETING");
-                currentSuspectCity = handoverNode.getId();
-                step.setSuspectLocation(currentSuspectCity);
-                step.setCovertTeamLocation(currentSuspectCity);
-            } else if (turn == crossingTurn) {
-                // PHASE: Border Crossing (Smuggling smuggling methods)
-                step.setPhase("BORDER_CROSSING");
-                step.setAction("SMUGGLE");
-                step.setSmuggling(true);
-                step.setSmugglingMethod("Land Border (Direct Fence)");
-                currentSuspectCity = homeTransitPath.get(0);
-                step.setSuspectLocation(currentSuspectCity);
-                step.setCovertTeamLocation(currentSuspectCity);
-            } else if (turn > crossingTurn && turn < maxTurns) {
-                // PHASE: Attack Prep Transit (Moves to target)
-                step.setPhase("ATTACK_PREP");
-                step.setAction("MOVE_SAFEHOUSE");
-                int pathIndex = turn - crossingTurn;
-                if (pathIndex < homeTransitPath.size()) {
-                    currentSuspectCity = homeTransitPath.get(pathIndex);
-                } else {
-                    currentSuspectCity = config.getTargetCity();
-                }
-                step.setSuspectLocation(currentSuspectCity);
-                step.setCovertTeamLocation(currentSuspectCity);
-            } else {
-                // PHASE: Strike / Escape Plan
-                step.setPhase("STRIKE");
-                step.setAction("EXECUTE_ATTACK");
-                step.setSuspectLocation(config.getTargetCity());
-                step.setCovertTeamLocation(config.getTargetCity());
-                step.setEscapeMethod("Airport Exfiltration");
-                step.setEscapeNode(config.getTargetCity());
-            }
-
-            steps.add(step);
+    private String findOptimalPathNode(GameSession session, String currentLoc, String targetDest, ScenarioConfig config, int turnsRemaining) {
+        Node currentNode = getNode(currentLoc, config);
+        if (currentNode == null || currentNode.getConnections() == null || currentNode.getConnections().isEmpty()) {
+            return currentLoc;
         }
 
-        return steps;
-    }
+        List<String> options = currentNode.getConnections();
+        String bestOption = null;
+        double lowestThreat = Double.MAX_VALUE;
 
-    private String getNextConnectedHostile(ScenarioConfig config, String current, List<Node> hostileNodes) {
-        Node node = config.getNodes().stream().filter(n -> n.getId().equals(current)).findFirst().orElse(null);
-        if (node != null && node.getConnections() != null) {
-            List<String> connectedHostiles = node.getConnections().stream()
-                    .filter(cId -> hostileNodes.stream().anyMatch(hn -> hn.getId().equals(cId)))
-                    .collect(Collectors.toList());
-            if (!connectedHostiles.isEmpty()) {
-                return connectedHostiles.get(random.nextInt(connectedHostiles.size()));
+        for (String nextCity : options) {
+            double threat = getThreatScore(session, nextCity, targetDest, config, turnsRemaining);
+            if (threat < lowestThreat) {
+                lowestThreat = threat;
+                bestOption = nextCity;
             }
         }
-        return hostileNodes.get(random.nextInt(hostileNodes.size())).getId();
+        return bestOption != null ? bestOption : currentLoc;
     }
 
-    private List<String> findTransitPath(ScenarioConfig config, int crossingTurn, int maxTurns, List<Node> homeNodes) {
-        // Generates path of nodes in Home Territory ending in targetCity
-        List<String> path = new ArrayList<>();
-        int stepsNeeded = maxTurns - crossingTurn;
+    private double getThreatScore(GameSession session, String city, String destination, ScenarioConfig config, int turnsRemaining) {
+        double score = 0.0;
 
-        // Try to trace back from targetCity
-        String target = config.getTargetCity();
-        path.add(target);
+        int dist = getShortestDistance(city, destination, config);
+        score += dist * 50.0;
 
-        String current = target;
-        for (int i = 0; i < stepsNeeded; i++) {
-            final String curr = current;
-            Node node = config.getNodes().stream().filter(n -> n.getId().equals(curr)).findFirst().orElse(null);
+        if (turnsRemaining <= dist + 2) {
+            score += dist * 1000.0;
+        }
+
+        boolean isLockedDown = session.getHostilePatrolCities().contains(city) || session.getSurprisePatrolCities().contains(city);
+        if (isLockedDown) {
+            score += 1500.0;
+        }
+
+        int heat = session.getCityHeat().getOrDefault(city, 0);
+        score += heat * 2.0;
+
+        boolean hasScanners = false;
+        if (session.getEspionageResources() != null) {
+            hasScanners = session.getEspionageResources().stream()
+                    .anyMatch(r -> r.getCityNode().equals(city));
+        }
+        if (hasScanners) {
+            score += 150.0;
+        }
+
+        boolean hasSH = session.getSafehouses().stream()
+                .anyMatch(s -> s.getCityNode().equals(city) && "HOSTILE".equals(s.getOwnerFaction()));
+        if (hasSH) {
+            score -= 60.0;
+        }
+
+        return score;
+    }
+
+    private int getShortestDistance(String start, String end, ScenarioConfig config) {
+        if (start.equals(end)) return 0;
+        Queue<String> queue = new LinkedList<>();
+        Map<String, Integer> distMap = new HashMap<>();
+        queue.add(start);
+        distMap.put(start, 0);
+
+        while (!queue.isEmpty()) {
+            String curr = queue.poll();
+            int currDist = distMap.get(curr);
+            if (curr.equals(end)) return currDist;
+
+            Node node = getNode(curr, config);
             if (node != null && node.getConnections() != null) {
-                List<String> homeConnections = node.getConnections().stream()
-                        .filter(cId -> homeNodes.stream().anyMatch(hn -> hn.getId().equals(cId)))
-                        .collect(Collectors.toList());
-                if (!homeConnections.isEmpty()) {
-                    current = homeConnections.get(random.nextInt(homeConnections.size()));
-                    path.add(0, current); // Add to beginning of transit path
-                    continue;
+                for (String conn : node.getConnections()) {
+                    if (!distMap.containsKey(conn)) {
+                        distMap.put(conn, currDist + 1);
+                        queue.add(conn);
+                    }
                 }
             }
-            // Fallback: pick random home node
-            current = homeNodes.get(random.nextInt(homeNodes.size())).getId();
-            path.add(0, current);
         }
+        return 99;
+    }
 
-        return path;
+    private Node getNode(String id, ScenarioConfig config) {
+        return config.getNodes().stream()
+                .filter(n -> n.getId().equals(id))
+                .findFirst()
+                .orElse(null);
     }
 }

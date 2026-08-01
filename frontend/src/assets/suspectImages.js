@@ -7,6 +7,7 @@ const SUSPECT_IMAGES = {
   'Tariq Mahmood': tariqMahmood,
   'Zubair Khan': zubairKhan,
   'Faisal Shah': faisalShah,
+  'Faizal Khan': faisalShah,
 };
 
 /**

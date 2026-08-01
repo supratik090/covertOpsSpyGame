@@ -43,6 +43,9 @@ public class GameSessionControllerIntegrationTest {
     @MockBean
     private com.spygame.covertops.repository.ScenarioConfigRepository scenarioConfigRepository;
 
+    @MockBean
+    private com.spygame.covertops.repository.UserSessionRepository userSessionRepository;
+
     private GameSession mockedSession;
 
     @BeforeEach
@@ -52,6 +55,11 @@ public class GameSessionControllerIntegrationTest {
         com.spygame.covertops.model.ScenarioConfig scenarioConfig = objectMapper.readValue(configFile, com.spygame.covertops.model.ScenarioConfig.class);
         
         when(scenarioConfigRepository.findById("operation_silent_edge")).thenReturn(Optional.of(scenarioConfig));
+
+        // Mock Authentication Interceptor Session lookup
+        when(userSessionRepository.findByToken(any(String.class))).thenReturn(Optional.of(
+            new com.spygame.covertops.model.UserSession("test_token", "test_user", java.time.LocalDateTime.now().plusDays(1))
+        ));
 
         // Prepare a mock save answer to return the exact session passed to it
         when(repository.save(any(GameSession.class))).thenAnswer(invocation -> {
@@ -77,6 +85,7 @@ public class GameSessionControllerIntegrationTest {
         // 1. Create a Game Session via POST /api/game/create
         MvcResult createResult = mockMvc.perform(post("/api/game/create")
                         .param("scenarioId", "operation_silent_edge")
+                        .header("Authorization", "Bearer test_token")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -92,6 +101,7 @@ public class GameSessionControllerIntegrationTest {
 
         // 2. Fetch the created session via GET /api/game/{id}
         MvcResult getResult = mockMvc.perform(get("/api/game/" + session.getId())
+                        .header("Authorization", "Bearer test_token")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -107,6 +117,7 @@ public class GameSessionControllerIntegrationTest {
 
         MvcResult endTurnResult = mockMvc.perform(post("/api/game/" + session.getId() + "/end-turn")
                         .content(objectMapper.writeValueAsString(request))
+                        .header("Authorization", "Bearer test_token")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
