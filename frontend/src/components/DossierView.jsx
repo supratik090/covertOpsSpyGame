@@ -76,7 +76,7 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
   // All accepted clues
   const acceptedClues = (session?.discoveredClues || [])
     .map((clue, index) => ({ clue, index }))
-    .filter(({ index }) => (localAssessments[index] || 'UNASSESSED') === 'ACCEPT');
+    .filter(({ clue, index }) => clue.turnDiscovered <= session.currentTurn && (localAssessments[index] || 'UNASSESSED') === 'ACCEPT');
 
   // Clues relevant to selected suspect:
   //   • clue text mentions the suspect's first name, OR

@@ -13,8 +13,9 @@ export default function CluesView({ session, localAssessments, onSetClueAssessme
 
   const filteredClues = (session?.discoveredClues || []).map((clue, index) => ({ clue, index }))
     .filter(({ clue, index }) => {
+      if (clue.turnDiscovered > session.currentTurn) return false;
       if (clearedClues.includes(index)) return false;
-
+ 
       // Filter for Attacker: only show combat/tactical teams and sweeps/lockdowns/patrols clues
       if (isAttacker) {
         const txt = (clue.clueText || '').toLowerCase();
@@ -24,7 +25,7 @@ export default function CluesView({ session, localAssessments, onSetClueAssessme
           return false;
         }
       }
-
+ 
       const assessment = localAssessments[index] || 'UNASSESSED';
       if (assessment === 'ACCEPT') return false;
       // Rejected clues only appear in the REJECT tab, not in ALL

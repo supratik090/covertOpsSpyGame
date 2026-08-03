@@ -549,6 +549,8 @@ public class GameSessionService {
             return repository.save(session);
         }
 
+        int currentTurn = session.getCurrentTurn();
+
         // Apply relocations before resolving clues and combat
         if (request.getAgentRelocations() != null) {
             for (Map.Entry<Integer, String> entry : request.getAgentRelocations().entrySet()) {
@@ -568,138 +570,6 @@ public class GameSessionService {
                 } catch (Exception e) {
                     System.err.println("Failed team relocation: " + e.getMessage());
                 }
-            }
-        }
-
-        // Resolve security sweeps (Local patrols raid nodes)
-        int currentTurn = session.getCurrentTurn();
-        java.util.Random rollRand = new java.util.Random();
-
-        // 1. Resolve Warned Sweeps (hostilePatrolCities): Complete loss if present
-        if (session.getHostilePatrolCities() != null && !session.getHostilePatrolCities().isEmpty()) {
-            List<String> swept = session.getHostilePatrolCities();
-            
-            // Apprehend agents in swept cities
-            List<GameSession.Agent> survivingAgents = new ArrayList<>();
-            for (GameSession.Agent agent : session.getAgents()) {
-                if (swept.contains(agent.getCurrentCity())) {
-                    session.getDiscoveredClues().add(new GameSession.Clue(
-                            currentTurn,
-                            "SECURITY_SWEEP_LOSS",
-                            "LOSS REPORT: Agent " + agent.getCodename() + " was caught in a warned security sweep in " + agent.getCurrentCity().toUpperCase() + " and has been disavowed.",
-                            agent.getCurrentCity(),
-                            "HQ Communications"
-                    ));
-                } else {
-                    survivingAgents.add(agent);
-                }
-            }
-            session.setAgents(survivingAgents);
-
-            // Wipe out tactical teams in swept cities
-            List<GameSession.TacticalTeam> survivingTeams = new ArrayList<>();
-            for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
-                if (swept.contains(team.getCurrentCity())) {
-                    session.getDiscoveredClues().add(new GameSession.Clue(
-                            currentTurn,
-                            "SECURITY_SWEEP_LOSS",
-                            "LOSS REPORT: Tactical Team " + team.getName() + " was intercepted and neutralized during a warned security sweep in " + team.getCurrentCity().toUpperCase() + ".",
-                            team.getCurrentCity(),
-                            "HQ Communications"
-                    ));
-                } else {
-                    survivingTeams.add(team);
-                }
-            }
-            session.setTacticalTeams(survivingTeams);
-
-            // Dismantle safehouses in swept cities
-            List<GameSession.Safehouse> safehousesLeft = new ArrayList<>();
-            for (GameSession.Safehouse sh : session.getSafehouses()) {
-                if (swept.contains(sh.getCityNode()) && "DEFENDER".equals(sh.getOwnerFaction())) {
-                    session.getDiscoveredClues().add(new GameSession.Clue(
-                            currentTurn,
-                            "SECURITY_SWEEP_LOSS",
-                            "LOSS REPORT: Friendly Safehouse in " + sh.getCityNode().toUpperCase() + " was discovered and dismantled by local security forces during a warned sweep.",
-                            sh.getCityNode(),
-                            "HQ Communications"
-                    ));
-                } else {
-                    safehousesLeft.add(sh);
-                }
-            }
-            session.setSafehouses(safehousesLeft);
-
-            // After warned sweep resolves, set cooldown on swept cities
-            if (session.getSweepCooldownCities() == null) {
-                session.setSweepCooldownCities(new java.util.HashMap<>());
-            }
-            for (String sweptCity : swept) {
-                session.getSweepCooldownCities().put(sweptCity, 3);
-            }
-        }
-
-        // 2. Resolve Surprise Sweeps (surprisePatrolCities): 33% chance of capture/destruction for each resource independently
-        if (session.getSurprisePatrolCities() != null && !session.getSurprisePatrolCities().isEmpty()) {
-            List<String> swept = session.getSurprisePatrolCities();
-
-            // Resolve surprise sweeps for agents
-            List<GameSession.Agent> survivingAgents = new ArrayList<>();
-            for (GameSession.Agent agent : session.getAgents()) {
-                if (swept.contains(agent.getCurrentCity()) && rollRand.nextDouble() < 0.33) {
-                    session.getDiscoveredClues().add(new GameSession.Clue(
-                            currentTurn,
-                            "SECURITY_SWEEP_LOSS",
-                            "LOSS REPORT: Agent " + agent.getCodename() + " was caught in a surprise security sweep in " + agent.getCurrentCity().toUpperCase() + " and has been disavowed.",
-                            agent.getCurrentCity(),
-                            "HQ Communications"
-                    ));
-                } else {
-                    survivingAgents.add(agent);
-                }
-            }
-            session.setAgents(survivingAgents);
-
-            // Resolve surprise sweeps for tactical teams
-            List<GameSession.TacticalTeam> survivingTeams = new ArrayList<>();
-            for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
-                if (swept.contains(team.getCurrentCity()) && rollRand.nextDouble() < 0.33) {
-                    session.getDiscoveredClues().add(new GameSession.Clue(
-                            currentTurn,
-                            "SECURITY_SWEEP_LOSS",
-                            "LOSS REPORT: Tactical Team " + team.getName() + " was intercepted and neutralized during a surprise security sweep in " + team.getCurrentCity().toUpperCase() + ".",
-                            team.getCurrentCity(),
-                            "HQ Communications"
-                    ));
-                } else {
-                    survivingTeams.add(team);
-                }
-            }
-            session.setTacticalTeams(survivingTeams);
-
-            // Resolve surprise sweeps for safehouses
-            List<GameSession.Safehouse> safehousesLeft = new ArrayList<>();
-            for (GameSession.Safehouse sh : session.getSafehouses()) {
-                if (swept.contains(sh.getCityNode()) && "DEFENDER".equals(sh.getOwnerFaction()) && rollRand.nextDouble() < 0.33) {
-                    session.getDiscoveredClues().add(new GameSession.Clue(
-                            currentTurn,
-                            "SECURITY_SWEEP_LOSS",
-                            "LOSS REPORT: Friendly Safehouse in " + sh.getCityNode().toUpperCase() + " was discovered and dismantled during a surprise security sweep.",
-                            sh.getCityNode(),
-                            "HQ Communications"
-                    ));
-                } else {
-                    safehousesLeft.add(sh);
-                }
-            }
-            session.setSafehouses(safehousesLeft);
-
-            // After surprise sweep resolves, set cooldown on swept cities
-            if (session.getSweepCooldownCities() == null) {
-                session.setSweepCooldownCities(new java.util.HashMap<>());
-            }
-            for (String sweptCity : swept) {
-                session.getSweepCooldownCities().put(sweptCity, 3);
             }
         }
 
@@ -873,7 +743,7 @@ public class GameSessionService {
                         session.setMaxTurns(session.getMaxTurns() + 10);
                         session.setSuspectEscapedBefore(true);
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "TACTICAL_FORCE", 
-                                "COMBAT ENGAGEMENT: " + (team != null ? team.getName() : "Delta Team") + " raided the safehouse [" + targetCode + "] in " + city + ". " + (isCorrectCode ? "The suspect was there but escaped!" : "Intel breach! The raided code was empty. Suspect was elsewhere.") + " The actual threat agent (" + session.getActualAttacker() + ") escaped the dragnet but suffered a 10-turn operational setback. Sourcing timeline delayed."));
+                                "COMBAT ENGAGEMENT: " + (team != null ? team.getName() : "Delta Team") + " raided the safehouse [" + targetCode + "] in " + city + ". " + (isCorrectCode ? "The suspect was there but escaped!" : "Intel breach! The raided code was empty. Suspect was elsewhere.") + " The suspect escaped the dragnet but suffered a 10-turn operational setback. Sourcing timeline delayed."));
                         
                         if (actionNode != null && "HOSTILE_TERRITORY".equals(actionNode.getTerritory())) {
                             int stealth = team != null ? team.getSkills().getOrDefault("stealth", 50) : 50;
@@ -919,19 +789,19 @@ public class GameSessionService {
                             session.setFinanceCollected(false);
                             session.setActiveAttackerPhase("FINANCE_SOURCING");
                             session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER", 
-                                    "FREEZE FINANCE: Defender has frozen your finance pipeline in " + city.toUpperCase() + "! Sourcing defeated. You must request finance in a different city."));
+                                    "FREEZE FINANCE: Defender has frozen the finance pipeline of suspect " + session.getActualAttacker() + " in " + city.toUpperCase() + "! Sourcing defeated. You must request finance in a different city."));
                         } else {
                             session.setRequestedLogisticsCity(null);
                             session.setLogisticsCollectionTurnsRemaining(0);
                             session.setLogisticsCollected(false);
                             session.setActiveAttackerPhase("LOGISTICS_SOURCING");
                             session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER", 
-                                    "RAID LOGISTICS: Defender has raided your logistics cache in " + city.toUpperCase() + "! Sourcing defeated. You must request logistics in a different city."));
+                                    "RAID LOGISTICS: Defender has raided the logistics cache of suspect " + session.getActualAttacker() + " in " + city.toUpperCase() + "! Sourcing defeated. You must request logistics in a different city."));
                         }
                     } else {
                         reallocateAiSourcing(session, city, "FREEZE_FINANCE".equals(type), config);
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER", 
-                                "OPERATION SUCCESS: Defender " + type + " in " + city.toUpperCase() + " disrupted the suspect's sourcing. Attacker plan defeated, forcing resource re-allocation."));
+                                "OPERATION SUCCESS: Defender " + type + " in " + city.toUpperCase() + " disrupted the suspect " + session.getActualAttacker() + "'s sourcing. Attacker plan defeated, forcing resource re-allocation."));
                     }
                     continue; 
                 }
@@ -982,7 +852,7 @@ public class GameSessionService {
                     session.setMaxTurns(session.getMaxTurns() + 3);
                     session.setSuspectEscapedBefore(true);
                     session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER", 
-                            "Alert! Operative path disrupted in " + city.toUpperCase() + ". Sourcing delayed. Timeline extended by 3 turns."));
+                            "Alert! Operative " + session.getActualAttacker() + " path disrupted in " + city.toUpperCase() + ". Sourcing delayed. Timeline extended by 3 turns."));
                     
                     // Force dynamic AI relocation away from the locked-down / matched node
                     List<Node> hostiles = config.getNodes().stream()
@@ -1182,7 +1052,7 @@ public class GameSessionService {
                             session.getDiscoveredClues().add(new GameSession.Clue(
                                     currentTurn,
                                     "SAFEHOUSE_EXPOSED",
-                                    "INTELLIGENCE BRIEF: Combined surveillance team unmasked secure hostile safehouse in " + city.toUpperCase() + ".",
+                                    "INTELLIGENCE BRIEF: Combined surveillance team unmasked secure hostile safehouse of suspect " + session.getActualAttacker() + " in " + city.toUpperCase() + ".",
                                     city,
                                     "Field Intelligence Unit"
                             ));
@@ -1193,7 +1063,7 @@ public class GameSessionService {
                             session.getDiscoveredClues().add(new GameSession.Clue(
                                     currentTurn,
                                     "SAFEHOUSE_EXPOSED",
-                                    "INTELLIGENCE BRIEF: Surveillance team unmasked hostile safehouse in " + city.toUpperCase() + ".",
+                                    "INTELLIGENCE BRIEF: Surveillance team unmasked hostile safehouse of suspect " + session.getActualAttacker() + " in " + city.toUpperCase() + ".",
                                     city,
                                     "Field Intelligence Unit"
                             ));
@@ -1239,6 +1109,137 @@ public class GameSessionService {
                 }
             }
             session.setEspionageResources(activeResources);
+        }
+
+        // Resolve security sweeps (Local patrols raid nodes) at the very end of turn processing
+        java.util.Random rollRand = new java.util.Random();
+
+        // 1. Resolve Warned Sweeps (hostilePatrolCities): Complete loss if present
+        if (session.getHostilePatrolCities() != null && !session.getHostilePatrolCities().isEmpty()) {
+            List<String> swept = session.getHostilePatrolCities();
+            
+            // Apprehend agents in swept cities
+            List<GameSession.Agent> survivingAgents = new ArrayList<>();
+            for (GameSession.Agent agent : session.getAgents()) {
+                if (swept.contains(agent.getCurrentCity())) {
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            currentTurn,
+                            "SECURITY_SWEEP_LOSS",
+                            "LOSS REPORT: Agent " + agent.getCodename() + " was caught in a warned security sweep in " + agent.getCurrentCity().toUpperCase() + " and has been disavowed.",
+                            agent.getCurrentCity(),
+                            "HQ Communications"
+                    ));
+                } else {
+                    survivingAgents.add(agent);
+                }
+            }
+            session.setAgents(survivingAgents);
+
+            // Wipe out tactical teams in swept cities
+            List<GameSession.TacticalTeam> survivingTeams = new ArrayList<>();
+            for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
+                if (swept.contains(team.getCurrentCity())) {
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            currentTurn,
+                            "SECURITY_SWEEP_LOSS",
+                            "LOSS REPORT: Tactical Team " + team.getName() + " was intercepted and neutralized during a warned security sweep in " + team.getCurrentCity().toUpperCase() + ".",
+                            team.getCurrentCity(),
+                            "HQ Communications"
+                    ));
+                } else {
+                    survivingTeams.add(team);
+                }
+            }
+            session.setTacticalTeams(survivingTeams);
+
+            // Dismantle safehouses in swept cities
+            List<GameSession.Safehouse> safehousesLeft = new ArrayList<>();
+            for (GameSession.Safehouse sh : session.getSafehouses()) {
+                if (swept.contains(sh.getCityNode()) && "DEFENDER".equals(sh.getOwnerFaction())) {
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            currentTurn,
+                            "SECURITY_SWEEP_LOSS",
+                            "LOSS REPORT: Friendly Safehouse in " + sh.getCityNode().toUpperCase() + " was discovered and dismantled by local security forces during a warned sweep.",
+                            sh.getCityNode(),
+                            "HQ Communications"
+                    ));
+                } else {
+                    safehousesLeft.add(sh);
+                }
+            }
+            session.setSafehouses(safehousesLeft);
+
+            // After warned sweep resolves, set cooldown on swept cities
+            if (session.getSweepCooldownCities() == null) {
+                session.setSweepCooldownCities(new java.util.HashMap<>());
+            }
+            for (String sweptCity : swept) {
+                session.getSweepCooldownCities().put(sweptCity, 3);
+            }
+        }
+
+        // 2. Resolve Surprise Sweeps (surprisePatrolCities): 33% chance of capture/destruction for each resource independently
+        if (session.getSurprisePatrolCities() != null && !session.getSurprisePatrolCities().isEmpty()) {
+            List<String> swept = session.getSurprisePatrolCities();
+
+            // Resolve surprise sweeps for agents
+            List<GameSession.Agent> survivingAgents = new ArrayList<>();
+            for (GameSession.Agent agent : session.getAgents()) {
+                if (swept.contains(agent.getCurrentCity()) && rollRand.nextDouble() < 0.33) {
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            currentTurn,
+                            "SECURITY_SWEEP_LOSS",
+                            "LOSS REPORT: Agent " + agent.getCodename() + " was caught in a surprise security sweep in " + agent.getCurrentCity().toUpperCase() + " and has been disavowed.",
+                            agent.getCurrentCity(),
+                            "HQ Communications"
+                    ));
+                } else {
+                    survivingAgents.add(agent);
+                }
+            }
+            session.setAgents(survivingAgents);
+
+            // Resolve surprise sweeps for tactical teams
+            List<GameSession.TacticalTeam> survivingTeams = new ArrayList<>();
+            for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
+                if (swept.contains(team.getCurrentCity()) && rollRand.nextDouble() < 0.33) {
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            currentTurn,
+                            "SECURITY_SWEEP_LOSS",
+                            "LOSS REPORT: Tactical Team " + team.getName() + " was intercepted and neutralized during a surprise security sweep in " + team.getCurrentCity().toUpperCase() + ".",
+                            team.getCurrentCity(),
+                            "HQ Communications"
+                    ));
+                } else {
+                    survivingTeams.add(team);
+                }
+            }
+            session.setTacticalTeams(survivingTeams);
+
+            // Resolve surprise sweeps for safehouses
+            List<GameSession.Safehouse> safehousesLeft = new ArrayList<>();
+            for (GameSession.Safehouse sh : session.getSafehouses()) {
+                if (swept.contains(sh.getCityNode()) && "DEFENDER".equals(sh.getOwnerFaction()) && rollRand.nextDouble() < 0.33) {
+                    session.getDiscoveredClues().add(new GameSession.Clue(
+                            currentTurn,
+                            "SECURITY_SWEEP_LOSS",
+                            "LOSS REPORT: Friendly Safehouse in " + sh.getCityNode().toUpperCase() + " was discovered and dismantled during a surprise security sweep.",
+                            sh.getCityNode(),
+                            "HQ Communications"
+                    ));
+                } else {
+                    safehousesLeft.add(sh);
+                }
+            }
+            session.setSafehouses(safehousesLeft);
+
+            // After surprise sweep resolves, set cooldown on swept cities
+            if (session.getSweepCooldownCities() == null) {
+                session.setSweepCooldownCities(new java.util.HashMap<>());
+            }
+            for (String sweptCity : swept) {
+                session.getSweepCooldownCities().put(sweptCity, 3);
+            }
         }
 
         // 4. Tick down lockout/cooldown timers

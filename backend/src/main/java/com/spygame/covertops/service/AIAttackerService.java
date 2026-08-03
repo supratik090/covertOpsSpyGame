@@ -64,11 +64,18 @@ public class AIAttackerService {
                     session.setSecureSafehouseTurns(new java.util.HashMap<>());
                 }
                 session.getSecureSafehouseTurns().put(session.getSuspectLocation(), 5);
+                
+                Node shNode = config.getNodes().stream()
+                        .filter(n -> n.getId().equals(session.getSuspectLocation()))
+                        .findFirst()
+                        .orElse(null);
+                String territoryType = shNode != null && "HOSTILE_TERRITORY".equals(shNode.getTerritory()) ? "hostile" : "friendly";
+                
                 session.getDiscoveredClues().add(new GameSession.Clue(
-                        clueTurn,
+                        currentTurn,
                         "SAFEHOUSE_EXPOSED",
-                        "Alert: Signals intelligence indicates the enemy has created a secure safehouse.",
-                        session.getSuspectLocation(),
+                        "Alert: Signals intelligence indicates the enemy suspect " + session.getActualAttacker() + " has created a secure safehouse in a " + territoryType + " city (Location Redacted).",
+                        null,
                         "Signals Intelligence"
                 ));
             } else {
@@ -237,7 +244,7 @@ public class AIAttackerService {
                             session.getDiscoveredClues().add(new GameSession.Clue(
                                     clueTurn,
                                     "BORDER_GUARD",
-                                    "BORDER INTERDICTION: Infiltration foiled in " + cityName + ". Target detected attempting border crossing. Relocation blocked.",
+                                    "BORDER INTERDICTION: Infiltration foiled in " + cityName + ". Target " + session.getActualAttacker() + " detected attempting border crossing. Relocation blocked.",
                                     nextStepNode,
                                     "Border Guard Command"
                             ));

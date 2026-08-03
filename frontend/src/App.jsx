@@ -679,7 +679,7 @@ export default function App() {
       const sweepAlertClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_ALERT');
       const sweepLossClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_LOSS');
       const combatOpClues = newClues.filter(c =>
-        c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT'
+        c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT' || c.source === 'COMMAND_CENTER'
       );
       const handoverClues = newClues.filter(c => c.source === 'HANDOVER_UNLOCKED');
 
@@ -804,13 +804,13 @@ export default function App() {
 
   const unassessedCluesCount = session
     ? session.discoveredClues.filter((clue, idx) => {
-        return (localAssessments[idx] || 'UNASSESSED') === 'UNASSESSED';
+        return clue.turnDiscovered <= session.currentTurn && (localAssessments[idx] || 'UNASSESSED') === 'UNASSESSED';
       }).length
     : 0;
 
   const acceptedCluesCount = session
     ? session.discoveredClues.filter((clue, idx) => {
-        return (localAssessments[idx] || 'UNASSESSED') === 'ACCEPT';
+        return clue.turnDiscovered <= session.currentTurn && (localAssessments[idx] || 'UNASSESSED') === 'ACCEPT';
       }).length
     : 0;
 
