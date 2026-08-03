@@ -29,8 +29,15 @@ public class ScenarioConfig {
     private List<Map<String, String>> startingEspionageResources;
     private Map<String, Map<String, Object>> logisticsMapping;
     private Map<String, Map<String, Object>> financeMapping;
+    private String attackingCountry;
+    private String defendingCountry;
 
     public ScenarioConfig() {}
+
+    public String getAttackingCountry() { return attackingCountry; }
+    public void setAttackingCountry(String attackingCountry) { this.attackingCountry = attackingCountry; }
+    public String getDefendingCountry() { return defendingCountry; }
+    public void setDefendingCountry(String defendingCountry) { this.defendingCountry = defendingCountry; }
 
     // Getters and Setters
     public String getScenarioId() { return scenarioId; }

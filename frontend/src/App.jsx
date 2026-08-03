@@ -1021,6 +1021,10 @@ export default function App() {
             handleExit();
             fetchScenarios();
           }}
+          onViewReplay={() => {
+            setShowGameOver(false);
+            setShowGodMode(true);
+          }}
         />
       )}
     </div>

@@ -1,5 +1,7 @@
 {
   "scenarioId": "assassinate_iran_general",
+  "attackingCountry": "Israel",
+  "defendingCountry": "Iran",
   "title": "Assassinate Iranian General",
   "briefing": "An Israeli intelligence operation targeting an Iranian General coordinating military logistics in the Middle East. Track the target through Lebanon, Syria, Iraq, Dubai, and Abu Dhabi. Assure elimination of the threat agent before Turn 25.",
   "attackerBriefing": "Infiltrate key logistical nodes across the Middle East, evade intelligence sweeps, and eliminate the target Iranian General.",

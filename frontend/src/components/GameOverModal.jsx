@@ -414,6 +414,27 @@ export default function GameOverModal({ session, replayPlan, onConfirm, onViewRe
               </button>
             )}
 
+            {onViewReplay && (
+              <button
+                onClick={onViewReplay}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  padding: '12px 24px', borderRadius: '6px', cursor: 'pointer',
+                  border: '1px solid rgba(0,240,255,0.35)',
+                  background: 'rgba(0,240,255,0.06)',
+                  color: 'var(--cyan)',
+                  fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em',
+                  transition: 'all 0.2s',
+                  width: '100%',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.15)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,240,255,0.06)'}
+              >
+                <Eye size={14} />
+                REVIEW MAP IN GOD MODE
+              </button>
+            )}
+
             <button
               onClick={onConfirm}
               style={{

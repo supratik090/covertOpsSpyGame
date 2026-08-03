@@ -137,7 +137,8 @@ public class PlayerDefenderService {
         }
 
         session.setBudget(session.getBudget() - cost);
-        session.getEspionageResources().add(new GameSession.ActiveResource(type, cityNode, 0));
+        int duration = "BORDER_GUARD".equals(type) ? 5 : 0;
+        session.getEspionageResources().add(new GameSession.ActiveResource(type, cityNode, duration));
         return repository.save(session);
     }
 

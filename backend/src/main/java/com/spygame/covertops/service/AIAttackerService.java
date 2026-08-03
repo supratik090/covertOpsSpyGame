@@ -250,7 +250,7 @@ public class AIAttackerService {
                 session.getDiscoveredClues().add(new GameSession.Clue(
                         clueTurn,
                         "SUSPECT_RELOCATION",
-                        "Operative relocated to " + nextStepNode.replace("_", " ").toUpperCase()
+                        "Operative relocated to " + nextStepNode.replace("_", " ").toUpperCase() + " (Turn " + currentTurn + ")"
                 ));
             }
         }

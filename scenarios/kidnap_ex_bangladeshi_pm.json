@@ -1,5 +1,7 @@
 {
   "scenarioId": "kidnap_ex_bangladeshi_pm",
+  "attackingCountry": "Bangladesh",
+  "defendingCountry": "India",
   "title": "Kidnap Ex Bangladeshi PM",
   "briefing": "A hostile network is plotting to kidnap the former Bangladeshi Prime Minister currently residing in India. Investigate the connections to locate and apprehend the suspect from our top threat list: Farhan Chowdhury, Kazi Rahman, Mustafizur Hasan. Protect the target and stop the hostile asset before Turn 25.",
   "attackerBriefing": "Infiltrate the Indian border, locate the former Prime Minister residing in New Delhi, acquire the target, and secure extraction back into Bangladesh.",

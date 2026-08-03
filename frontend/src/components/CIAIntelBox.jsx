@@ -556,11 +556,24 @@ export default function CIAIntelBox({
             <div className="text-dim font-mono text-[10px] py-1">NO SCANNER FEED INSTALLED</div>
           ) : (
             <div className="cia-tag-list">
-              {localTech.map((r, i) => (
-                <span key={i} className="cia-tag cyan font-mono">
-                  {r.type.replace('_', ' ')} (T-{r.cooldownRemaining})
-                </span>
-              ))}
+              {localTech.map((r, i) => {
+                let icon = '🛰️';
+                if (r.type === 'CCTV') icon = '📹';
+                else if (r.type === 'WIRE_TAP') icon = '🔍';
+                else if (r.type === 'PHONE_TAP') icon = '📞';
+                else if (r.type === 'SATELLITE') icon = '🛰️';
+                else if (r.type === 'FINANCE_MONITOR') icon = '💰';
+                else if (r.type === 'BIOMETRIC_SCAN') icon = '🔴';
+                else if (r.type === 'BORDER_GUARD') icon = '🚧';
+                else if (r.type === 'SIGNAL_JAMMER') icon = '📡';
+                
+                return (
+                  <span key={i} className="cia-tag cyan font-mono animate-fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>{icon}</span>
+                    <span>{r.type.replace('_', ' ')} (T-{r.cooldownRemaining})</span>
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>
