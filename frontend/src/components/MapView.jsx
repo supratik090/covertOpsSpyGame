@@ -64,12 +64,40 @@ export default function MapView({
           if (node.coordinates.lat !== undefined && node.coordinates.lng !== undefined) {
             coords[node.id] = [node.coordinates.lat, node.coordinates.lng];
           } else if (node.coordinates.x !== undefined && node.coordinates.y !== undefined) {
-            const lat = 36.0 - (node.coordinates.y * 0.12);
-            const lng = 65.0 + (node.coordinates.x * 0.15);
+            // Increased spacing multipliers for cleaner layout
+            const lat = 36.0 - (node.coordinates.y * 0.24);
+            const lng = 65.0 + (node.coordinates.x * 0.3);
             coords[node.id] = [lat, lng];
           }
         }
       });
+
+      // Relaxation pass to ensure no nodes overlap or are too close
+      const minDistance = 1.2; // degrees threshold
+      const keys = Object.keys(coords);
+      for (let iter = 0; iter < 12; iter++) {
+        let shifted = false;
+        for (let i = 0; i < keys.length; i++) {
+          for (let j = i + 1; j < keys.length; j++) {
+            const idA = keys[i];
+            const idB = keys[j];
+            const [latA, lngA] = coords[idA];
+            const [latB, lngB] = coords[idB];
+            const dLat = latA - latB;
+            const dLng = lngA - lngB;
+            const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+            if (dist < minDistance && dist > 0.0001) {
+              const diff = minDistance - dist;
+              const forceX = (dLng / dist) * (diff / 2);
+              const forceY = (dLat / dist) * (diff / 2);
+              coords[idA] = [latA + forceY, lngA + forceX];
+              coords[idB] = [latB - forceY, lngB - forceX];
+              shifted = true;
+            }
+          }
+        }
+        if (!shifted) break;
+      }
     } else {
       Object.assign(coords, {
         karachi: [24.8607, 67.0011],

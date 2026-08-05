@@ -3,6 +3,7 @@ package com.spygame.covertops.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spygame.covertops.model.GameSession;
 import com.spygame.covertops.model.ScenarioConfig;
+import com.spygame.covertops.service.DeploymentService;
 import com.spygame.covertops.service.GameSessionService;
 import com.spygame.covertops.service.HintGenerationService;
 import com.spygame.covertops.service.PlayerDefenderService;
@@ -27,6 +28,9 @@ public class GameSessionController {
 
     @Autowired
     private HintGenerationService hintService;
+
+    @Autowired
+    private DeploymentService deploymentService;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -177,6 +181,21 @@ public class GameSessionController {
     @PostMapping("/{id}/revert-turn")
     public GameSession revertTurn(@PathVariable UUID id) {
         return sessionService.revertTurn(id);
+    }
+
+    // POST /api/game/{id}/deploy
+    // Accepts the initial DEFENDER deployment: safehouse cities, agent cities, team cities
+    @PostMapping("/{id}/deploy")
+    public GameSession commitDeployment(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        java.util.List<String> safehouses = (java.util.List<String>) body.get("safehouses");
+        @SuppressWarnings("unchecked")
+        Map<String, String> agentDeployments = (Map<String, String>) body.get("agentDeployments");
+        @SuppressWarnings("unchecked")
+        Map<String, String> teamDeployments = (Map<String, String>) body.get("teamDeployments");
+        return deploymentService.commitDeployment(id, safehouses, agentDeployments, teamDeployments);
     }
 
     private ScenarioConfig loadConfig(String scenarioId) throws Exception {

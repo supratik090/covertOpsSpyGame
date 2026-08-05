@@ -18,6 +18,8 @@ import GameOverModal from './components/GameOverModal';
 import { GAME_API_BASE } from './config';
 import { fetchWithRetry } from './utils/api';
 import RetrySpinner from './components/RetrySpinner';
+import DeploymentScreen from './components/DeploymentScreen';
+
 
 const getInitialTab = () =>
   typeof window !== 'undefined' && window.innerWidth <= 768 ? 'TACTICAL' : 'MAP';
@@ -891,6 +893,14 @@ export default function App() {
 
       {screen === 'GAME' && session && (
         <>
+          {session.deploymentPending && session.playerRole === 'DEFENDER' && (
+            <DeploymentScreen
+              session={session}
+              activeScenario={activeScenario}
+              onDeploymentComplete={(updated) => setSession(updated)}
+              addToast={addToast}
+            />
+          )}
           <VerticalTabBar
             activeTab={activeTab}
             setActiveTab={setActiveTab}

@@ -59,6 +59,9 @@ public class GameSession {
     private boolean handoverCompleted = false;
     private String suspectSafehouseCode;
 
+    // Deployment phase — true until DEFENDER player has placed all safehouses, agents, and teams
+    private boolean deploymentPending = false;
+
     // Multiplayer properties
     private boolean isMultiplayer = false;
     private String playerA;
@@ -152,6 +155,9 @@ public class GameSession {
 
     public String getSuspectSafehouseCode() { return suspectSafehouseCode; }
     public void setSuspectSafehouseCode(String suspectSafehouseCode) { this.suspectSafehouseCode = suspectSafehouseCode; }
+
+    public boolean isDeploymentPending() { return deploymentPending; }
+    public void setDeploymentPending(boolean deploymentPending) { this.deploymentPending = deploymentPending; }
 
     public List<ActiveDecoy> getActiveDecoys() { return activeDecoys; }
     public void setActiveDecoys(List<ActiveDecoy> activeDecoys) { this.activeDecoys = activeDecoys; }

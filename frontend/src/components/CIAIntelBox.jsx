@@ -227,38 +227,7 @@ export default function CIAIntelBox({
           </div>
         </div>
 
-        {/* Hostile Hotspots (Finance/Logistics) */}
-        {!isFriendly && nodeInfo && (
-          <div className="cia-section">
-            <h4 className="cia-sub-title"><Archive size={12} /> ENEMY HOTSPOTS</h4>
-            <div className="cia-grid-item">
-              <div className="cia-sub-item">
-                <span className="label font-mono"><DollarSign size={10} /> FINANCIAL RAILS:</span>
-                <div className="cia-tag-list mt-1">
-                  {session.uncoveredFinanceCities && session.uncoveredFinanceCities.includes(cityId) ? (
-                    nodeInfo.availableFinance && nodeInfo.availableFinance.map((f, i) => (
-                      <span key={i} className="cia-tag red font-mono">{f.replace('_', ' ')}</span>
-                    ))
-                  ) : (
-                    <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR FINANCE TO SCAN)</span>
-                  )}
-                </div>
-              </div>
-              <div className="cia-sub-item mt-2">
-                <span className="label font-mono"><Archive size={10} /> LOGISTICS SHIELD:</span>
-                <div className="cia-tag-list mt-1">
-                  {session.uncoveredLogisticsCities && session.uncoveredLogisticsCities.includes(cityId) ? (
-                    nodeInfo.availableLogistics && nodeInfo.availableLogistics.map((l, i) => (
-                      <span key={i} className="cia-tag amber font-mono">{l.replace('_', ' ')}</span>
-                    ))
-                  ) : (
-                    <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR LOGISTICS TO SCAN)</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Field Intelligence Force */}
         <div className="cia-section">
@@ -582,6 +551,39 @@ export default function CIAIntelBox({
             </div>
           )}
         </div>
+
+        {/* Hostile Hotspots (Finance/Logistics) */}
+                {!isFriendly && nodeInfo && (
+                  <div className="cia-section">
+                    <h4 className="cia-sub-title"><Archive size={12} /> ENEMY HOTSPOTS</h4>
+                    <div className="cia-grid-item">
+                      <div className="cia-sub-item">
+                        <span className="label font-mono"><DollarSign size={10} /> FINANCIAL RAILS:</span>
+                        <div className="cia-tag-list mt-1">
+                          {session.uncoveredFinanceCities && session.uncoveredFinanceCities.includes(cityId) ? (
+                            nodeInfo.availableFinance && nodeInfo.availableFinance.map((f, i) => (
+                              <span key={i} className="cia-tag red font-mono">{f.replace('_', ' ')}</span>
+                            ))
+                          ) : (
+                            <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR FINANCE TO SCAN)</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="cia-sub-item mt-2">
+                        <span className="label font-mono"><Archive size={10} /> LOGISTICS SHIELD:</span>
+                        <div className="cia-tag-list mt-1">
+                          {session.uncoveredLogisticsCities && session.uncoveredLogisticsCities.includes(cityId) ? (
+                            nodeInfo.availableLogistics && nodeInfo.availableLogistics.map((l, i) => (
+                              <span key={i} className="cia-tag amber font-mono">{l.replace('_', ' ')}</span>
+                            ))
+                          ) : (
+                            <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR LOGISTICS TO SCAN)</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
       </div>
 

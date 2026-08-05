@@ -131,13 +131,18 @@ public class GameSessionLobbyService {
             }
             session.setCityHeat(cityHeat);
 
+            // For DEFENDER players, mark deployment as pending — agents/teams get cities from the deployment screen.
+            // For ATTACKER players (AI defense), keep config defaults as-is.
+            boolean isDefender = "DEFENDER".equals(session.getPlayerRole());
+
             if (config.getAgents() != null) {
                 List<GameSession.Agent> agentsList = config.getAgents().stream().map(aMap -> {
                     GameSession.Agent agent = new GameSession.Agent();
                     agent.setId((Integer) aMap.get("id"));
                     agent.setName((String) aMap.get("name"));
                     agent.setCodename((String) aMap.get("codename"));
-                    agent.setCurrentCity((String) aMap.get("startingCity"));
+                    // DEFENDER players choose starting city during deployment screen
+                    agent.setCurrentCity(isDefender ? null : (String) aMap.get("startingCity"));
                     agent.setActiveTask("FIND_SUSPECT");
                     agent.setSkills((Map<String, Integer>) aMap.get("skills"));
                     agent.setCooldownRemaining(0);
@@ -152,7 +157,8 @@ public class GameSessionLobbyService {
                     team.setId((Integer) tMap.get("id"));
                     team.setName((String) tMap.get("name"));
                     team.setOperatingCountry((String) tMap.get("operatingCountry"));
-                    team.setCurrentCity((String) tMap.get("startingCity"));
+                    // DEFENDER players choose starting city during deployment screen
+                    team.setCurrentCity(isDefender ? null : (String) tMap.get("startingCity"));
                     team.setSkills((Map<String, Integer>) tMap.get("skills"));
                     team.setCooldownRemaining(0);
                     return team;
@@ -161,11 +167,13 @@ public class GameSessionLobbyService {
             }
 
             List<GameSession.Safehouse> safehousesList = new ArrayList<>();
-            if (config.getStartingDefenderSafehouses() != null) {
+            if (!isDefender && config.getStartingDefenderSafehouses() != null) {
+                // ATTACKER session: load defender safehouses from config for AI defense
                 safehousesList = config.getStartingDefenderSafehouses().stream()
                         .map(sMap -> new GameSession.Safehouse(sMap.get("cityId"), "DEFENDER", "DEFAULT", true))
                         .collect(Collectors.toList());
             }
+            // DEFENDER session: no pre-placed safehouses — player places them in deployment screen
 
             List<PlanStep> allSteps = new ArrayList<>();
             if (session.getSuspectPlans() != null) {
@@ -188,6 +196,11 @@ public class GameSessionLobbyService {
                 }
             }
             session.setSafehouses(safehousesList);
+
+            // Mark deployment pending for DEFENDER — player must place assets before turn 1
+            if (isDefender) {
+                session.setDeploymentPending(true);
+            }
 
             if (config.getStartingEspionageResources() != null) {
                 List<GameSession.ActiveResource> resourcesList = config.getStartingEspionageResources().stream()
@@ -258,13 +271,16 @@ public class GameSessionLobbyService {
             }
             session.setCityHeat(cityHeat);
 
+            // For DEFENDER players, mark deployment as pending — agents/teams get cities from the deployment screen.
+            boolean isDefenderMP = "DEFENDER".equals(session.getPlayerRole());
+
             if (config.getAgents() != null) {
                 List<GameSession.Agent> agentsList = config.getAgents().stream().map(aMap -> {
                     GameSession.Agent agent = new GameSession.Agent();
                     agent.setId((Integer) aMap.get("id"));
                     agent.setName((String) aMap.get("name"));
                     agent.setCodename((String) aMap.get("codename"));
-                    agent.setCurrentCity((String) aMap.get("startingCity"));
+                    agent.setCurrentCity(isDefenderMP ? null : (String) aMap.get("startingCity"));
                     agent.setActiveTask("FIND_SUSPECT");
                     agent.setSkills((Map<String, Integer>) aMap.get("skills"));
                     agent.setCooldownRemaining(0);
@@ -279,7 +295,7 @@ public class GameSessionLobbyService {
                     team.setId((Integer) tMap.get("id"));
                     team.setName((String) tMap.get("name"));
                     team.setOperatingCountry((String) tMap.get("operatingCountry"));
-                    team.setCurrentCity((String) tMap.get("startingCity"));
+                    team.setCurrentCity(isDefenderMP ? null : (String) tMap.get("startingCity"));
                     team.setSkills((Map<String, Integer>) tMap.get("skills"));
                     team.setCooldownRemaining(0);
                     return team;
@@ -288,7 +304,7 @@ public class GameSessionLobbyService {
             }
 
             List<GameSession.Safehouse> safehousesList = new ArrayList<>();
-            if (config.getStartingDefenderSafehouses() != null) {
+            if (!isDefenderMP && config.getStartingDefenderSafehouses() != null) {
                 safehousesList = config.getStartingDefenderSafehouses().stream()
                         .map(sMap -> new GameSession.Safehouse(sMap.get("cityId"), "DEFENDER", "DEFAULT", true))
                         .collect(Collectors.toList());
@@ -315,6 +331,11 @@ public class GameSessionLobbyService {
                 }
             }
             session.setSafehouses(safehousesList);
+
+            // Mark deployment pending for DEFENDER — player must place assets before turn 1
+            if (isDefenderMP) {
+                session.setDeploymentPending(true);
+            }
 
             if (config.getStartingEspionageResources() != null) {
                 List<GameSession.ActiveResource> resourcesList = config.getStartingEspionageResources().stream()
