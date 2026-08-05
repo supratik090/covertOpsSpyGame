@@ -110,28 +110,30 @@ const ScenarioSelect = ({
             <h2 className="select-title" style={{ fontSize: '11px', paddingBottom: '8px', marginBottom: '10px', borderBottom: 'none' }}>
               ARCHIVED CAMPAIGNS
             </h2>
-            {sessions.filter(s => s.status !== 'ACTIVE').map(s => (
-              <div key={s.id} className="scenario-card selected" style={{ borderLeftColor: s.status === 'SUCCESS' ? '#00f0ff' : '#ff3b30', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: '11px' }}>{getScenarioTitle(s.scenarioId)}</h3>
-                    <div className="scenario-meta" style={{ marginTop: '4px' }}>
-                      <div>TURN: <span className="val cyan">{s.currentTurn}/{s.maxTurns}</span></div>
-                      <div>ROLE: <span className={`val ${s.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{s.playerRole}</span></div>
-                      <div>STATUS: <span className={`val ${s.status === 'SUCCESS' ? 'cyan' : 'red'}`}>{s.status}</span></div>
+            <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+              {sessions.filter(s => s.status !== 'ACTIVE').map(s => (
+                <div key={s.id} className="scenario-card selected" style={{ borderLeftColor: s.status === 'SUCCESS' ? '#00f0ff' : '#ff3b30', marginBottom: '0px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ fontSize: '11px' }}>{getScenarioTitle(s.scenarioId)}</h3>
+                      <div className="scenario-meta" style={{ marginTop: '4px' }}>
+                        <div>TURN: <span className="val cyan">{s.currentTurn}/{s.maxTurns}</span></div>
+                        <div>ROLE: <span className={`val ${s.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{s.playerRole}</span></div>
+                        <div>STATUS: <span className={`val ${s.status === 'SUCCESS' ? 'cyan' : 'red'}`}>{s.status}</span></div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      <button className="cyber-btn sm" onClick={() => onLoadGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
+                        <Play size={10} /> REVIEW
+                      </button>
+                      <button className="cyber-btn sm red" onClick={() => onDeleteGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
+                        <Trash2 size={10} /> DELETE
+                      </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                    <button className="cyber-btn sm" onClick={() => onLoadGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
-                      <Play size={10} /> REVIEW
-                    </button>
-                    <button className="cyber-btn sm red" onClick={() => onDeleteGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
-                      <Trash2 size={10} /> DELETE
-                    </button>
-                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
@@ -140,7 +142,7 @@ const ScenarioSelect = ({
           START NEW CAMPAIGN
         </h2>
 
-        <div className="scenario-list" style={{ maxHeight: '240px', marginBottom: '16px' }}>
+        <div className="scenario-list" style={{ maxHeight: '240px', overflowY: 'auto', marginBottom: '16px' }}>
           {scenarios.length === 0 ? (
             <div className="empty-state" style={{ padding: '20px' }}>
               <p style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-dim)' }}>No scenario profiles loaded on the Command Desk.</p>

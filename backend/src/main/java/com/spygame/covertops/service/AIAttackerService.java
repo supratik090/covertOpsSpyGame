@@ -196,7 +196,7 @@ public class AIAttackerService {
                     
                     GameSession.Clue crossingClue = new GameSession.Clue(
                             currentTurn + 1,
-                            "STATE_INTELLIGENCE",
+                            "BORDER_PERMISSION",
                             "STATE INTELLIGENCE: Signals intercept confirms border infiltration permission granted to suspect (" + attacker.getName() + ") into Defender Territory. Prepare border defenses!",
                             loc,
                             "Signals Intelligence"
@@ -232,7 +232,7 @@ public class AIAttackerService {
                     
                     GameSession.Clue engageClue = new GameSession.Clue(
                             currentTurn + 1,
-                            "STATE_INTELLIGENCE",
+                            "ATTACK_APPROVED",
                             "STATE INTELLIGENCE: Critical Alert! Permission to engage target has been granted to hostile operative (" + attacker.getName() + ") in " + config.getTargetCity().toUpperCase() + ". Prepare for final defense!",
                             config.getTargetCity(),
                             "Signals Intelligence"
@@ -249,9 +249,11 @@ public class AIAttackerService {
                     session.getDiscoveredClues().add(new GameSession.Clue(
                             currentTurn,
                             "STRIKE_EXECUTED",
-                            "💥 TARGET STRIKE EXECUTED successfully by " + attacker.getName() + " in " + loc.toUpperCase() + "! Exfiltration protocol active."
+                            "💥 TARGET STRIKE EXECUTED successfully by " + attacker.getName() + " in " + loc.toUpperCase() + "! Exfiltration protocol active.",
+                            config.getTargetCity(),
+                            "Signals Intelligence"
                     ));
-            }
+                }
             }
             }
 
@@ -323,6 +325,17 @@ public class AIAttackerService {
                     attacker.setCurrentLocation(nextStepNode);
                     Node targetNode = pathfinder.getNode(nextStepNode, config);
                     String displayCityName = targetNode != null ? targetNode.getName() : nextStepNode.toUpperCase();
+                    
+                    if (isBorderCrossing) {
+                        session.getDiscoveredClues().add(new GameSession.Clue(
+                                currentTurn,
+                                "BORDER_CROSSING",
+                                "🚨 BORDER BREACH: Hostile operative " + attacker.getName() + " has crossed the border into friendly territory at " + displayCityName + ".",
+                                nextStepNode,
+                                "Border Surveillance Radar"
+                        ));
+                    }
+
                     addLaggedClue(
                              session,
                              clueTurn,

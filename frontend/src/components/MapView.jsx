@@ -115,6 +115,13 @@ export default function MapView({
     return coords;
   }, [activeScenario]);
 
+  const struckCities = React.useMemo(() => {
+    if (!session || !session.discoveredClues) return [];
+    return session.discoveredClues
+      .filter(c => c.source === 'STRIKE_EXECUTED' && c.cityName)
+      .map(c => c.cityName.toLowerCase());
+  }, [session]);
+
   const CONNECTIONS = React.useMemo(() => {
     const conns = [];
     if (activeScenario && activeScenario.nodes) {
@@ -468,25 +475,28 @@ export default function MapView({
         return !effectiveTask || effectiveTask === 'NONE' || effectiveTask === '';
       });
 
-      // Construct dynamic HTML for Leaflet markers matching the index.css styling
-      const markerHtml = `
-        <div class="city-marker-wrapper ${isSelected ? 'selected' : ''} ${hasIdleAgent ? 'has-idle' : ''} ${isSweptZone ? 'swept-zone' : ''} ${isSuspectHere ? 'suspect-here-wrapper' : ''}">
-          ${isSweptZone ? '<div class="city-marker-sweep-ring"></div>' : ''}
-          ${isSuspectHere ? '<div class="suspect-radar-ring"></div>' : ''}
-          <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''}"></div>
-          <div class="city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}"></div>
-          ${showSafehouseIcon ? `<div class="city-marker-safehouse" style="display: flex; align-items: center; justify-content: center; font-size: 11px;">${showSafehouseIcon}</div>` : ''}
-          ${showExposedNormalIcon ? `<div class="city-marker-exposed-hostile">👁️</div>` : ''}
-          ${showExposedSecureIcon ? `<div class="city-marker-exposed-secure">🛡️</div>` : ''}
-          ${isSuspectHere ? `<div class="city-marker-badge suspect pulse-badge" style="background: #ff3b30; box-shadow: 0 0 15px #ff3b30; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 2px solid white; border-radius: 50%; width: 22px; height: 22px; transform: translate(12px, -24px); z-index: 1000;">🎯</div>` : ''}
-          ${agentsCount > 0 ? `<div class="city-marker-badge agents">${agentsCount}</div>` : ''}
-          ${teamsCount > 0 ? `<div class="city-marker-badge teams">${teamsCount}</div>` : ''}
-          ${techMarkersHtml}
-          ${hasIdleAgent ? `<div class="city-marker-idle">⚠</div>` : ''}
-          ${isSweptZone ? '<div class="city-marker-sweep-label">⚠ SWEEP</div>' : ''}
-          <div class="city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}">${cityId.replace('_', ' ').toUpperCase()}</div>
-        </div>
-      `;
+       const isStruck = struckCities.includes(cityId.toLowerCase());
+
+       // Construct dynamic HTML for Leaflet markers matching the index.css styling
+       const markerHtml = `
+         <div class="city-marker-wrapper ${isSelected ? 'selected' : ''} ${hasIdleAgent ? 'has-idle' : ''} ${isSweptZone ? 'swept-zone' : ''} ${isSuspectHere ? 'suspect-here-wrapper' : ''} ${isStruck ? 'city-struck' : ''}">
+           ${isSweptZone ? '<div class="city-marker-sweep-ring"></div>' : ''}
+           ${isSuspectHere ? '<div class="suspect-radar-ring"></div>' : ''}
+           ${isStruck ? '<div class="smoke-cloud-1"></div><div class="smoke-cloud-2"></div><div class="fire-flame">🔥</div>' : ''}
+           <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''} ${isStruck ? 'struck' : ''}"></div>
+           <div class="city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}"></div>
+           ${showSafehouseIcon ? `<div class="city-marker-safehouse" style="display: flex; align-items: center; justify-content: center; font-size: 11px;">${showSafehouseIcon}</div>` : ''}
+           ${showExposedNormalIcon ? `<div class="city-marker-exposed-hostile">👁️</div>` : ''}
+           ${showExposedSecureIcon ? `<div class="city-marker-exposed-secure">🛡️</div>` : ''}
+           ${isSuspectHere ? `<div class="city-marker-badge suspect pulse-badge" style="background: #ff3b30; box-shadow: 0 0 15px #ff3b30; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 2px solid white; border-radius: 50%; width: 22px; height: 22px; transform: translate(12px, -24px); z-index: 1000;">🎯</div>` : ''}
+           ${agentsCount > 0 ? `<div class="city-marker-badge agents">${agentsCount}</div>` : ''}
+           ${teamsCount > 0 ? `<div class="city-marker-badge teams">${teamsCount}</div>` : ''}
+           ${techMarkersHtml}
+           ${hasIdleAgent ? `<div class="city-marker-idle">⚠</div>` : ''}
+           ${isSweptZone ? '<div class="city-marker-sweep-label">⚠ SWEEP</div>' : ''}
+           <div class="city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}">${cityId.replace('_', ' ').toUpperCase()}</div>
+         </div>
+       `;
 
       const customIcon = L.divIcon({
         html: markerHtml,
@@ -1168,6 +1178,73 @@ export default function MapView({
           animation: slideWave 15s linear infinite;
         }
 
+        @keyframes smoke-drift {
+          0% {
+            transform: translate(-50%, -50%) scale(0.5) translateY(0);
+            opacity: 0;
+          }
+          20% {
+            opacity: 0.8;
+          }
+          60% {
+            opacity: 0.4;
+          }
+          100% {
+            transform: translate(-50%, -50%) scale(1.8) translateY(-32px) rotate(35deg);
+            opacity: 0;
+          }
+        }
+        @keyframes flame-pulse {
+          0%, 100% {
+            transform: translate(-50%, -50%) scale(0.95);
+            filter: drop-shadow(0 0 4px #ff3b30);
+          }
+          50% {
+            transform: translate(-50%, -50%) scale(1.15);
+            filter: drop-shadow(0 0 10px #f59e0b);
+          }
+        }
+        .smoke-cloud-1 {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 20px;
+          height: 20px;
+          background: radial-gradient(circle, rgba(110,110,110,0.8) 0%, rgba(70,70,70,0.35) 60%, transparent 100%);
+          border-radius: 50%;
+          pointer-events: none;
+          animation: smoke-drift 2.5s infinite ease-out;
+          z-index: 10;
+        }
+        .smoke-cloud-2 {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 22px;
+          height: 22px;
+          background: radial-gradient(circle, rgba(80,80,80,0.7) 0%, rgba(50,50,50,0.3) 60%, transparent 100%);
+          border-radius: 50%;
+          pointer-events: none;
+          animation: smoke-drift 2.8s infinite ease-out;
+          animation-delay: 0.9s;
+          z-index: 10;
+        }
+        .fire-flame {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 14px;
+          pointer-events: none;
+          animation: flame-pulse 0.7s infinite ease-in-out;
+          z-index: 11;
+        }
+        .city-marker-outer.struck {
+          border: 2px dashed #ff3b30 !important;
+          animation: pulse 1s infinite !important;
+          background: rgba(255, 59, 48, 0.15) !important;
+        }
+
         @media (max-width: 768px) {
           .hud-system-monitor,
           .hud-decryption-module,
@@ -1585,7 +1662,14 @@ export default function MapView({
                     )}
                     {isSweptZone && <div className="city-marker-sweep-ring"></div>}
                     {isSuspectHere && <div className="suspect-radar-ring"></div>}
-                    <div className={`city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''}`}></div>
+                    {struckCities.includes(cityId.toLowerCase()) && (
+                      <>
+                        <div className="smoke-cloud-1"></div>
+                        <div className="smoke-cloud-2"></div>
+                        <div className="fire-flame">🔥</div>
+                      </>
+                    )}
+                    <div className={`city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''} ${struckCities.includes(cityId.toLowerCase()) ? 'struck' : ''}`}></div>
                     <div className={`city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}`}></div>
                     {showSafehouseIcon && (
                       <div 

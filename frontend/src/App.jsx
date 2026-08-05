@@ -730,9 +730,14 @@ export default function App() {
       const combatOpClues = newClues.filter(c =>
         c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT' || c.source === 'COMMAND_CENTER'
       );
+      // Permission related clues (border permission, attack request/approval)
+      const permissionClues = newClues.filter(c =>
+        c.source === 'BORDER_PERMISSION' || c.source === 'ATTACK_REQUESTED' || c.source === 'ATTACK_APPROVED'
+      );
       const handoverClues = newClues.filter(c => c.source === 'HANDOVER_UNLOCKED');
+      const strikeClues = newClues.filter(c => c.source === 'STRIKE_EXECUTED');
 
-      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0 || handoverClues.length > 0) {
+      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0 || handoverClues.length > 0 || strikeClues.length > 0) {
         setEndTurnReport({
           newFinance,
           newLogistics,
@@ -745,7 +750,9 @@ export default function App() {
           sweepAlerts: sweepAlertClues,
           sweepLosses: sweepLossClues,
           combatOps: combatOpClues,
-          handoverAlerts: handoverClues
+          permissionAlerts: permissionClues,
+          handoverAlerts: handoverClues,
+          strikeEvents: strikeClues
         });
       }
 

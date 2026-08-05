@@ -411,7 +411,9 @@ public class PlayerAttackerService {
             session.getDiscoveredClues().add(new GameSession.Clue(
                     session.getCurrentTurn(),
                     "STRIKE_EXECUTED",
-                    "💥 CRITICAL IMPACT: Strike successfully executed on Primary Target " + config.getTargetCity().toUpperCase() + "! Exfiltration protocol activated. Get back to home soil undetected."
+                    "💥 CRITICAL IMPACT: Strike successfully executed on Primary Target " + config.getTargetCity().toUpperCase() + "! Exfiltration protocol activated. Get back to home soil undetected.",
+                    config.getTargetCity(),
+                    "Field Operator"
             ));
         } else {
             // Secondary target strike triggers a partial win immediately
@@ -419,7 +421,9 @@ public class PlayerAttackerService {
             session.getDiscoveredClues().add(new GameSession.Clue(
                     session.getCurrentTurn(),
                     "STRIKE_EXECUTED",
-                    "💥 IMPACT: Strike executed on Secondary Target. Partial victory achieved. Mission complete."
+                    "💥 IMPACT: Strike executed on Secondary Target. Partial victory achieved. Mission complete.",
+                    session.getSuspectLocation(),
+                    "Field Operator"
             ));
         }
     }

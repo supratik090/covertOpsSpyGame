@@ -15,8 +15,10 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
     report.newExposedHostileSH?.length > 0 ||
     report.sweepAlerts?.length > 0 ||
     report.sweepLosses?.length > 0 ||
-    report.combatOps?.length > 0 ||
-    report.handoverAlerts?.length > 0;
+    report.combatOps?.length > 0 || 
+    report.permissionAlerts?.length > 0 || 
+    report.handoverAlerts?.length > 0 ||
+    report.strikeEvents?.length > 0;
 
   if (!hasContent) return null;
 
@@ -84,6 +86,26 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
         {/* Report Content */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '360px', overflowY: 'auto' }}>
           
+          {/* Critical Security Strike Events */}
+          {report.strikeEvents?.length > 0 && (
+            <div style={{
+              border: '2px dashed rgba(255, 59, 48, 0.85)',
+              background: 'rgba(255, 59, 48, 0.08)',
+              padding: '14px',
+              borderRadius: '6px',
+              boxShadow: '0 0 16px rgba(255, 59, 48, 0.25)'
+            }}>
+              <span style={{ color: '#ff3b30', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                <Skull size={14} /> 💥 CRITICAL SECURITY IMPACT
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: '#ff8880', lineHeight: '1.6', fontWeight: 'bold' }}>
+                {report.strikeEvents.map((clue, idx) => (
+                  <li key={idx}>{clue.clueText}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Combat Operations */}
           {report.combatOps?.length > 0 && (
             <div style={{
