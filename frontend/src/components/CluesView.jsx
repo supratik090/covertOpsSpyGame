@@ -5,17 +5,56 @@ import ClueCard from './ClueCard';
 // Sources considered "routine" surveillance intel — can be bulk-dismissed
 const ROUTINE_SOURCES = ['WIRE_TAP', 'PHONE_TAP', 'CCTV', 'SATELLITE', 'FINANCE_MONITOR'];
 
-export default function CluesView({ session, localAssessments, onSetClueAssessment, isAttacker }) {
+export default function CluesView({ session, localAssessments, onSetClueAssessment, onSetMultipleClueAssessments, isAttacker }) {
   const [intelFilter, setIntelFilter] = useState('ALL');
   const [clearedClues, setClearedClues] = useState([]);
   const filters = ['ALL', 'REJECT', 'DOUBT', 'UNASSESSED'];
   const suspects = session?.attackerNames || [];
 
+  const handleAcceptAllOldClues = () => {
+    const assessmentsToSet = {};
+    (session?.discoveredClues || []).forEach((clue, index) => {
+      if (clue.source === 'SUSPECT_RELOCATION') return;
+      if (clue.turnDiscovered >= session.currentTurn) return;
+      if (isAttacker) {
+        const txt = (clue.clueText || '').toLowerCase();
+        const isCombatTeam = txt.includes('combat team') || txt.includes('comat team') || txt.includes('tactical team');
+        const isSweep = txt.includes('sweep') || txt.includes('lockdown') || txt.includes('patrol');
+        if (!isCombatTeam && !isSweep) {
+          return;
+        }
+      }
+      const assessment = localAssessments[index] || 'UNASSESSED';
+      if (assessment !== 'ACCEPT') {
+        assessmentsToSet[index] = 'ACCEPT';
+      }
+    });
+    if (Object.keys(assessmentsToSet).length > 0 && onSetMultipleClueAssessments) {
+      onSetMultipleClueAssessments(assessmentsToSet);
+    }
+  };
+
+  const unacceptedOldCluesCount = (session?.discoveredClues || []).filter((clue, index) => {
+    if (clue.source === 'SUSPECT_RELOCATION') return false;
+    if (clue.turnDiscovered >= session.currentTurn) return false;
+    if (isAttacker) {
+      const txt = (clue.clueText || '').toLowerCase();
+      const isCombatTeam = txt.includes('combat team') || txt.includes('comat team') || txt.includes('tactical team');
+      const isSweep = txt.includes('sweep') || txt.includes('lockdown') || txt.includes('patrol');
+      if (!isCombatTeam && !isSweep) {
+        return false;
+      }
+    }
+    const assessment = localAssessments[index] || 'UNASSESSED';
+    return assessment !== 'ACCEPT';
+  }).length;
+
   const filteredClues = (session?.discoveredClues || []).map((clue, index) => ({ clue, index }))
     .filter(({ clue, index }) => {
+      if (clue.source === 'SUSPECT_RELOCATION') return false;
       if (clue.turnDiscovered > session.currentTurn) return false;
       if (clearedClues.includes(index)) return false;
- 
+  
       // Filter for Attacker: only show combat/tactical teams and sweeps/lockdowns/patrols clues
       if (isAttacker) {
         const txt = (clue.clueText || '').toLowerCase();
@@ -73,8 +112,10 @@ export default function CluesView({ session, localAssessments, onSetClueAssessme
       const cityUpper = item.clue.cityName.replace(/_/g, ' ').toUpperCase();
       if (item.clue.discoveredByAgent === 'Surveillance Tech') {
         groupKey = `SURVEILLANCE MATRIX: ${cityUpper}`;
-      } else {
+      } else if (item.clue.discoveredByAgent) {
         groupKey = `${cityUpper} (Agent: ${item.clue.discoveredByAgent})`;
+      } else {
+        groupKey = cityUpper;
       }
     }
     if (!groupedClues[groupKey]) groupedClues[groupKey] = [];
@@ -120,6 +161,20 @@ export default function CluesView({ session, localAssessments, onSetClueAssessme
               }}>
                 {dismissableCount}
               </span>
+            </button>
+          )}
+          {unacceptedOldCluesCount > 0 && (
+            <button
+              onClick={handleAcceptAllOldClues}
+              className="cyber-btn sm"
+              style={{
+                height: 'fit-content',
+                background: 'rgba(52,199,89,0.06)',
+                border: '1px solid rgba(52,199,89,0.35)',
+                color: '#34c759',
+              }}
+            >
+              ACCEPT ALL PREVIOUS ({unacceptedOldCluesCount})
             </button>
           )}
           <button

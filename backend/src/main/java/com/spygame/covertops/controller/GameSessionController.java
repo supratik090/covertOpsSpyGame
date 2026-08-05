@@ -94,7 +94,8 @@ public class GameSessionController {
             @RequestParam String targetCity) throws Exception {
         GameSession session = sessionService.getSession(id);
         ScenarioConfig config = loadConfig(session.getScenarioId());
-        return defenderService.relocateAgent(session, agentId, targetCity, config);
+        GameSession updated = defenderService.relocateAgent(session, agentId, targetCity, config);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/team/relocate
@@ -105,7 +106,8 @@ public class GameSessionController {
             @RequestParam String targetCity) throws Exception {
         GameSession session = sessionService.getSession(id);
         ScenarioConfig config = loadConfig(session.getScenarioId());
-        return defenderService.relocateTacticalTeam(session, teamId, targetCity, config);
+        GameSession updated = defenderService.relocateTacticalTeam(session, teamId, targetCity, config);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/agent/task
@@ -115,7 +117,8 @@ public class GameSessionController {
             @RequestParam int agentId,
             @RequestParam String task) {
         GameSession session = sessionService.getSession(id);
-        return defenderService.assignAgentTask(session, agentId, task);
+        GameSession updated = defenderService.assignAgentTask(session, agentId, task);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/safehouse/build
@@ -125,7 +128,8 @@ public class GameSessionController {
             @RequestParam String cityNode) throws Exception {
         GameSession session = sessionService.getSession(id);
         ScenarioConfig config = loadConfig(session.getScenarioId());
-        return defenderService.buildSafehouse(session, cityNode, config);
+        GameSession updated = defenderService.buildSafehouse(session, cityNode, config);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/tech/deploy
@@ -136,7 +140,8 @@ public class GameSessionController {
             @RequestParam String cityNode) throws Exception {
         GameSession session = sessionService.getSession(id);
         ScenarioConfig config = loadConfig(session.getScenarioId());
-        return defenderService.deployEspionageResource(session, type, cityNode, config);
+        GameSession updated = defenderService.deployEspionageResource(session, type, cityNode, config);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/end-turn
@@ -161,7 +166,17 @@ public class GameSessionController {
     @GetMapping("/{id}/replay")
     public Object getReplay(@PathVariable UUID id) {
         GameSession session = sessionService.getSession(id);
-        return session.getAiMasterPlan();
+        return java.util.Map.of(
+            "primaryPlan", (session.getAiMasterPlan() != null && session.getAiMasterPlan().getPrimaryPlan() != null)
+                ? session.getAiMasterPlan().getPrimaryPlan() : java.util.List.of(),
+            "fallbackPlan", (session.getAiMasterPlan() != null && session.getAiMasterPlan().getFallbackPlan() != null)
+                ? session.getAiMasterPlan().getFallbackPlan() : java.util.List.of()
+        );
+    }
+
+    @PostMapping("/{id}/revert-turn")
+    public GameSession revertTurn(@PathVariable UUID id) {
+        return sessionService.revertTurn(id);
     }
 
     private ScenarioConfig loadConfig(String scenarioId) throws Exception {

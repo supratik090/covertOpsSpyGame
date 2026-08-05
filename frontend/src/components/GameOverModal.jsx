@@ -79,10 +79,29 @@ function TimelineCard({ step, stepIdx, session, visible }) {
 
         {/* Tags */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: combatOps.length > 0 ? '10px' : 0 }}>
-          {showLocation && (
-            <span style={{ padding: '2px 8px', borderRadius: '3px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, color: '#ff7070', background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.25)', letterSpacing: '0.04em' }}>
-              📍 {step.suspectLocation.replace(/_/g, ' ').toUpperCase()}{targetSafehouse ? ` [#${targetSafehouse.safehouseCode}]` : ''}
-            </span>
+          {step.attackerHistories && step.attackerHistories.length > 0 ? (
+            step.attackerHistories.map(h => (
+              <span key={h.name} style={{
+                padding: '2px 8px',
+                borderRadius: '3px',
+                fontSize: '9px',
+                fontFamily: 'monospace',
+                fontWeight: 700,
+                color: h.eliminated ? '#888' : '#ff7070',
+                background: h.eliminated ? 'rgba(255,255,255,0.02)' : 'rgba(255,59,48,0.08)',
+                border: h.eliminated ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(255,59,48,0.25)',
+                letterSpacing: '0.04em',
+                textDecoration: h.eliminated ? 'line-through' : 'none'
+              }}>
+                👤 {h.name.split(' ')[0]}: {h.eliminated ? 'LOST' : `${h.location?.toUpperCase()} (${h.state})`}
+              </span>
+            ))
+          ) : (
+            showLocation && (
+              <span style={{ padding: '2px 8px', borderRadius: '3px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, color: '#ff7070', background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.25)', letterSpacing: '0.04em' }}>
+                📍 {step.suspectLocation.replace(/_/g, ' ').toUpperCase()}{targetSafehouse ? ` [#${targetSafehouse.safehouseCode}]` : ''}
+              </span>
+            )
           )}
           {showFinance && (
             <span style={{ padding: '2px 8px', borderRadius: '3px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, color: '#34d399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)', letterSpacing: '0.04em' }}>
@@ -359,6 +378,38 @@ export default function GameOverModal({ session, replayPlan, onConfirm, onViewRe
               ? `Threat neutralized. The target cell has been dismantled and the attack vector closed. Outstanding field work, Director. The nation's security has been preserved.`
               : `The attack has been executed. Intelligence gaps and operational delays allowed the cell to complete their mission. Debrief will follow.`}
           </motion.p>
+
+          {/* Attacker team status list */}
+          {session?.aiAttackers && session.aiAttackers.length > 0 && (
+            <div style={{
+              margin: '0 auto 24px',
+              maxWidth: '420px',
+              padding: '14px',
+              borderRadius: '8px',
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              textAlign: 'left',
+            }}>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
+                THREAT AGENTS DEBRIEF:
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {session.aiAttackers.map(a => (
+                  <div key={a.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'monospace' }}>
+                    <span style={{ color: a.eliminated ? '#888' : 'var(--text-primary)', textDecoration: a.eliminated ? 'line-through' : 'none' }}>
+                      👤 {a.name}
+                    </span>
+                    <span style={{
+                      fontWeight: 700,
+                      color: a.eliminated ? '#ff3b30' : '#00ff66',
+                    }}>
+                      {a.eliminated ? 'NEUTRALIZED' : `ACTIVE - ${a.state?.toUpperCase() || 'INFILTRATING'} (${a.currentLocation?.toUpperCase() || 'UNKNOWN'})`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Stats row */}
           <motion.div

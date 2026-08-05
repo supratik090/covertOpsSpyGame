@@ -57,4 +57,37 @@ public class PlanStep {
 
     public String getEscapeNode() { return escapeNode; }
     public void setEscapeNode(String escapeNode) { this.escapeNode = escapeNode; }
+
+    private java.util.List<AttackerHistory> attackerHistories = new java.util.ArrayList<>();
+
+    public java.util.List<AttackerHistory> getAttackerHistories() { return attackerHistories; }
+    public void setAttackerHistories(java.util.List<AttackerHistory> attackerHistories) { this.attackerHistories = attackerHistories; }
+
+    public static class AttackerHistory {
+        private String name;
+        private String location;
+        private String state;
+        private boolean eliminated;
+
+        public AttackerHistory() {}
+
+        public AttackerHistory(String name, String location, String state, boolean eliminated) {
+            this.name = name;
+            this.location = location;
+            this.state = state;
+            this.eliminated = eliminated;
+        }
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+
+        public String getLocation() { return location; }
+        public void setLocation(String location) { this.location = location; }
+
+        public String getState() { return state; }
+        public void setState(String state) { this.state = state; }
+
+        public boolean isEliminated() { return eliminated; }
+        public void setEliminated(boolean eliminated) { this.eliminated = eliminated; }
+    }
 }

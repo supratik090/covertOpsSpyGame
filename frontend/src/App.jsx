@@ -19,6 +19,12 @@ import { GAME_API_BASE } from './config';
 import { fetchWithRetry } from './utils/api';
 import RetrySpinner from './components/RetrySpinner';
 
+const getInitialTab = () =>
+  typeof window !== 'undefined' && window.innerWidth <= 768 ? 'TACTICAL' : 'MAP';
+
+const getDefaultMapTab = () =>
+  typeof window !== 'undefined' && window.innerWidth <= 768 ? 'TACTICAL' : 'MAP';
+
 export default function App() {
   const [screen, setScreen] = useState('LOGIN'); // 'LOGIN', 'SELECT', 'GAME'
   const [activeTab, setActiveTab] = useState('MAP'); // 'MAP', 'AGENTS', 'CLUES', 'RESOURCES'
@@ -200,7 +206,10 @@ export default function App() {
 
   const addToast = (message, type = 'info') => {
     const id = Date.now() + Math.random().toString(36).substr(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => {
+      const next = [...prev, { id, message, type }];
+      return next.slice(-4);
+    });
   };
 
   const removeToast = (id) => {
@@ -249,7 +258,7 @@ export default function App() {
       setLocalCollectLogistics(false);
       setLocalBeginHandover(false);
 
-      setActiveTab('OBJECTIVES');
+      setActiveTab(getInitialTab());
       setScreen('GAME');
       setShowGodMode(false);
       setReplayPlan(null);
@@ -305,7 +314,7 @@ export default function App() {
       setLocalCollectLogistics(false);
       setLocalBeginHandover(false);
 
-      setActiveTab('OBJECTIVES');
+      setActiveTab(getInitialTab());
       setScreen('GAME');
       setShowGodMode(false);
       setReplayPlan(null);
@@ -348,7 +357,7 @@ export default function App() {
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
       setLostAgentsList([]);
-      setActiveTab('MAP');
+      setActiveTab(getInitialTab());
       setScreen('GAME');
       setShowGodMode(false);
       setReplayPlan(null);
@@ -381,7 +390,7 @@ export default function App() {
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
       setLostAgentsList([]);
-      setActiveTab('MAP');
+      setActiveTab(getInitialTab());
       setScreen('GAME');
       setShowGodMode(false);
       setReplayPlan(null);
@@ -475,11 +484,8 @@ export default function App() {
 
     const team = session.tacticalTeams.find(t => t.id === teamId);
     if (!team) return;
-    if (team.cooldownRemaining > 0) {
-      addToast(`${team.name} is currently locked out by cooldown.`, "error");
-      return;
-    }
 
+    // Frozen teams (cooldownRemaining > 0) can still move; only covert actions are blocked
     if (localTeamMoves[teamId]) {
       addToast(`${team.name} has already relocated this turn.`, "error");
       return;
@@ -608,6 +614,47 @@ export default function App() {
       addToast(`Clue assessment marked as: ${status}`, "info");
       return updated;
     });
+  };
+
+  const setMultipleClueAssessments = (assessmentsMap) => {
+    setLocalAssessments((prev) => {
+      const updated = { ...prev, ...assessmentsMap };
+      addToast(`Accepted all clues before current turn`, "info");
+      return updated;
+    });
+  };
+
+  // Revert last turn
+  const handleRevertTurn = async () => {
+    if (!session) return;
+    if (!window.confirm("Are you sure you want to revert the last turn? This will erase the current turn and reload the previous state.")) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/${session.id}/revert-turn`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSession(updated);
+        setReplayTurn(updated.currentTurn);
+        setCovertActions([]);
+        setLocalAgentMoves({});
+        setLocalTeamMoves({});
+        setLocalAgentTasks({});
+        setLocalSafehouseBuilds([]);
+        setLocalTechDeploys([]);
+        addToast(`Game successfully reverted to Turn ${updated.currentTurn}.`, "info");
+      } else {
+        const errorData = await res.text();
+        addToast(`Failed to revert turn: ${errorData}`, "error");
+      }
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // End turn - submit actions, assessments, agent relocations, and team relocations
@@ -760,7 +807,7 @@ export default function App() {
         setReplayPlan(data);
         if (!silent) {
           setShowGodMode(true);
-          setActiveTab('MAP');
+          setActiveTab(getInitialTab());
           addToast("God Mode decrypted. Replay timeline loaded.", "success");
         }
       }
@@ -858,7 +905,7 @@ export default function App() {
               <ObjectiveBoardView
                 session={session}
                 activeScenario={activeScenario}
-                onClose={() => setActiveTab('MAP')}
+                onClose={() => setActiveTab(getDefaultMapTab())}
               />
             )}
 
@@ -892,9 +939,10 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'MAP' && (
+            {(activeTab === 'MAP' || activeTab === 'TACTICAL') && (
               <MapView
                 session={session}
+                isTacticalView={activeTab === 'TACTICAL'}
                 activeScenario={activeScenario}
                 selectedAgent={selectedAgent}
                 selectedTeam={selectedTeam}
@@ -935,6 +983,7 @@ export default function App() {
                 setLocalCollectLogistics={setLocalCollectLogistics}
                 localBeginHandover={localBeginHandover}
                 setLocalBeginHandover={setLocalBeginHandover}
+                setReplayTurn={setReplayTurn}
               />
             )}
 
@@ -957,6 +1006,7 @@ export default function App() {
                 session={session}
                 localAssessments={localAssessments}
                 onSetClueAssessment={setClueAssessment}
+                onSetMultipleClueAssessments={setMultipleClueAssessments}
                 isAttacker={session ? session.playerRole === 'ATTACKER' : false}
               />
             )}
@@ -988,6 +1038,7 @@ export default function App() {
                 setShowGodMode={setShowGodMode}
                 session={session}
                 isAttacker={session ? session.playerRole === 'ATTACKER' : false}
+                onRevertTurn={handleRevertTurn}
               />
             )}
           </main>
