@@ -3,6 +3,7 @@ package com.spygame.covertops.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spygame.covertops.model.GameSession;
 import com.spygame.covertops.model.ScenarioConfig;
+import com.spygame.covertops.service.DeploymentService;
 import com.spygame.covertops.service.GameSessionService;
 import com.spygame.covertops.service.HintGenerationService;
 import com.spygame.covertops.service.PlayerDefenderService;
@@ -27,6 +28,9 @@ public class GameSessionController {
 
     @Autowired
     private HintGenerationService hintService;
+
+    @Autowired
+    private DeploymentService deploymentService;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -94,7 +98,8 @@ public class GameSessionController {
             @RequestParam String targetCity) throws Exception {
         GameSession session = sessionService.getSession(id);
         ScenarioConfig config = loadConfig(session.getScenarioId());
-        return defenderService.relocateAgent(session, agentId, targetCity, config);
+        GameSession updated = defenderService.relocateAgent(session, agentId, targetCity, config);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/team/relocate
@@ -105,7 +110,8 @@ public class GameSessionController {
             @RequestParam String targetCity) throws Exception {
         GameSession session = sessionService.getSession(id);
         ScenarioConfig config = loadConfig(session.getScenarioId());
-        return defenderService.relocateTacticalTeam(session, teamId, targetCity, config);
+        GameSession updated = defenderService.relocateTacticalTeam(session, teamId, targetCity, config);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/agent/task
@@ -115,7 +121,8 @@ public class GameSessionController {
             @RequestParam int agentId,
             @RequestParam String task) {
         GameSession session = sessionService.getSession(id);
-        return defenderService.assignAgentTask(session, agentId, task);
+        GameSession updated = defenderService.assignAgentTask(session, agentId, task);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/safehouse/build
@@ -125,7 +132,8 @@ public class GameSessionController {
             @RequestParam String cityNode) throws Exception {
         GameSession session = sessionService.getSession(id);
         ScenarioConfig config = loadConfig(session.getScenarioId());
-        return defenderService.buildSafehouse(session, cityNode, config);
+        GameSession updated = defenderService.buildSafehouse(session, cityNode, config);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/tech/deploy
@@ -136,7 +144,8 @@ public class GameSessionController {
             @RequestParam String cityNode) throws Exception {
         GameSession session = sessionService.getSession(id);
         ScenarioConfig config = loadConfig(session.getScenarioId());
-        return defenderService.deployEspionageResource(session, type, cityNode, config);
+        GameSession updated = defenderService.deployEspionageResource(session, type, cityNode, config);
+        return sessionService.saveSession(updated);
     }
 
     // POST /api/game/{id}/end-turn
@@ -161,7 +170,32 @@ public class GameSessionController {
     @GetMapping("/{id}/replay")
     public Object getReplay(@PathVariable UUID id) {
         GameSession session = sessionService.getSession(id);
-        return session.getAiMasterPlan();
+        return java.util.Map.of(
+            "primaryPlan", (session.getAiMasterPlan() != null && session.getAiMasterPlan().getPrimaryPlan() != null)
+                ? session.getAiMasterPlan().getPrimaryPlan() : java.util.List.of(),
+            "fallbackPlan", (session.getAiMasterPlan() != null && session.getAiMasterPlan().getFallbackPlan() != null)
+                ? session.getAiMasterPlan().getFallbackPlan() : java.util.List.of()
+        );
+    }
+
+    @PostMapping("/{id}/revert-turn")
+    public GameSession revertTurn(@PathVariable UUID id) {
+        return sessionService.revertTurn(id);
+    }
+
+    // POST /api/game/{id}/deploy
+    // Accepts the initial DEFENDER deployment: safehouse cities, agent cities, team cities
+    @PostMapping("/{id}/deploy")
+    public GameSession commitDeployment(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        java.util.List<String> safehouses = (java.util.List<String>) body.get("safehouses");
+        @SuppressWarnings("unchecked")
+        Map<String, String> agentDeployments = (Map<String, String>) body.get("agentDeployments");
+        @SuppressWarnings("unchecked")
+        Map<String, String> teamDeployments = (Map<String, String>) body.get("teamDeployments");
+        return deploymentService.commitDeployment(id, safehouses, agentDeployments, teamDeployments);
     }
 
     private ScenarioConfig loadConfig(String scenarioId) throws Exception {

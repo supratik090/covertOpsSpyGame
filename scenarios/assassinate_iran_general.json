@@ -1,0 +1,224 @@
+{
+  "scenarioId": "assassinate_iran_general",
+  "attackingCountry": "Israel",
+  "defendingCountry": "Iran",
+  "title": "Assassinate Iranian General",
+  "briefing": "An Israeli intelligence operation targeting an Iranian General coordinating military logistics in the Middle East. Track the target through Lebanon, Syria, Iraq, Dubai, and Abu Dhabi. Assure elimination of the threat agent before Turn 25.",
+  "attackerBriefing": "Infiltrate key logistical nodes across the Middle East, evade intelligence sweeps, and eliminate the target Iranian General.",
+  "targetCity": "damascus",
+  "targetVip": "Iranian General",
+  "attackForm": "ASSASSINATION",
+  "maxTurns": 25,
+  "startingBudget": 6000000,
+  "mapBackground": "assets/maps/middle_east.svg",
+  "nodes": [
+    {
+      "id": "tel_aviv",
+      "name": "Tel Aviv Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 10, "y": 30, "lat": 32.0853, "lng": 34.7818},
+      "connections": ["haifa", "jerusalem", "beersheba"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"]
+    },
+    {
+      "id": "jerusalem",
+      "name": "Jerusalem Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 12, "y": 35, "lat": 31.7683, "lng": 35.2137},
+      "connections": ["tel_aviv", "beersheba", "beirut"],
+      "availableFinance": ["HUNDI_HAWALA"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"]
+    },
+    {
+      "id": "haifa",
+      "name": "Haifa Port",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 9, "y": 22, "lat": 32.7940, "lng": 34.9896},
+      "connections": ["tel_aviv"],
+      "availableFinance": ["DRUG_SALES"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"]
+    },
+    {
+      "id": "beersheba",
+      "name": "Beersheba Center",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 11, "y": 42, "lat": 31.2518, "lng": 34.7984},
+      "connections": ["tel_aviv", "jerusalem", "eilat", "abu_dhabi"],
+      "availableFinance": ["ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"]
+    },
+    {
+      "id": "eilat",
+      "name": "Eilat Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 10, "y": 55, "lat": 29.5577, "lng": 34.9519},
+      "connections": ["beersheba"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING"],
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"]
+    },
+    {
+      "id": "beirut",
+      "name": "Beirut Safehouse",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 15, "y": 25, "lat": 33.8938, "lng": 35.5018},
+      "connections": ["jerusalem", "damascus"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH"
+    },
+    {
+      "id": "damascus",
+      "name": "Damascus Stronghold",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 20, "y": 28, "lat": 33.5138, "lng": 36.2765},
+      "connections": ["beirut", "baghdad"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH"
+    },
+    {
+      "id": "baghdad",
+      "name": "Baghdad Outpost",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 45, "y": 35, "lat": 33.3152, "lng": 44.3661},
+      "connections": ["damascus", "dubai"],
+      "defenses": "MEDIUM",
+      "counterEspionage": "MEDIUM"
+    },
+    {
+      "id": "dubai",
+      "name": "Dubai Hub",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 80, "y": 70, "lat": 25.2048, "lng": 55.2708},
+      "connections": ["baghdad", "abu_dhabi"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH"
+    },
+    {
+      "id": "abu_dhabi",
+      "name": "Abu Dhabi Center",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 75, "y": 75, "lat": 24.4539, "lng": 54.3773},
+      "connections": ["dubai", "beersheba"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME"
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "damascus"},
+    {"cityId": "beirut"},
+    {"cityId": "dubai"}
+  ],
+  "attackerNames": [
+    "Eli Cohen",
+    "David Birnbaum",
+    "Tamar Golan"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Marcus Vance",
+      "codename": "PSHYCO",
+      "startingCity": "damascus",
+      "skills": {"humint": 80, "sigint": 90, "infiltration": 70, "survivability": 60}
+    },
+    {
+      "id": 2,
+      "name": "Evelyn Cross",
+      "codename": "VIXEN",
+      "startingCity": "beirut",
+      "skills": {"humint": 70, "sigint": 60, "infiltration": 90, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "Alec Mercer",
+      "codename": "CIRCUS",
+      "startingCity": "damascus",
+      "skills": {"humint": 90, "sigint": 80, "infiltration": 50, "survivability": 50}
+    },
+    {
+      "id": 4,
+      "name": "Ethan Cole",
+      "codename": "MAVERICK",
+      "startingCity": "tel_aviv",
+      "skills": {"humint": 70, "sigint": 50, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "James Sterling",
+      "codename": "SPECTRE",
+      "startingCity": "beersheba",
+      "skills": {"humint": 85, "sigint": 30, "infiltration": 80, "survivability": 95}
+    },
+    {
+      "id": 6,
+      "name": "Jason Webb",
+      "codename": "TREADSTONE",
+      "startingCity": "tel_aviv",
+      "skills": {"humint": 40, "sigint": 40, "infiltration": 85, "survivability": 95}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "Ghost Patrol",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "tel_aviv",
+      "skills": {"combat": 90, "stealth": 95, "mobility": 60}
+    },
+    {
+      "id": 2,
+      "name": "Apex Strike",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "beersheba",
+      "skills": {"combat": 95, "stealth": 60, "mobility": 80}
+    },
+    {
+      "id": 3,
+      "name": "Vanguard Unit",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "damascus",
+      "skills": {"combat": 85, "stealth": 70, "mobility": 70}
+    },
+    {
+      "id": 4,
+      "name": "Delta Team",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "dubai",
+      "skills": {"combat": 90, "stealth": 50, "mobility": 95}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 80000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 40000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "CCTV", "cityId": "tel_aviv"},
+    {"type": "WIRE_TAP", "cityId": "beersheba"}
+  ],
+  "logisticsMapping": {
+    "ASSASSINATION": {
+      "itemName": "Specialist Sniper Rifle",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "ASSASSINATION": {
+      "itemName": "Contract Hitman Wire",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}

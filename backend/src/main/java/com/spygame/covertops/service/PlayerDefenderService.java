@@ -59,7 +59,7 @@ public class PlayerDefenderService {
                             targetCity,
                             "Border Security"
                     ));
-                    return repository.save(session);
+                    return session;
                 }
             }
         } else {
@@ -67,7 +67,7 @@ public class PlayerDefenderService {
         }
 
         agent.setCurrentCity(targetCity);
-        return repository.save(session);
+        return session;
     }
 
     // Sets an active task for an agent
@@ -82,7 +82,7 @@ public class PlayerDefenderService {
         }
 
         agent.setActiveTask(task);
-        return repository.save(session);
+        return session;
     }
 
     // Purchases and builds a new friendly safehouse in a city.
@@ -95,14 +95,14 @@ public class PlayerDefenderService {
                 .orElseThrow(() -> new IllegalArgumentException("Node not found: " + cityNode));
 
         // Deduct territory cost
-        int cost = "HOME_TERRITORY".equals(node.getTerritory()) ? 40000 : 100000;
+        int cost = "HOME_TERRITORY".equals(node.getTerritory()) ? 20000 : 40000;
         if (session.getBudget() < cost) {
             throw new IllegalStateException("Insufficient budget to build safehouse in " + cityNode);
         }
 
         session.setBudget(session.getBudget() - cost);
         session.getSafehouses().add(new GameSession.Safehouse(cityNode, "DEFENDER", "PURCHASED", true));
-        return repository.save(session);
+        return session;
     }
 
     // Spends budget dynamically based on config to purchase and deploy a tech asset to a node.
@@ -127,7 +127,7 @@ public class PlayerDefenderService {
             else if ("SATELLITE".equals(type)) cost = 80000;
             else if ("FINANCE_MONITOR".equals(type)) cost = 50000;
             else if ("BIOMETRIC_SCAN".equals(type)) cost = 35000;
-            else if ("BORDER_GUARD".equals(type)) cost = 40000;
+            else if ("BORDER_GUARD".equals(type)) cost = 70000;
             else if ("SIGNAL_JAMMER".equals(type)) cost = 25000;
             else throw new IllegalArgumentException("Unknown defensive asset type: " + type);
         }
@@ -137,8 +137,9 @@ public class PlayerDefenderService {
         }
 
         session.setBudget(session.getBudget() - cost);
-        session.getEspionageResources().add(new GameSession.ActiveResource(type, cityNode, 0));
-        return repository.save(session);
+        int duration = "BORDER_GUARD".equals(type) ? 5 : 0;
+        session.getEspionageResources().add(new GameSession.ActiveResource(type, cityNode, duration));
+        return session;
     }
 
     private boolean isFriendlyBorderCity(String cityNodeId, ScenarioConfig config) {
@@ -172,9 +173,8 @@ public class PlayerDefenderService {
             throw new IllegalArgumentException("Tactical team not found: " + teamId);
         }
 
-        if (team.getCooldownRemaining() > 0) {
-            throw new IllegalStateException("Tactical team " + team.getName() + " is currently in cooldown lockout.");
-        }
+        // Cooldown does not block movement — a frozen team can still relocate
+        // (covert actions are blocked on the frontend when cooldown > 0)
 
         boolean safehouseExists = false;
         for (GameSession.Safehouse s : session.getSafehouses()) {
@@ -207,19 +207,13 @@ public class PlayerDefenderService {
                             targetCity,
                             "Border Security"
                     ));
-                    return repository.save(session);
+                    return session;
                 }
             }
         }
 
-        int cost = "HOSTILE_TERRITORY".equals(endNode != null ? endNode.getTerritory() : "HOME_TERRITORY") ? 80000 : 40000;
-        if (session.getBudget() < cost) {
-            throw new IllegalStateException("Insufficient budget to relocate tactical team.");
-        }
-
-        session.setBudget(session.getBudget() - cost);
         team.setCurrentCity(targetCity);
         team.setCooldownRemaining(1);
-        return repository.save(session);
+        return session;
     }
 }

@@ -160,12 +160,12 @@ public class PlayerAttackerService {
         if (!session.getSuspectLocation().equals(session.getHandoverCity())) {
             throw new IllegalStateException("Operative must be at the allocated handover city: " + session.getHandoverCity().replace("_", " ").toUpperCase() + " to initiate handover.");
         }
-        session.setHandoverTurnsRemaining(3);
+        session.setHandoverTurnsRemaining(2);
         session.setActiveAttackerPhase("HANDOVER");
         session.getDiscoveredClues().add(new GameSession.Clue(
                 session.getCurrentTurn(),
                 "HANDOVER_INITIATED",
-                "Handover protocol initiated at " + session.getSuspectLocation().toUpperCase() + ". Remain here for 3 turns to complete handover."
+                "Handover protocol initiated at " + session.getSuspectLocation().toUpperCase() + ". Remain here for 2 turns to complete handover."
         ));
     }
 
@@ -319,6 +319,13 @@ public class PlayerAttackerService {
 
         if (startNode == null || endNode == null) {
             throw new IllegalArgumentException("Invalid node connection.");
+        }
+
+        // Validate that attacker has a safehouse in the current city before relocating
+        boolean currentHasSafehouse = session.getSafehouses().stream()
+                .anyMatch(s -> s.getCityNode().equals(current) && "HOSTILE".equals(s.getOwnerFaction()));
+        if (!currentHasSafehouse) {
+            throw new IllegalStateException("Cannot relocate suspect: You must build a safehouse in " + current.toUpperCase() + " before moving.");
         }
 
         // Validate lockdown (moving into or out of a locked-down city is forbidden)

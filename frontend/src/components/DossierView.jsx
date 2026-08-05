@@ -73,10 +73,13 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
   const suspects = session?.attackerNames || [];
   const [selectedSuspect, setSelectedSuspect] = useState(suspects[0] || null);
 
-  // All accepted clues
+  // All accepted clues (plus relocation footprint clues automatically)
   const acceptedClues = (session?.discoveredClues || [])
     .map((clue, index) => ({ clue, index }))
-    .filter(({ index }) => (localAssessments[index] || 'UNASSESSED') === 'ACCEPT');
+    .filter(({ clue, index }) => 
+      clue.turnDiscovered <= session.currentTurn && 
+      (clue.source === 'SUSPECT_RELOCATION' || (localAssessments[index] || 'UNASSESSED') === 'ACCEPT')
+    );
 
   // Clues relevant to selected suspect:
   //   • clue text mentions the suspect's first name, OR
@@ -84,29 +87,45 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
   const suspectClues = selectedSuspect
     ? acceptedClues.filter(({ clue }) => {
         const firstName = selectedSuspect.split(' ')[0].toLowerCase();
-        const mentionsSuspect = clue.clueText?.toLowerCase().includes(firstName);
+        const mentionsSelectedSuspect = clue.clueText?.toLowerCase().includes(firstName);
+
+        let mentionsOtherSuspect = false;
+        for (const suspect of suspects) {
+          if (suspect !== selectedSuspect) {
+            const otherFirstName = suspect.split(' ')[0].toLowerCase();
+            if (clue.clueText?.toLowerCase().includes(otherFirstName)) {
+              mentionsOtherSuspect = true;
+              break;
+            }
+          }
+        }
+
+        if (mentionsOtherSuspect) {
+          return mentionsSelectedSuspect;
+        }
+
         const isTech = ['WIRE_TAP', 'PHONE_TAP', 'CCTV', 'SATELLITE', 'FINANCE_MONITOR'].includes(clue.source);
-        return mentionsSuspect || isTech;
+        return mentionsSelectedSuspect || isTech;
       })
     : [];
 
   const maxTurn = Math.max(
     session?.currentTurn || 1,
     suspectClues.length > 0
-      ? Math.max(...suspectClues.map(({ clue }) => clue.turnDiscovered || 1))
+      ? Math.max(...suspectClues.map(({ clue }) => clue.turnOccurred || clue.turnDiscovered || 1))
       : 1
   );
 
   // Group by turn number
   const cluesByTurn = {};
   suspectClues.forEach(({ clue, index }) => {
-    const t = clue.turnDiscovered || 1;
+    const t = clue.turnOccurred || clue.turnDiscovered || 1;
     if (!cluesByTurn[t]) cluesByTurn[t] = [];
     cluesByTurn[t].push({ clue, index });
   });
 
   const suspectImg = getSuspectImage(selectedSuspect);
-  const turns = Array.from({ length: maxTurn }, (_, i) => i + 1);
+  const turns = Array.from({ length: maxTurn }, (_, i) => i + 1).reverse();
 
   // Count confirmed clues per suspect (for badge)
   const countForSuspect = (name) =>
@@ -126,9 +145,71 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
     );
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="clues-view" style={{ paddingBottom: '40px' }}>
+      <style>{`
+        .suspect-selector-container {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 24px;
+          flex-wrap: wrap;
+        }
+        .suspect-selector-btn {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 14px 8px 8px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .suspect-selector-img-container {
+          width: 40px;
+          height: 40px;
+          border-radius: 6px;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+        .suspect-selector-name {
+          font-size: 11px;
+          font-family: monospace;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+        }
+        .suspect-selector-count {
+          font-size: 9px;
+          font-family: monospace;
+          color: var(--text-dim);
+          margin-top: 2px;
+        }
+        @media (max-width: 600px) {
+          .suspect-selector-container {
+            gap: 6px;
+            margin-bottom: 16px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 6px;
+          }
+          .suspect-selector-btn {
+            gap: 6px;
+            padding: 5px 8px 5px 5px;
+            border-radius: 6px;
+            flex-shrink: 0;
+          }
+          .suspect-selector-img-container {
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
+          }
+          .suspect-selector-name {
+            font-size: 9px;
+          }
+          .suspect-selector-count {
+            font-size: 7px;
+            margin-top: 1px;
+          }
+        }
+      `}</style>
 
       {/* ── Header ── */}
       <div style={{ marginBottom: '20px', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '14px' }}>
@@ -141,52 +222,53 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
       </div>
 
       {/* ── Suspect selector ── */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', flexWrap: 'wrap' }}>
+      <div className="suspect-selector-container">
         {suspects.map(name => {
           const img = getSuspectImage(name);
           const isSelected = selectedSuspect === name;
           const count = countForSuspect(name);
+          const currentAttackerObj = (session?.aiAttackers || []).find(a => a.name === name);
           return (
             <button
               key={name}
               onClick={() => setSelectedSuspect(name)}
+              className="suspect-selector-btn"
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '8px 14px 8px 8px',
-                borderRadius: '8px',
                 border: isSelected
                   ? '1px solid rgba(255,59,48,0.65)'
                   : '1px solid rgba(255,255,255,0.08)',
                 background: isSelected
                   ? 'rgba(255,59,48,0.1)'
                   : 'rgba(255,255,255,0.02)',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
+                opacity: currentAttackerObj?.eliminated ? 0.65 : 1,
                 boxShadow: isSelected ? '0 0 18px rgba(255,59,48,0.18)' : 'none',
               }}
             >
               {img && (
-                <div style={{
-                  width: '40px', height: '40px', borderRadius: '6px',
-                  overflow: 'hidden', flexShrink: 0,
-                  border: isSelected
-                    ? '1px solid rgba(255,59,48,0.55)'
-                    : '1px solid rgba(255,255,255,0.12)',
-                }}>
+                <div 
+                  className="suspect-selector-img-container"
+                  style={{
+                    border: isSelected
+                      ? '1px solid rgba(255,59,48,0.55)'
+                      : '1px solid rgba(255,255,255,0.12)',
+                    filter: currentAttackerObj?.eliminated ? 'grayscale(100%)' : 'none',
+                  }}
+                >
                   <img src={img} alt={name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                 </div>
               )}
               <div style={{ textAlign: 'left' }}>
-                <div style={{
-                  fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.05em',
-                  color: isSelected ? '#ff7070' : 'var(--text-primary)',
-                }}>
-                  {name.toUpperCase()}
+                <div 
+                  className="suspect-selector-name"
+                  style={{
+                    color: currentAttackerObj?.eliminated ? '#888' : (isSelected ? '#ff7070' : 'var(--text-primary)'),
+                    textDecoration: currentAttackerObj?.eliminated ? 'line-through' : 'none',
+                  }}
+                >
+                  {name.toUpperCase()} {currentAttackerObj?.eliminated && '(LOST)'}
                 </div>
-                <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', marginTop: '2px' }}>
+                <div className="suspect-selector-count">
                   {count} clue{count !== 1 ? 's' : ''} confirmed
                 </div>
               </div>
@@ -203,46 +285,87 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
       </div>
 
       {/* ── Selected suspect banner ── */}
-      {selectedSuspect && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '16px',
-          padding: '12px 16px', marginBottom: '28px',
-          background: 'rgba(255,59,48,0.05)',
-          border: '1px solid rgba(255,59,48,0.2)',
-          borderLeft: '3px solid #ff3b30',
-          borderRadius: '8px',
-        }}>
-          {suspectImg && (
-            <div style={{
-              width: '58px', height: '58px', borderRadius: '7px', flexShrink: 0,
-              overflow: 'hidden', border: '1px solid rgba(255,59,48,0.5)',
-              boxShadow: '0 0 14px rgba(255,59,48,0.18)',
-            }}>
-              <img src={suspectImg} alt={selectedSuspect}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+      {selectedSuspect && (() => {
+        const attackerObj = (session?.aiAttackers || []).find(a => a.name === selectedSuspect);
+        return (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            padding: '12px 16px',
+            marginBottom: '28px',
+            background: attackerObj?.eliminated ? 'rgba(136,136,136,0.05)' : 'rgba(255,59,48,0.05)',
+            border: attackerObj?.eliminated ? '1px solid rgba(136,136,136,0.2)' : '1px solid rgba(255,59,48,0.2)',
+            borderLeft: attackerObj?.eliminated ? '3px solid #888' : '3px solid #ff3b30',
+            borderRadius: '8px',
+          }}>
+            {suspectImg && (
+              <div style={{
+                width: '58px', height: '58px', borderRadius: '7px', flexShrink: 0,
+                overflow: 'hidden', border: attackerObj?.eliminated ? '1px solid rgba(136,136,136,0.5)' : '1px solid rgba(255,59,48,0.5)',
+                boxShadow: attackerObj?.eliminated ? 'none' : '0 0 14px rgba(255,59,48,0.18)',
+                filter: attackerObj?.eliminated ? 'grayscale(100%)' : 'none',
+              }}>
+                <img src={suspectImg} alt={selectedSuspect}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+              </div>
+            )}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: '4px' }}>
+                SUBJECT OF INVESTIGATION
+              </div>
+              <div style={{
+                fontSize: '15px',
+                fontFamily: 'monospace',
+                fontWeight: 700,
+                color: attackerObj?.eliminated ? '#aaa' : '#ff7070',
+                letterSpacing: '0.06em',
+                textDecoration: attackerObj?.eliminated ? 'line-through' : 'none',
+              }}>
+                {selectedSuspect.toUpperCase()}
+              </div>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', marginTop: '4px' }}>
+                Coverage: T1 – T{maxTurn}&nbsp;&nbsp;·&nbsp;&nbsp;{suspectClues.length} intel entries
+              </div>
             </div>
-          )}
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: '4px' }}>
-              SUBJECT OF INVESTIGATION
-            </div>
-            <div style={{ fontSize: '15px', fontFamily: 'monospace', fontWeight: 700, color: '#ff7070', letterSpacing: '0.06em' }}>
-              {selectedSuspect.toUpperCase()}
-            </div>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', marginTop: '4px' }}>
-              Coverage: T1 – T{maxTurn}&nbsp;&nbsp;·&nbsp;&nbsp;{suspectClues.length} intel entries
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>THREAT STATUS</div>
+              <div style={{
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                fontWeight: 700,
+                color: attackerObj?.eliminated 
+                  ? '#888' 
+                  : attackerObj?.healingTurnsRemaining > 0 
+                    ? '#ff9500' 
+                    : '#ff3b30',
+                marginTop: '3px'
+              }}>
+                {attackerObj?.eliminated 
+                  ? '◉ LOST' 
+                  : attackerObj?.healingTurnsRemaining > 0 
+                    ? `◉ HEALING (${attackerObj.healingTurnsRemaining} TURNS)` 
+                    : `◉ ${attackerObj?.state?.toUpperCase() || 'ACTIVE'}`}
+              </div>
             </div>
           </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>THREAT STATUS</div>
-            <div style={{ fontSize: '12px', fontFamily: 'monospace', fontWeight: 700, color: '#ff3b30', marginTop: '3px' }}>◉ ACTIVE</div>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Timeline ── */}
       {selectedSuspect && (
-        <div style={{ position: 'relative', paddingLeft: '52px' }}>
+        <div style={{
+          position: 'relative',
+          paddingLeft: '52px',
+          maxHeight: '420px',
+          overflowY: 'auto',
+          paddingRight: '12px',
+          background: 'rgba(6,15,35,0.4)',
+          border: '1px solid rgba(0,240,255,0.1)',
+          borderRadius: '8px',
+          paddingTop: '16px',
+          paddingBottom: '16px',
+        }}>
 
           {/* Vertical rail */}
           <div style={{

@@ -11,9 +11,17 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, act
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  // On mobile, MAP tab is not available — redirect to TACTICAL automatically
+  useEffect(() => {
+    if (isMobile && activeTab === 'MAP') {
+      setActiveTab('TACTICAL');
+    }
+  }, [isMobile, activeTab, setActiveTab]);
+
   const isAttacker = playerRole === 'ATTACKER';
   let tabs = isAttacker ? [
     { id: 'MAP', label: 'MAP', icon: Map, badge: 0 },
+    { id: 'TACTICAL', label: 'TACTICAL', icon: Shield, badge: 0 },
     { id: 'OBJECTIVES', label: 'OBJECTIVES', icon: BookOpen, badge: 0 },
     { id: 'HINTS', label: 'HINTS', icon: Lightbulb, badge: 0 },
     { id: 'CELL_HQ', label: 'CELL HQ', icon: Users, badge: 0 },
@@ -21,6 +29,7 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, act
     { id: 'GOD_MODE', label: 'GOD MODE', icon: Eye, badge: 0 }
   ] : [
     { id: 'MAP', label: 'MAP', icon: Map, badge: 0 },
+    { id: 'TACTICAL', label: 'TACTICAL', icon: Shield, badge: 0 },
     { id: 'OBJECTIVES', label: 'OBJECTIVES', icon: BookOpen, badge: 0 },
     { id: 'HINTS', label: 'HINTS', icon: Lightbulb, badge: 0 },
     { id: 'AGENTS', label: 'AGENTS', icon: Users, badge: 0 },
@@ -30,8 +39,10 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, act
     { id: 'GOD_MODE', label: 'GOD MODE', icon: Eye, badge: 0 }
   ];
 
-  if (isMobile && !isAttacker) {
-    tabs = tabs.filter(t => !['OBJECTIVES', 'AGENTS', 'RESOURCES'].includes(t.id));
+  if (isMobile) {
+    tabs = isAttacker
+      ? tabs.filter(t => !['MAP'].includes(t.id))
+      : tabs.filter(t => !['MAP', 'OBJECTIVES', 'AGENTS', 'RESOURCES'].includes(t.id));
   }
 
   return (

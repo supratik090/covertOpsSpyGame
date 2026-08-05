@@ -41,6 +41,7 @@ public class GameSession {
     private String suspectLocation;
     private String activeAttackerPhase = "TRAIL_BREAKING";
     private List<ActiveDecoy> activeDecoys = new ArrayList<>();
+    private List<AIAttacker> aiAttackers = new ArrayList<>();
     private java.util.Map<String, Integer> secureSafehouseTurns = new java.util.HashMap<>();
     private boolean infiltrationGoAheadApproved;
     private boolean strikeGoAheadApproved;
@@ -58,6 +59,9 @@ public class GameSession {
     private boolean handoverCompleted = false;
     private String suspectSafehouseCode;
 
+    // Deployment phase — true until DEFENDER player has placed all safehouses, agents, and teams
+    private boolean deploymentPending = false;
+
     // Multiplayer properties
     private boolean isMultiplayer = false;
     private String playerA;
@@ -70,6 +74,10 @@ public class GameSession {
     private String lobbyStatus = "LOBBY_WAITING"; // LOBBY_WAITING, IN_PROGRESS, TERMINATED
     private boolean playerATurnSubmitted = false;
     private boolean playerBTurnSubmitted = false;
+    private java.util.List<String> turnHistory = new java.util.ArrayList<>();
+
+    public java.util.List<String> getTurnHistory() { return turnHistory; }
+    public void setTurnHistory(java.util.List<String> turnHistory) { this.turnHistory = turnHistory; }
 
     public boolean isMultiplayer() { return isMultiplayer; }
     public void setMultiplayer(boolean multiplayer) { isMultiplayer = multiplayer; }
@@ -148,8 +156,14 @@ public class GameSession {
     public String getSuspectSafehouseCode() { return suspectSafehouseCode; }
     public void setSuspectSafehouseCode(String suspectSafehouseCode) { this.suspectSafehouseCode = suspectSafehouseCode; }
 
+    public boolean isDeploymentPending() { return deploymentPending; }
+    public void setDeploymentPending(boolean deploymentPending) { this.deploymentPending = deploymentPending; }
+
     public List<ActiveDecoy> getActiveDecoys() { return activeDecoys; }
     public void setActiveDecoys(List<ActiveDecoy> activeDecoys) { this.activeDecoys = activeDecoys; }
+
+    public List<AIAttacker> getAiAttackers() { return aiAttackers; }
+    public void setAiAttackers(List<AIAttacker> aiAttackers) { this.aiAttackers = aiAttackers; }
 
     public java.util.Map<String, Integer> getSecureSafehouseTurns() { return secureSafehouseTurns; }
     public void setSecureSafehouseTurns(java.util.Map<String, Integer> secureSafehouseTurns) { this.secureSafehouseTurns = secureSafehouseTurns; }
@@ -304,6 +318,8 @@ public class GameSession {
         private String origin; // DEFAULT, PURCHASED
         private boolean uncovered;
         private String safehouseCode; // unique 3 digit code, e.g. "432"
+        private String attackerName;
+        private boolean secure;
 
         public Safehouse() {}
 
@@ -312,6 +328,7 @@ public class GameSession {
             this.ownerFaction = ownerFaction;
             this.origin = origin;
             this.uncovered = uncovered;
+            this.secure = false;
             // Generate a random 3-digit code
             java.util.Random rand = new java.util.Random();
             this.safehouseCode = String.valueOf(100 + rand.nextInt(900));
@@ -323,6 +340,7 @@ public class GameSession {
             this.origin = origin;
             this.uncovered = uncovered;
             this.safehouseCode = safehouseCode;
+            this.secure = false;
         }
 
         public String getCityNode() { return cityNode; }
@@ -339,6 +357,12 @@ public class GameSession {
 
         public String getSafehouseCode() { return safehouseCode; }
         public void setSafehouseCode(String safehouseCode) { this.safehouseCode = safehouseCode; }
+
+        public String getAttackerName() { return attackerName; }
+        public void setAttackerName(String attackerName) { this.attackerName = attackerName; }
+
+        public boolean isSecure() { return secure; }
+        public void setSecure(boolean secure) { this.secure = secure; }
     }
 
     public static class ActiveResource {
@@ -366,6 +390,7 @@ public class GameSession {
 
     public static class Clue {
         private int turnDiscovered;
+        private Integer turnOccurred;
         private String source;
         private String clueText;
         private String assessment = "UNASSESSED"; // UNASSESSED, ACCEPT, REJECT, DOUBT
@@ -392,6 +417,9 @@ public class GameSession {
 
         public int getTurnDiscovered() { return turnDiscovered; }
         public void setTurnDiscovered(int turnDiscovered) { this.turnDiscovered = turnDiscovered; }
+
+        public Integer getTurnOccurred() { return turnOccurred; }
+        public void setTurnOccurred(Integer turnOccurred) { this.turnOccurred = turnOccurred; }
 
         public String getSource() { return source; }
         public void setSource(String source) { this.source = source; }
@@ -429,5 +457,98 @@ public class GameSession {
 
         public int getTurnsRemaining() { return turnsRemaining; }
         public void setTurnsRemaining(int turnsRemaining) { this.turnsRemaining = turnsRemaining; }
+    }
+
+    public static class AIAttacker {
+        private String name;
+        private String state;
+        private String currentLocation;
+        private boolean eliminated;
+        private int budget;
+
+        private String requestedFinanceCity;
+        private int financeCollectionTurnsRemaining = -1;
+        private boolean financeCollected = false;
+
+        private String requestedLogisticsCity;
+        private int logisticsCollectionTurnsRemaining = -1;
+        private boolean logisticsCollected = false;
+
+        private String handoverCity;
+        private int handoverTurnsRemaining = -1;
+        private boolean handoverCompleted = false;
+
+        private boolean permissionToCrossBorderRequested = false;
+        private boolean permissionToCrossBorderApproved = false;
+
+        private boolean permissionToEngageRequested = false;
+        private boolean permissionToEngageApproved = false;
+        private int healingTurnsRemaining = 0;
+
+        public AIAttacker() {}
+
+        public AIAttacker(String name, String currentLocation, String state) {
+            this.name = name;
+            this.currentLocation = currentLocation;
+            this.state = state;
+            this.eliminated = false;
+        }
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+
+        public String getState() { return state; }
+        public void setState(String state) { this.state = state; }
+
+        public String getCurrentLocation() { return currentLocation; }
+        public void setCurrentLocation(String currentLocation) { this.currentLocation = currentLocation; }
+
+        public boolean isEliminated() { return eliminated; }
+        public void setEliminated(boolean eliminated) { this.eliminated = eliminated; }
+
+        public int getBudget() { return budget; }
+        public void setBudget(int budget) { this.budget = budget; }
+
+        public String getRequestedFinanceCity() { return requestedFinanceCity; }
+        public void setRequestedFinanceCity(String requestedFinanceCity) { this.requestedFinanceCity = requestedFinanceCity; }
+
+        public int getFinanceCollectionTurnsRemaining() { return financeCollectionTurnsRemaining; }
+        public void setFinanceCollectionTurnsRemaining(int financeCollectionTurnsRemaining) { this.financeCollectionTurnsRemaining = financeCollectionTurnsRemaining; }
+
+        public boolean isFinanceCollected() { return financeCollected; }
+        public void setFinanceCollected(boolean financeCollected) { this.financeCollected = financeCollected; }
+
+        public String getRequestedLogisticsCity() { return requestedLogisticsCity; }
+        public void setRequestedLogisticsCity(String requestedLogisticsCity) { this.requestedLogisticsCity = requestedLogisticsCity; }
+
+        public int getLogisticsCollectionTurnsRemaining() { return logisticsCollectionTurnsRemaining; }
+        public void setLogisticsCollectionTurnsRemaining(int logisticsCollectionTurnsRemaining) { this.logisticsCollectionTurnsRemaining = logisticsCollectionTurnsRemaining; }
+
+        public boolean isLogisticsCollected() { return logisticsCollected; }
+        public void setLogisticsCollected(boolean logisticsCollected) { this.logisticsCollected = logisticsCollected; }
+
+        public String getHandoverCity() { return handoverCity; }
+        public void setHandoverCity(String handoverCity) { this.handoverCity = handoverCity; }
+
+        public int getHandoverTurnsRemaining() { return handoverTurnsRemaining; }
+        public void setHandoverTurnsRemaining(int handoverTurnsRemaining) { this.handoverTurnsRemaining = handoverTurnsRemaining; }
+
+        public boolean isHandoverCompleted() { return handoverCompleted; }
+        public void setHandoverCompleted(boolean handoverCompleted) { this.handoverCompleted = handoverCompleted; }
+
+        public boolean isPermissionToCrossBorderRequested() { return permissionToCrossBorderRequested; }
+        public void setPermissionToCrossBorderRequested(boolean permissionToCrossBorderRequested) { this.permissionToCrossBorderRequested = permissionToCrossBorderRequested; }
+
+        public boolean isPermissionToCrossBorderApproved() { return permissionToCrossBorderApproved; }
+        public void setPermissionToCrossBorderApproved(boolean permissionToCrossBorderApproved) { this.permissionToCrossBorderApproved = permissionToCrossBorderApproved; }
+
+        public boolean isPermissionToEngageRequested() { return permissionToEngageRequested; }
+        public void setPermissionToEngageRequested(boolean permissionToEngageRequested) { this.permissionToEngageRequested = permissionToEngageRequested; }
+
+        public boolean isPermissionToEngageApproved() { return permissionToEngageApproved; }
+        public void setPermissionToEngageApproved(boolean permissionToEngageApproved) { this.permissionToEngageApproved = permissionToEngageApproved; }
+
+        public int getHealingTurnsRemaining() { return healingTurnsRemaining; }
+        public void setHealingTurnsRemaining(int healingTurnsRemaining) { this.healingTurnsRemaining = healingTurnsRemaining; }
     }
 }

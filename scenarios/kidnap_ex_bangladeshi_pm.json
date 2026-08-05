@@ -1,95 +1,95 @@
 {
-  "scenarioId": "operation_silent_edge",
-  "attackingCountry": "Pakistan",
+  "scenarioId": "kidnap_ex_bangladeshi_pm",
+  "attackingCountry": "Bangladesh",
   "defendingCountry": "India",
-  "title": "Major terrorist attack planned on North Indian cities",
-  "briefing": "Major terrorist attack planned on North Indian cities. Investigate the network to identify and eliminate the active threat agent from our top suspect list: Tariq Mahmood, Zubair Khan, Faisal Shah. Deter the Hostile Faction from executing their planned operation before Turn 25.",
-  "attackerBriefing": "Major terrorist attack planned on North Indian cities. Execute attack with precision. Evade active security patrols, acquire logistical and financial assets, infiltrate the border, and neutralize the target VIP.",
+  "title": "Kidnap Ex Bangladeshi PM",
+  "briefing": "A hostile network is plotting to kidnap the former Bangladeshi Prime Minister currently residing in India. Investigate the connections to locate and apprehend the suspect from our top threat list: Farhan Chowdhury, Kazi Rahman, Mustafizur Hasan. Protect the target and stop the hostile asset before Turn 25.",
+  "attackerBriefing": "Infiltrate the Indian border, locate the former Prime Minister residing in New Delhi, acquire the target, and secure extraction back into Bangladesh.",
   "targetCity": "new_delhi",
-  "targetVip": "High-Profile Minister",
-  "attackForm": "ASSASSINATION",
+  "targetVip": "Ex-Prime Minister of Bangladesh",
+  "attackForm": "KIDNAPPING",
   "maxTurns": 25,
-  "startingBudget": 4000000,
-  "mapBackground": "assets/maps/india_pakistan.svg",
+  "startingBudget": 4500000,
+  "mapBackground": "assets/maps/india_bangladesh.svg",
   "nodes": [
     {
-      "id": "karachi",
-      "name": "Karachi Port",
+      "id": "dhaka",
+      "name": "Dhaka HQ",
       "territory": "HOSTILE_TERRITORY",
-      "coordinates": {"x": 30, "y": 90, "lat": 24.8607, "lng": 67.0011},
-      "connections": ["quetta", "lahore"],
-      "availableFinance": ["DRUG_SALES", "ILLICIT_ARMS_SALES"],
-      "availableLogistics": ["BLACK_MARKET_IMPORT"]
-    },
-    {
-      "id": "quetta",
-      "name": "Quetta Corridor",
-      "territory": "HOSTILE_TERRITORY",
-      "coordinates": {"x": 32, "y": 45, "lat": 30.1798, "lng": 66.9750},
-      "connections": ["karachi", "peshawar"],
-      "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
-      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"]
-    },
-    {
-      "id": "peshawar",
-      "name": "Peshawar Frontier",
-      "territory": "HOSTILE_TERRITORY",
-      "coordinates": {"x": 45, "y": 25, "lat": 34.0151, "lng": 71.5249},
-      "connections": ["quetta", "lahore", "islamabad"],
-      "availableFinance": ["TRIBAL_TOLLS", "RANSOMWARE_HACK"],
-      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"]
-    },
-    {
-      "id": "islamabad",
-      "name": "Islamabad Capital",
-      "territory": "HOSTILE_TERRITORY",
-      "coordinates": {"x": 52, "y": 20, "lat": 33.6844, "lng": 73.0479},
-      "connections": ["peshawar", "lahore"],
+      "coordinates": {"x": 91, "y": 64, "lat": 23.8103, "lng": 90.4125},
+      "connections": ["kolkata", "rajshahi", "moimonsingh", "sylhet", "chittagong"],
       "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
       "availableLogistics": ["MILITARY_ORDNANCE_THEFT"]
     },
     {
-      "id": "lahore",
-      "name": "Lahore Sector",
+      "id": "chittagong",
+      "name": "Chittagong Port",
       "territory": "HOSTILE_TERRITORY",
-      "coordinates": {"x": 60, "y": 40, "lat": 31.5204, "lng": 74.3587},
-      "connections": ["karachi", "peshawar", "islamabad", "srinagar", "jammu", "amritsar"],
+      "coordinates": {"x": 94, "y": 75, "lat": 22.3569, "lng": 91.7832},
+      "connections": ["dhaka", "sylhet"],
+      "availableFinance": ["DRUG_SALES", "ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"]
+    },
+    {
+      "id": "sylhet",
+      "name": "Sylhet Outpost",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 95, "y": 55, "lat": 24.8949, "lng": 91.8687},
+      "connections": ["dhaka", "chittagong", "siliguri", "guwahati", "moimonsingh"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"]
+    },
+    {
+      "id": "rajshahi",
+      "name": "Rajshahi Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 87, "y": 58, "lat": 24.3745, "lng": 88.6042},
+      "connections": ["dhaka", "moimonsingh", "kolkata", "patna"],
       "availableFinance": ["HUNDI_HAWALA", "COMMERCIAL_FRONT_LOAN"],
       "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"]
     },
     {
-      "id": "srinagar",
-      "name": "Srinagar Sector",
-      "territory": "HOME_TERRITORY",
-      "coordinates": {"x": 65, "y": 18, "lat": 34.0837, "lng": 74.7973},
-      "connections": ["lahore", "jammu"],
-      "defenses": "VERY_HIGH",
-      "counterEspionage": "HIGH"
+      "id": "moimonsingh",
+      "name": "Moimonsingh Outpost",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 91, "y": 56, "lat": 24.7471, "lng": 90.4203},
+      "connections": ["dhaka", "rajshahi", "sylhet"],
+      "availableFinance": ["TRIBAL_TOLLS", "RANSOMWARE_HACK"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"]
     },
     {
-      "id": "jammu",
-      "name": "Jammu Node",
+      "id": "kolkata",
+      "name": "Kolkata Hub",
       "territory": "HOME_TERRITORY",
-      "coordinates": {"x": 65, "y": 27, "lat": 32.7266, "lng": 74.8570},
-      "connections": ["lahore", "srinagar", "amritsar"],
+      "coordinates": {"x": 85, "y": 70, "lat": 22.5726, "lng": 88.3639},
+      "connections": ["patna", "siliguri", "dhaka", "rajshahi"],
       "defenses": "HIGH",
       "counterEspionage": "HIGH"
     },
     {
-      "id": "amritsar",
-      "name": "Amritsar Sector",
+      "id": "siliguri",
+      "name": "Siliguri Corridor",
       "territory": "HOME_TERRITORY",
-      "coordinates": {"x": 60, "y": 38, "lat": 31.6340, "lng": 74.8723},
-      "connections": ["lahore", "jammu", "chandigarh"],
+      "coordinates": {"x": 88, "y": 45, "lat": 26.7271, "lng": 88.3953},
+      "connections": ["patna", "kolkata", "guwahati", "sylhet"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH"
+    },
+    {
+      "id": "guwahati",
+      "name": "Guwahati Post",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 92, "y": 42, "lat": 26.1445, "lng": 91.7362},
+      "connections": ["siliguri", "sylhet"],
       "defenses": "MEDIUM",
       "counterEspionage": "MEDIUM"
     },
     {
-      "id": "chandigarh",
-      "name": "Chandigarh Node",
+      "id": "patna",
+      "name": "Patna Node",
       "territory": "HOME_TERRITORY",
-      "coordinates": {"x": 75, "y": 45, "lat": 30.7333, "lng": 76.7794},
-      "connections": ["amritsar", "new_delhi"],
+      "coordinates": {"x": 80, "y": 60, "lat": 25.5941, "lng": 85.1376},
+      "connections": ["new_delhi", "kolkata", "siliguri", "rajshahi"],
       "defenses": "MEDIUM",
       "counterEspionage": "MEDIUM"
     },
@@ -98,21 +98,21 @@
       "name": "New Delhi Capital",
       "territory": "HOME_TERRITORY",
       "coordinates": {"x": 75, "y": 55, "lat": 28.6139, "lng": 77.2090},
-      "connections": ["chandigarh"],
+      "connections": ["patna"],
       "defenses": "EXTREME",
       "counterEspionage": "EXTREME"
     }
   ],
   "startingDefenderSafehouses": [
     {"cityId": "new_delhi"},
-    {"cityId": "chandigarh"},
-    {"cityId": "peshawar"},
-    {"cityId": "karachi"}
+    {"cityId": "kolkata"},
+    {"cityId": "dhaka"},
+    {"cityId": "chittagong"}
   ],
   "attackerNames": [
-    "Tariq Mahmood",
-    "Zubair Khan",
-    "Faisal Shah"
+    "Farhan Chowdhury",
+    "Kazi Rahman",
+    "Mustafizur Hasan"
   ],
   "agents": [
     {
@@ -126,7 +126,7 @@
       "id": 2,
       "name": "Evelyn Cross",
       "codename": "VIXEN",
-      "startingCity": "chandigarh",
+      "startingCity": "kolkata",
       "skills": {"humint": 70, "sigint": 60, "infiltration": 90, "survivability": 85}
     },
     {
@@ -140,21 +140,21 @@
       "id": 4,
       "name": "Ethan Cole",
       "codename": "MAVERICK",
-      "startingCity": "peshawar",
+      "startingCity": "dhaka",
       "skills": {"humint": 70, "sigint": 50, "infiltration": 95, "survivability": 90}
     },
     {
       "id": 5,
       "name": "James Sterling",
       "codename": "SPECTRE",
-      "startingCity": "karachi",
+      "startingCity": "chittagong",
       "skills": {"humint": 85, "sigint": 30, "infiltration": 80, "survivability": 95}
     },
     {
       "id": 6,
       "name": "Jason Webb",
       "codename": "TREADSTONE",
-      "startingCity": "peshawar",
+      "startingCity": "dhaka",
       "skills": {"humint": 40, "sigint": 40, "infiltration": 85, "survivability": 95}
     }
   ],
@@ -163,14 +163,14 @@
       "id": 1,
       "name": "Ghost Patrol",
       "operatingCountry": "HOSTILE_TERRITORY",
-      "startingCity": "peshawar",
+      "startingCity": "dhaka",
       "skills": {"combat": 90, "stealth": 95, "mobility": 60}
     },
     {
       "id": 2,
       "name": "Apex Strike",
       "operatingCountry": "HOSTILE_TERRITORY",
-      "startingCity": "karachi",
+      "startingCity": "chittagong",
       "skills": {"combat": 95, "stealth": 60, "mobility": 80}
     },
     {
@@ -184,7 +184,7 @@
       "id": 4,
       "name": "Delta Team",
       "operatingCountry": "HOME_TERRITORY",
-      "startingCity": "chandigarh",
+      "startingCity": "kolkata",
       "skills": {"combat": 90, "stealth": 50, "mobility": 95}
     }
   ],
@@ -203,20 +203,20 @@
     "HOSTILE_TERRITORY": 100000
   },
   "startingEspionageResources": [
-    {"type": "CCTV", "cityId": "karachi"},
-    {"type": "WIRE_TAP", "cityId": "peshawar"}
+    {"type": "CCTV", "cityId": "dhaka"},
+    {"type": "WIRE_TAP", "cityId": "chittagong"}
   ],
   "logisticsMapping": {
-    "ASSASSINATION": {
-      "itemName": "Specialist Sniper Rifle",
+    "KIDNAPPING": {
+      "itemName": "Specialist Extraction Vehicle",
       "cost": 150000,
       "leadTime": 5,
       "footprint": 30
     }
   },
   "financeMapping": {
-    "ASSASSINATION": {
-      "itemName": "Contract Hitman Wire",
+    "KIDNAPPING": {
+      "itemName": "Underground Hawala Fund Transfer",
       "cost": 50000,
       "leadTime": 5,
       "footprint": 10

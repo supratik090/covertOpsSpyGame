@@ -27,3 +27,6 @@ Thumbs.db
 # Dependencies
 frontend/node_modules/
 backend/node_modules/
+
+# Temporary test tools
+backend/src/test/java/com/spygame/covertops/PrintHistory.java

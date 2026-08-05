@@ -2,6 +2,17 @@ import React, { useState } from 'react';
 import { Play, Trash2, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+const getCountryFlag = (country) => {
+  if (!country) return '';
+  const c = country.toLowerCase().trim();
+  if (c === 'india') return '🇮🇳';
+  if (c === 'pakistan') return '🇵🇰';
+  if (c === 'bangladesh') return '🇧🇩';
+  if (c === 'israel') return '🇮🇱';
+  if (c === 'iran') return '🇮🇷';
+  return '';
+};
+
 const ScenarioSelect = ({
   scenarios,
   sessions,
@@ -138,22 +149,44 @@ const ScenarioSelect = ({
             <div className="empty-state" style={{ padding: '20px' }}>
               <p style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-dim)' }}>All scenarios currently have an active campaign in progress.</p>
             </div>
-          ) : availableScenarios.map(scenario => (
-            <div 
-              key={scenario.scenarioId}
-              className={`scenario-card ${selectedScenarioId === scenario.scenarioId ? 'selected' : ''}`}
-              onClick={() => setSelectedScenarioId(scenario.scenarioId)}
-            >
-              <h3>{scenario.title} <span>({scenario.scenarioId})</span></h3>
+          ) : availableScenarios.map(scenario => {
+            const isCompleted = sessions.some(s => s.scenarioId === scenario.scenarioId && s.status === 'SUCCESS');
+            return (
+              <div 
+                key={scenario.scenarioId}
+                className={`scenario-card ${selectedScenarioId === scenario.scenarioId ? 'selected' : ''}`}
+                onClick={() => setSelectedScenarioId(scenario.scenarioId)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <h3 style={{ margin: 0 }}>
+                    {scenario.title} 
+                    {isCompleted && (
+                      <span className="cia-tag green" style={{ background: 'rgba(0, 255, 102, 0.1)', color: '#00ff66', border: '1px solid rgba(0, 255, 102, 0.4)', fontSize: '8px', padding: '1px 5px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle' }}>
+                        ✓ COMPLETED
+                      </span>
+                    )}
+                  </h3>
+                  {scenario.attackingCountry && scenario.defendingCountry && (
+                    <span style={{ fontSize: '15px', marginLeft: '12px', display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
+                      {getCountryFlag(scenario.attackingCountry)}
+                      <span style={{ fontSize: '9px', color: 'var(--text-dim)' }}>⚔️</span>
+                      {getCountryFlag(scenario.defendingCountry)}
+                    </span>
+                  )}
+                </div>
 
-              <div className="scenario-meta">
-                <div>TARGET VIP: [CLASSIFIED]</div>
-                <div>BUDGET: ${scenario.startingBudget?.toLocaleString()}</div>
-                <div>TURN LIMIT: {scenario.maxTurns}</div>
-                <div>ATTACK FORM: [REDACTED]</div>
+                <div className="scenario-meta" style={{ marginTop: '8px' }}>
+                  {scenario.attackingCountry && scenario.defendingCountry && (
+                    <div>THEATER: <span className="val cyan">{scenario.attackingCountry} vs {scenario.defendingCountry}</span></div>
+                  )}
+                  <div>TARGET VIP: [CLASSIFIED]</div>
+                  <div>BUDGET: ${scenario.startingBudget?.toLocaleString()}</div>
+                  <div>TURN LIMIT: {scenario.maxTurns}</div>
+                  <div>ATTACK FORM: [REDACTED]</div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Player Role Selection */}

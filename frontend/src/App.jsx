@@ -18,6 +18,14 @@ import GameOverModal from './components/GameOverModal';
 import { GAME_API_BASE } from './config';
 import { fetchWithRetry } from './utils/api';
 import RetrySpinner from './components/RetrySpinner';
+import DeploymentScreen from './components/DeploymentScreen';
+
+
+const getInitialTab = () =>
+  typeof window !== 'undefined' && window.innerWidth <= 768 ? 'TACTICAL' : 'MAP';
+
+const getDefaultMapTab = () =>
+  typeof window !== 'undefined' && window.innerWidth <= 768 ? 'TACTICAL' : 'MAP';
 
 export default function App() {
   const [screen, setScreen] = useState('LOGIN'); // 'LOGIN', 'SELECT', 'GAME'
@@ -113,6 +121,15 @@ export default function App() {
       fetchScenarios();
       fetchSessions();
     }
+
+    const handleUnauthorized = () => {
+      handleLogout();
+    };
+
+    window.addEventListener('unauthorized_logout', handleUnauthorized);
+    return () => {
+      window.removeEventListener('unauthorized_logout', handleUnauthorized);
+    };
   }, []);
 
   useEffect(() => {
@@ -142,6 +159,11 @@ export default function App() {
               addToast("It is your turn! Prepare your operations.", "success");
             }
           }
+        } else if (res.status === 401) {
+          localStorage.removeItem('spy_game_token');
+          localStorage.removeItem('covert_ops_operator_user');
+          localStorage.removeItem('spy_game_session_id');
+          window.dispatchEvent(new Event('unauthorized_logout'));
         }
       } catch (err) {
         console.error("Failed to poll session status", err);
@@ -186,7 +208,10 @@ export default function App() {
 
   const addToast = (message, type = 'info') => {
     const id = Date.now() + Math.random().toString(36).substr(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => {
+      const next = [...prev, { id, message, type }];
+      return next.slice(-4);
+    });
   };
 
   const removeToast = (id) => {
@@ -235,7 +260,7 @@ export default function App() {
       setLocalCollectLogistics(false);
       setLocalBeginHandover(false);
 
-      setActiveTab('OBJECTIVES');
+      setActiveTab(getInitialTab());
       setScreen('GAME');
       setShowGodMode(false);
       setReplayPlan(null);
@@ -291,7 +316,7 @@ export default function App() {
       setLocalCollectLogistics(false);
       setLocalBeginHandover(false);
 
-      setActiveTab('OBJECTIVES');
+      setActiveTab(getInitialTab());
       setScreen('GAME');
       setShowGodMode(false);
       setReplayPlan(null);
@@ -334,7 +359,7 @@ export default function App() {
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
       setLostAgentsList([]);
-      setActiveTab('MAP');
+      setActiveTab(getInitialTab());
       setScreen('GAME');
       setShowGodMode(false);
       setReplayPlan(null);
@@ -367,7 +392,7 @@ export default function App() {
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
       setLostAgentsList([]);
-      setActiveTab('MAP');
+      setActiveTab(getInitialTab());
       setScreen('GAME');
       setShowGodMode(false);
       setReplayPlan(null);
@@ -461,11 +486,8 @@ export default function App() {
 
     const team = session.tacticalTeams.find(t => t.id === teamId);
     if (!team) return;
-    if (team.cooldownRemaining > 0) {
-      addToast(`${team.name} is currently locked out by cooldown.`, "error");
-      return;
-    }
 
+    // Frozen teams (cooldownRemaining > 0) can still move; only covert actions are blocked
     if (localTeamMoves[teamId]) {
       addToast(`${team.name} has already relocated this turn.`, "error");
       return;
@@ -596,6 +618,47 @@ export default function App() {
     });
   };
 
+  const setMultipleClueAssessments = (assessmentsMap) => {
+    setLocalAssessments((prev) => {
+      const updated = { ...prev, ...assessmentsMap };
+      addToast(`Accepted all clues before current turn`, "info");
+      return updated;
+    });
+  };
+
+  // Revert last turn
+  const handleRevertTurn = async () => {
+    if (!session) return;
+    if (!window.confirm("Are you sure you want to revert the last turn? This will erase the current turn and reload the previous state.")) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/${session.id}/revert-turn`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSession(updated);
+        setReplayTurn(updated.currentTurn);
+        setCovertActions([]);
+        setLocalAgentMoves({});
+        setLocalTeamMoves({});
+        setLocalAgentTasks({});
+        setLocalSafehouseBuilds([]);
+        setLocalTechDeploys([]);
+        addToast(`Game successfully reverted to Turn ${updated.currentTurn}.`, "info");
+      } else {
+        const errorData = await res.text();
+        addToast(`Failed to revert turn: ${errorData}`, "error");
+      }
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // End turn - submit actions, assessments, agent relocations, and team relocations
   const handleEndTurn = async () => {
     if (!session) return;
@@ -665,7 +728,7 @@ export default function App() {
       const sweepAlertClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_ALERT');
       const sweepLossClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_LOSS');
       const combatOpClues = newClues.filter(c =>
-        c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT'
+        c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT' || c.source === 'COMMAND_CENTER'
       );
       const handoverClues = newClues.filter(c => c.source === 'HANDOVER_UNLOCKED');
 
@@ -746,7 +809,7 @@ export default function App() {
         setReplayPlan(data);
         if (!silent) {
           setShowGodMode(true);
-          setActiveTab('MAP');
+          setActiveTab(getInitialTab());
           addToast("God Mode decrypted. Replay timeline loaded.", "success");
         }
       }
@@ -790,13 +853,13 @@ export default function App() {
 
   const unassessedCluesCount = session
     ? session.discoveredClues.filter((clue, idx) => {
-        return (localAssessments[idx] || 'UNASSESSED') === 'UNASSESSED';
+        return clue.turnDiscovered <= session.currentTurn && (localAssessments[idx] || 'UNASSESSED') === 'UNASSESSED';
       }).length
     : 0;
 
   const acceptedCluesCount = session
     ? session.discoveredClues.filter((clue, idx) => {
-        return (localAssessments[idx] || 'UNASSESSED') === 'ACCEPT';
+        return clue.turnDiscovered <= session.currentTurn && (localAssessments[idx] || 'UNASSESSED') === 'ACCEPT';
       }).length
     : 0;
 
@@ -830,6 +893,14 @@ export default function App() {
 
       {screen === 'GAME' && session && (
         <>
+          {session.deploymentPending && session.playerRole === 'DEFENDER' && (
+            <DeploymentScreen
+              session={session}
+              activeScenario={activeScenario}
+              onDeploymentComplete={(updated) => setSession(updated)}
+              addToast={addToast}
+            />
+          )}
           <VerticalTabBar
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -844,7 +915,7 @@ export default function App() {
               <ObjectiveBoardView
                 session={session}
                 activeScenario={activeScenario}
-                onClose={() => setActiveTab('MAP')}
+                onClose={() => setActiveTab(getDefaultMapTab())}
               />
             )}
 
@@ -878,9 +949,10 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'MAP' && (
+            {(activeTab === 'MAP' || activeTab === 'TACTICAL') && (
               <MapView
                 session={session}
+                isTacticalView={activeTab === 'TACTICAL'}
                 activeScenario={activeScenario}
                 selectedAgent={selectedAgent}
                 selectedTeam={selectedTeam}
@@ -921,6 +993,7 @@ export default function App() {
                 setLocalCollectLogistics={setLocalCollectLogistics}
                 localBeginHandover={localBeginHandover}
                 setLocalBeginHandover={setLocalBeginHandover}
+                setReplayTurn={setReplayTurn}
               />
             )}
 
@@ -943,6 +1016,7 @@ export default function App() {
                 session={session}
                 localAssessments={localAssessments}
                 onSetClueAssessment={setClueAssessment}
+                onSetMultipleClueAssessments={setMultipleClueAssessments}
                 isAttacker={session ? session.playerRole === 'ATTACKER' : false}
               />
             )}
@@ -974,6 +1048,7 @@ export default function App() {
                 setShowGodMode={setShowGodMode}
                 session={session}
                 isAttacker={session ? session.playerRole === 'ATTACKER' : false}
+                onRevertTurn={handleRevertTurn}
               />
             )}
           </main>
@@ -1006,6 +1081,10 @@ export default function App() {
             setShowGameOver(false);
             handleExit();
             fetchScenarios();
+          }}
+          onViewReplay={() => {
+            setShowGameOver(false);
+            setShowGodMode(true);
           }}
         />
       )}

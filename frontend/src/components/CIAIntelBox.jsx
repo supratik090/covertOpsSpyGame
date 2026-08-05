@@ -227,38 +227,7 @@ export default function CIAIntelBox({
           </div>
         </div>
 
-        {/* Hostile Hotspots (Finance/Logistics) */}
-        {!isFriendly && nodeInfo && (
-          <div className="cia-section">
-            <h4 className="cia-sub-title"><Archive size={12} /> ENEMY HOTSPOTS</h4>
-            <div className="cia-grid-item">
-              <div className="cia-sub-item">
-                <span className="label font-mono"><DollarSign size={10} /> FINANCIAL RAILS:</span>
-                <div className="cia-tag-list mt-1">
-                  {session.uncoveredFinanceCities && session.uncoveredFinanceCities.includes(cityId) ? (
-                    nodeInfo.availableFinance && nodeInfo.availableFinance.map((f, i) => (
-                      <span key={i} className="cia-tag red font-mono">{f.replace('_', ' ')}</span>
-                    ))
-                  ) : (
-                    <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR FINANCE TO SCAN)</span>
-                  )}
-                </div>
-              </div>
-              <div className="cia-sub-item mt-2">
-                <span className="label font-mono"><Archive size={10} /> LOGISTICS SHIELD:</span>
-                <div className="cia-tag-list mt-1">
-                  {session.uncoveredLogisticsCities && session.uncoveredLogisticsCities.includes(cityId) ? (
-                    nodeInfo.availableLogistics && nodeInfo.availableLogistics.map((l, i) => (
-                      <span key={i} className="cia-tag amber font-mono">{l.replace('_', ' ')}</span>
-                    ))
-                  ) : (
-                    <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR LOGISTICS TO SCAN)</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Field Intelligence Force */}
         <div className="cia-section">
@@ -385,8 +354,8 @@ export default function CIAIntelBox({
 
                     {activeTeamId === t.id && !isMoved && (
                       <div className="cia-agent-controls animate-fade-in">
-                        {/* Combat Raid Actions */}
-                        {t.cooldownRemaining === 0 && (
+                        {/* Combat Raid Actions — only available when team is not on operation cooldown */}
+                        {t.cooldownRemaining === 0 ? (
                           <div>
                             <span className="cia-controls-label">COVERT ACTION PLANNER</span>
                             
@@ -415,17 +384,31 @@ export default function CIAIntelBox({
                                   })}
                                 </div>
 
-                                <button
-                                  onClick={() => {
-                                    const chosenCode = selectedRaidTarget[t.id] || (hostileSafehouses.length > 0 ? hostileSafehouses[0].safehouseCode : '');
-                                    onToggleCovertAction?.('RAID_SAFEHOUSE', cityId, t.id, chosenCode);
-                                  }}
-                                  className={`cia-task-btn font-mono w-full text-center py-2 ${isRaidPlanned ? 'active' : ''}`}
-                                  style={{ background: isRaidPlanned ? 'rgba(255, 59, 48, 0.15)' : '', borderColor: isRaidPlanned ? 'var(--red)' : '', color: isRaidPlanned ? 'var(--red)' : '' }}
-                                >
-                                  {isRaidPlanned ? 'CANCEL RAID ORDER' : 'LAUNCH COMBAT RAID'}
-                                  <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '8px' }}>${isHostile ? '200,000' : '100,000'}</span>
-                                </button>
+                                {/* Require explicit selection when multiple safehouses exist */}
+                                {(() => {
+                                  const hasExplicitSelection = !!selectedRaidTarget[t.id] || !!plannedRaidCode;
+                                  const requiresSelection = hostileSafehouses.length > 1 && !hasExplicitSelection;
+                                  const chosenCode = selectedRaidTarget[t.id] || (hostileSafehouses.length === 1 ? hostileSafehouses[0].safehouseCode : '');
+                                  if (requiresSelection) {
+                                    return (
+                                      <div
+                                        className="cia-task-btn font-mono w-full text-center py-2"
+                                        style={{ opacity: 0.45, cursor: 'not-allowed', border: '1px solid rgba(255,59,48,0.25)', color: 'var(--text-muted)' }}
+                                      >
+                                        ⚠ SELECT A TARGET SAFEHOUSE FIRST
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <button
+                                      onClick={() => onToggleCovertAction?.('RAID_SAFEHOUSE', cityId, t.id, chosenCode)}
+                                      className={`cia-task-btn font-mono w-full text-center py-2 ${isRaidPlanned ? 'active' : ''}`}
+                                      style={{ background: isRaidPlanned ? 'rgba(255, 59, 48, 0.15)' : '', borderColor: isRaidPlanned ? 'var(--red)' : '', color: isRaidPlanned ? 'var(--red)' : '' }}
+                                    >
+                                      {isRaidPlanned ? 'CANCEL RAID ORDER' : 'LAUNCH COMBAT RAID'}
+                                    </button>
+                                  );
+                                })()}
                               </div>
                             ) : null}
 
@@ -467,43 +450,34 @@ export default function CIAIntelBox({
                                })()}
                              </div>
                            </div>
+                        ) : (
+                          <div className="text-threat font-mono text-[8px] mb-2 blink">
+                            ⚠ OPERATION COOLDOWN ACTIVE — COVERT ACTIONS LOCKED ({t.cooldownRemaining} TURNS REMAINING)
+                          </div>
                         )}
 
-                        {/* Movement Options */}
-                        {t.cooldownRemaining === 0 && (
-                          <div className="mt-3">
-                            <span className="cia-controls-label">MOVE TO CONNECTING CENTER</span>
-                            <div className="cia-dispatch-list">
-                              {currentConnections.length === 0 ? (
-                                <span className="text-[8px] text-dim">NO CONNECTED NODES</span>
-                              ) : (
-                                currentConnections.map(connId => {
-                                  const connNode = nodesData.find(n => n.id === connId);
-                                  const connHostile = connNode?.territory === 'HOSTILE_TERRITORY';
-                                  const moveCost = connHostile ? 80000 : 40000;
-                                  return (
-                                    <button
-                                      key={connId}
-                                      onClick={() => {
-                                        onRelocateTacticalTeam?.(t.id, connId);
-                                        setActiveTeamId(null);
-                                      }}
-                                      className="cia-dispatch-btn font-mono"
-                                    >
-                                      <span style={{ flex: 1, textAlign: 'left' }}>{connId.toUpperCase()}</span>
-                                      <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '12px' }}>${moveCost.toLocaleString()}</span>
-                                    </button>
-                                  );
-                                }))}
-                              
-                            </div>
+                        {/* Movement Options — always available regardless of cooldown */}
+                        <div className="mt-3">
+                          <span className="cia-controls-label">MOVE TO CONNECTING CENTER</span>
+                          <div className="cia-dispatch-list">
+                            {currentConnections.length === 0 ? (
+                              <span className="text-[8px] text-dim">NO CONNECTED NODES</span>
+                            ) : (
+                              currentConnections.map(connId => (
+                                <button
+                                  key={connId}
+                                  onClick={() => {
+                                    onRelocateTacticalTeam?.(t.id, connId);
+                                    setActiveTeamId(null);
+                                  }}
+                                  className="cia-dispatch-btn font-mono"
+                                >
+                                  {connId.toUpperCase()}
+                                </button>
+                              ))
+                            )}
                           </div>
-                        )}
-                        {t.cooldownRemaining > 0 && (
-                          <div className="text-threat font-mono text-[8px] mt-1">
-                            COOLDOWN LOCKOUT ACTIVE
-                          </div>
-                        )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -556,14 +530,60 @@ export default function CIAIntelBox({
             <div className="text-dim font-mono text-[10px] py-1">NO SCANNER FEED INSTALLED</div>
           ) : (
             <div className="cia-tag-list">
-              {localTech.map((r, i) => (
-                <span key={i} className="cia-tag cyan font-mono">
-                  {r.type.replace('_', ' ')} (T-{r.cooldownRemaining})
-                </span>
-              ))}
+              {localTech.map((r, i) => {
+                let icon = '🛰️';
+                if (r.type === 'CCTV') icon = '📹';
+                else if (r.type === 'WIRE_TAP') icon = '🔍';
+                else if (r.type === 'PHONE_TAP') icon = '📞';
+                else if (r.type === 'SATELLITE') icon = '🛰️';
+                else if (r.type === 'FINANCE_MONITOR') icon = '💰';
+                else if (r.type === 'BIOMETRIC_SCAN') icon = '🔴';
+                else if (r.type === 'BORDER_GUARD') icon = '🚧';
+                else if (r.type === 'SIGNAL_JAMMER') icon = '📡';
+                
+                return (
+                  <span key={i} className="cia-tag cyan font-mono animate-fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span>{icon}</span>
+                    <span>{r.type.replace('_', ' ')} (T-{r.cooldownRemaining})</span>
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>
+
+        {/* Hostile Hotspots (Finance/Logistics) */}
+                {!isFriendly && nodeInfo && (
+                  <div className="cia-section">
+                    <h4 className="cia-sub-title"><Archive size={12} /> ENEMY HOTSPOTS</h4>
+                    <div className="cia-grid-item">
+                      <div className="cia-sub-item">
+                        <span className="label font-mono"><DollarSign size={10} /> FINANCIAL RAILS:</span>
+                        <div className="cia-tag-list mt-1">
+                          {session.uncoveredFinanceCities && session.uncoveredFinanceCities.includes(cityId) ? (
+                            nodeInfo.availableFinance && nodeInfo.availableFinance.map((f, i) => (
+                              <span key={i} className="cia-tag red font-mono">{f.replace('_', ' ')}</span>
+                            ))
+                          ) : (
+                            <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR FINANCE TO SCAN)</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="cia-sub-item mt-2">
+                        <span className="label font-mono"><Archive size={10} /> LOGISTICS SHIELD:</span>
+                        <div className="cia-tag-list mt-1">
+                          {session.uncoveredLogisticsCities && session.uncoveredLogisticsCities.includes(cityId) ? (
+                            nodeInfo.availableLogistics && nodeInfo.availableLogistics.map((l, i) => (
+                              <span key={i} className="cia-tag amber font-mono">{l.replace('_', ' ')}</span>
+                            ))
+                          ) : (
+                            <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR LOGISTICS TO SCAN)</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
       </div>
 

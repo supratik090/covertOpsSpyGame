@@ -10,13 +10,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 @Service
 public class ClueGenerationEngine {
 
     private final Random random = new Random();
 
-    // Standardized templates used for both True and False clues to prevent formatting-based distinction
     private final List<String> suspectLocationTemplates = Arrays.asList(
             "Surveillance report: Suspect %s was spotted near a local safehouse in %s.",
             "Local informant: Suspect %s was seen moving through the %s transit hub.",
@@ -37,14 +37,14 @@ public class ClueGenerationEngine {
     );
 
     private final List<String> neutralTemplates = Arrays.asList(
-            "Signal check: Communications and border lines in %s appear secure.",
-            "Area status: Standard administrative flow observed in %s server logs.",
-            "Routine patrol: No unusual activity detected in %s this cycle.",
-            "Communications monitoring: Traffic patterns normal across %s relay stations.",
-            "Satellite sweep: Thermal imaging shows standard civilian movement in %s.",
-            "Local asset report: Nothing of interest to report from %s.",
-            "Infrastructure check: Power and network grids stable in %s.",
-            "Unattended sensor array: No signature matches recorded in %s sector."
+            "Security Sweep: Municipal police database search in %s returned zero alerts for flagged foreign nationals.",
+            "Local Intelligence: Informants in %s bazaar report stable prices, standard commercial traffic, and no high-value targets.",
+            "SIGINT Scan: Cellular traffic logs in %s verify only localized SIM cards in active cell towers. No suspect signatures found.",
+            "Financial Audit: Local bank clearinghouses in %s report standard electronic ledger balances with no anomalous cross-border wires.",
+            "Public Order Report: CCTV logs in %s confirm routine transit and business operations with zero reports of suspicious groups.",
+            "Port Authority Log: Cargo manifests at %s transit yard were checked and verified. Custom agents report normal operation.",
+            "Routine Patrol: Border security patrol unit swept %s perimeter. Log reports no unauthorized movements.",
+            "Signals Monitoring: Regional telemetry checks normal across all %s relay towers."
     );
 
     public List<GameSession.Clue> generateTurnClues(GameSession session, ScenarioConfig config) {
@@ -52,52 +52,35 @@ public class ClueGenerationEngine {
         int currentTurn = session.getCurrentTurn();
         int tMinus6 = currentTurn - 6;
 
-        String actualAttacker = session.getActualAttacker() != null ? session.getActualAttacker() : "Suspect";
-        List<String> allSuspects = session.getAttackerNames() != null && !session.getAttackerNames().isEmpty()
-                ? session.getAttackerNames()
-                : Arrays.asList(actualAttacker);
-
         List<PlanStep> plan = session.getAiMasterPlan().getPrimaryPlan();
 
         // 1. T-6 Historical Footprint Disclosure (T >= 7)
-        if (currentTurn >= 7) {
+        if (currentTurn >= 7 && plan != null) {
             PlanStep historicStep = plan.stream()
                     .filter(s -> s.getTurn() == tMinus6)
                     .findFirst()
                     .orElse(null);
 
-            if (historicStep != null && historicStep.getSuspectLocation() != null) {
-                Node node = config.getNodes().stream()
-                        .filter(n -> n.getId().equals(historicStep.getSuspectLocation()))
-                        .findFirst()
-                        .orElse(null);
-                String cityName = node != null ? node.getName() : historicStep.getSuspectLocation();
-                turnClues.add(new GameSession.Clue(
-                        currentTurn,
-                        "HISTORICAL_INTEL",
-                        "CONFIRMED FOOTPRINT: Intel confirms the actual threat agent (" + actualAttacker + ") occupied a safehouse in " + cityName + " 6 turns ago (Turn " + tMinus6 + ").",
-                        historicStep.getSuspectLocation(),
-                        "HQ Archival Intelligence"
-                ));
-            }
-        }
-
-        // 1.1 Automatic Border Crossing Footprints (no agent required) from T-6
-        if (session.getSuspectPlans() != null && currentTurn >= 7) {
-            for (String suspectName : allSuspects) {
-                List<PlanStep> suspectPlan = session.getSuspectPlans().get(suspectName);
-                if (suspectPlan == null) continue;
-                PlanStep suspectHistoricStep = suspectPlan.stream().filter(s -> s.getTurn() == tMinus6).findFirst().orElse(null);
-                if (suspectHistoricStep != null && (suspectHistoricStep.isSmuggling() || "BORDER_CROSSING".equals(suspectHistoricStep.getPhase()))) {
-                    Node node = config.getNodes().stream().filter(n -> n.getId().equals(suspectHistoricStep.getSuspectLocation())).findFirst().orElse(null);
-                    String cityName = node != null ? node.getName() : suspectHistoricStep.getSuspectLocation();
-                    turnClues.add(new GameSession.Clue(
-                            currentTurn,
-                            "BORDER_CROSSING_FOOTPRINT",
-                            "INTELLIGENCE REPORT: Local border patrol reported unauthorized crossing activity near " + cityName + " border line 6 turns ago. Forensic analysis indicates suspect " + suspectName + " was present.",
-                            suspectHistoricStep.getSuspectLocation(),
-                            "Border Control"
-                    ));
+            if (historicStep != null && historicStep.getAttackerHistories() != null) {
+                for (PlanStep.AttackerHistory hist : historicStep.getAttackerHistories()) {
+                    boolean currentlyEliminated = session.getAiAttackers() != null && session.getAiAttackers().stream()
+                            .anyMatch(a -> a.getName().equals(hist.getName()) && a.isEliminated());
+                    if (!hist.isEliminated() && !currentlyEliminated) {
+                        Node node = config.getNodes().stream()
+                                .filter(n -> n.getId().equals(hist.getLocation()))
+                                .findFirst()
+                                .orElse(null);
+                        String cityName = node != null ? node.getName() : hist.getLocation();
+                        GameSession.Clue footprintClue = new GameSession.Clue(
+                                currentTurn,
+                                "HISTORICAL_INTEL",
+                                "CONFIRMED FOOTPRINT: Intel confirms the threat agent (" + hist.getName() + ") occupied a safehouse in " + cityName + " 6 turns ago (Turn " + tMinus6 + ").",
+                                hist.getLocation(),
+                                "HQ Archival Intelligence"
+                        );
+                        footprintClue.setTurnOccurred(tMinus6);
+                        turnClues.add(footprintClue);
+                    }
                 }
             }
         }
@@ -107,276 +90,225 @@ public class ClueGenerationEngine {
             String cityId = node.getId();
             String cityName = node.getName();
 
-            // Find agent stationed in this city using GATHER INTELLIGENCE (FIND_SUSPECT)
             GameSession.Agent agentInCity = session.getAgents().stream()
                     .filter(a -> a.getCurrentCity().equals(cityId) && "FIND_SUSPECT".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
                     .findFirst()
                     .orElse(null);
 
-            // ONLY generate city clues if an agent is present in the city and active on FIND_SUSPECT task
             if (agentInCity == null) {
                 continue;
             }
 
-            // Evaluate if actual events occurred in this city 6 turns ago (T-6)
-            PlanStep tMinus6Step = plan.stream()
-                    .filter(s -> s.getTurn() == tMinus6)
-                    .findFirst()
-                    .orElse(null);
+            // Check if any active attacker is/was present at turn T or T-1
+            GameSession.AIAttacker presentAttacker = getAttackerInCityAtTOrTMinus1(session, cityId);
 
-            boolean wasSuspectPresent = tMinus6Step != null && cityId.equals(tMinus6Step.getSuspectLocation());
-            boolean wasFinanceActive = tMinus6Step != null && cityId.equals(tMinus6Step.getFinanceCity());
-            boolean wasLogisticsActive = tMinus6Step != null && cityId.equals(tMinus6Step.getLogisticsCity());
+            if (presentAttacker != null) {
+                // Generate 3 true clues
+                List<String> cluesPool = new ArrayList<>();
+                cluesPool.add(String.format(suspectLocationTemplates.get(0), presentAttacker.getName(), cityName));
+                cluesPool.add(String.format(suspectLocationTemplates.get(1), presentAttacker.getName(), cityName));
+                cluesPool.add(String.format(suspectLocationTemplates.get(2 % suspectLocationTemplates.size()), presentAttacker.getName(), cityName));
+                cluesPool.add(String.format(suspectLocationTemplates.get(3 % suspectLocationTemplates.size()), presentAttacker.getName(), cityName));
+                
+                if (!presentAttacker.isFinanceCollected() && cityId.equals(presentAttacker.getRequestedFinanceCity())) {
+                    cluesPool.add(String.format(financeTemplates.get(0), presentAttacker.getName(), cityName));
+                    cluesPool.add(String.format(financeTemplates.get(1 % financeTemplates.size()), presentAttacker.getName(), cityName));
+                }
+                if (!presentAttacker.isLogisticsCollected() && cityId.equals(presentAttacker.getRequestedLogisticsCity())) {
+                    cluesPool.add(String.format(logisticsTemplates.get(0), presentAttacker.getName(), cityName));
+                    cluesPool.add(String.format(logisticsTemplates.get(1 % logisticsTemplates.size()), presentAttacker.getName(), cityName));
+                }
 
-            List<String> trueClues = new ArrayList<>();
-            if (wasSuspectPresent) {
-                trueClues.add(String.format(suspectLocationTemplates.get(0), actualAttacker, cityName));
-                trueClues.add(String.format(suspectLocationTemplates.get(1), actualAttacker, cityName));
-            } else if (wasFinanceActive) {
-                trueClues.add(String.format(financeTemplates.get(0), actualAttacker, cityName));
-                trueClues.add(String.format(financeTemplates.get(1), actualAttacker, cityName));
-            } else if (wasLogisticsActive) {
-                trueClues.add(String.format(logisticsTemplates.get(0), actualAttacker, cityName));
-                trueClues.add(String.format(logisticsTemplates.get(1), actualAttacker, cityName));
+                List<String> chosenClues = new ArrayList<>();
+                while (chosenClues.size() < 3 && !cluesPool.isEmpty()) {
+                    int idx = random.nextInt(cluesPool.size());
+                    chosenClues.add(cluesPool.remove(idx));
+                }
+                while (chosenClues.size() < 3) {
+                    chosenClues.add(String.format(suspectLocationTemplates.get(random.nextInt(suspectLocationTemplates.size())), presentAttacker.getName(), cityName));
+                }
+
+                for (String text : chosenClues) {
+                    turnClues.add(new GameSession.Clue(currentTurn, "CITY_" + cityId, text, cityId, agentInCity.getCodename()));
+                }
             } else {
-                trueClues.add(String.format(neutralTemplates.get(0), cityName));
-                trueClues.add(String.format(neutralTemplates.get(1), cityName));
-            }
-
-            // Select 2 True Clues
-            String true1 = trueClues.get(0);
-            String true2 = trueClues.get(1 % trueClues.size());
-
-            // Select 1 False Clue (noise or decoy) formatted in the exact same way
-            String falseClue = null;
-            
-            // Check if any decoy suspect was active in this city 6 turns ago (T-6)
-            List<String> potentialDecoyClues = new ArrayList<>();
-            for (String suspectName : allSuspects) {
-                if (!suspectName.equals(actualAttacker) && session.getSuspectPlans() != null && session.getSuspectPlans().containsKey(suspectName)) {
-                    List<PlanStep> decoyPlan = session.getSuspectPlans().get(suspectName);
-                    PlanStep decoyHistoricStep = decoyPlan.stream().filter(s -> s.getTurn() == tMinus6).findFirst().orElse(null);
-                    if (decoyHistoricStep != null) {
-                        if (cityId.equals(decoyHistoricStep.getSuspectLocation())) {
-                            potentialDecoyClues.add(String.format(suspectLocationTemplates.get(random.nextInt(suspectLocationTemplates.size())), suspectName, cityName));
-                        }
-                        if (cityId.equals(decoyHistoricStep.getFinanceCity())) {
-                            potentialDecoyClues.add(String.format(financeTemplates.get(random.nextInt(financeTemplates.size())), suspectName, cityName));
-                        }
-                        if (cityId.equals(decoyHistoricStep.getLogisticsCity())) {
-                            potentialDecoyClues.add(String.format(logisticsTemplates.get(random.nextInt(logisticsTemplates.size())), suspectName, cityName));
-                        }
-                    }
+                // Generate 3 realistic neutral clues
+                List<String> neutralPool = new ArrayList<>(neutralTemplates);
+                for (int i = 0; i < 3; i++) {
+                    int idx = random.nextInt(neutralPool.size());
+                    String text = String.format(neutralPool.remove(idx), cityName);
+                    turnClues.add(new GameSession.Clue(currentTurn, "CITY_" + cityId, text, cityId, agentInCity.getCodename()));
                 }
             }
-
-            if (!potentialDecoyClues.isEmpty()) {
-                falseClue = potentialDecoyClues.get(random.nextInt(potentialDecoyClues.size()));
-            } else {
-                String randomSuspect = allSuspects.get(random.nextInt(allSuspects.size()));
-                int roll = random.nextInt(4);
-                if (roll == 0) {
-                    falseClue = String.format(suspectLocationTemplates.get(random.nextInt(suspectLocationTemplates.size())), randomSuspect, cityName);
-                } else if (roll == 1) {
-                    falseClue = String.format(financeTemplates.get(random.nextInt(financeTemplates.size())), randomSuspect, cityName);
-                } else if (roll == 2) {
-                    falseClue = String.format(logisticsTemplates.get(random.nextInt(logisticsTemplates.size())), randomSuspect, cityName);
-                } else {
-                    falseClue = String.format(neutralTemplates.get(random.nextInt(neutralTemplates.size())), cityName);
-                }
-            }
-
-            // Add the 3 clues to this city's deck
-            turnClues.add(new GameSession.Clue(currentTurn, "CITY_" + cityId, true1, cityId, agentInCity.getCodename()));
-            turnClues.add(new GameSession.Clue(currentTurn, "CITY_" + cityId, true2, cityId, agentInCity.getCodename()));
-            turnClues.add(new GameSession.Clue(currentTurn, "CITY_" + cityId, falseClue, cityId, agentInCity.getCodename()));
         }
 
-        // 3. Inspect Finance and Inspect Logistics Confirmed Clues from T-6
-        PlanStep tMinus6Step = plan.stream()
-                .filter(s -> s.getTurn() == tMinus6)
-                .findFirst()
-                .orElse(null);
-
+        // 3. Inspect Finance and Inspect Logistics Confirmed Clues
         for (Node node : config.getNodes()) {
             String cityId = node.getId();
             String cityName = node.getName();
 
-            // Check if any agent is inspecting finance in this city
             GameSession.Agent financeAgent = session.getAgents().stream()
                     .filter(a -> a.getCurrentCity().equals(cityId) && "MONITOR_FINANCE".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
                     .findFirst()
                     .orElse(null);
 
-            if (financeAgent != null && tMinus6Step != null && cityId.equals(tMinus6Step.getFinanceCity())) {
-                GameSession.Clue financeClue = new GameSession.Clue(
-                        currentTurn,
-                        "CONFIRMED_FINANCE",
-                        "CONFIRMED FINANCE: Wire transactions for suspect " + actualAttacker + " confirmed at finance hub in " + cityName + " 6 turns ago.",
-                        cityId,
-                        financeAgent.getCodename()
-                );
-                financeClue.setAssessment("ACCEPT");
-                turnClues.add(financeClue);
+            if (financeAgent != null) {
+                GameSession.AIAttacker financeAtt = null;
+                if (session.getAiAttackers() != null) {
+                    financeAtt = session.getAiAttackers().stream()
+                            .filter(a -> !a.isEliminated() && cityId.equals(a.getRequestedFinanceCity()))
+                            .findFirst()
+                            .orElse(null);
+                }
+                if (financeAtt != null) {
+                    GameSession.Clue financeClue = new GameSession.Clue(
+                            currentTurn,
+                            "CONFIRMED_FINANCE",
+                            "CONFIRMED FINANCE: Wire transactions for suspect " + financeAtt.getName() + " confirmed at finance hub in " + cityName + ".",
+                            cityId,
+                            financeAgent.getCodename()
+                    );
+                    financeClue.setAssessment("ACCEPT");
+                    turnClues.add(financeClue);
+                }
             }
 
-            // Check if any agent is inspecting logistics in this city
             GameSession.Agent logisticsAgent = session.getAgents().stream()
                     .filter(a -> a.getCurrentCity().equals(cityId) && "MONITOR_LOGISTICS".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
                     .findFirst()
                     .orElse(null);
 
-            if (logisticsAgent != null && tMinus6Step != null && cityId.equals(tMinus6Step.getLogisticsCity())) {
-                GameSession.Clue logisticsClue = new GameSession.Clue(
-                        currentTurn,
-                        "CONFIRMED_LOGISTICS",
-                        "CONFIRMED LOGISTICS: Specialist gear shipments for suspect " + actualAttacker + " confirmed departed/customs in " + cityName + " 6 turns ago.",
-                        cityId,
-                        logisticsAgent.getCodename()
-                );
-                logisticsClue.setAssessment("ACCEPT");
-                turnClues.add(logisticsClue);
+            if (logisticsAgent != null) {
+                GameSession.AIAttacker logisticsAtt = null;
+                if (session.getAiAttackers() != null) {
+                    logisticsAtt = session.getAiAttackers().stream()
+                            .filter(a -> !a.isEliminated() && cityId.equals(a.getRequestedLogisticsCity()))
+                            .findFirst()
+                            .orElse(null);
+                }
+                if (logisticsAtt != null) {
+                    GameSession.Clue logisticsClue = new GameSession.Clue(
+                            currentTurn,
+                            "CONFIRMED_LOGISTICS",
+                            "CONFIRMED LOGISTICS: Specialist gear shipments for suspect " + logisticsAtt.getName() + " confirmed departed/customs in " + cityName + ".",
+                            cityId,
+                            logisticsAgent.getCodename()
+                    );
+                    logisticsClue.setAssessment("ACCEPT");
+                    turnClues.add(logisticsClue);
+                }
             }
         }
 
-        // 4. Tech Scan Clues (Finance, Phone, and CCTV footage data) - explicitly naming suspect (decoys included) from T-6
-        if (session.getEspionageResources() != null && session.getSuspectPlans() != null && currentTurn >= 7) {
+        // 4. Tech Scan Clues (Finance, Phone, and CCTV footage data)
+        if (session.getEspionageResources() != null && session.getAiAttackers() != null) {
             for (GameSession.ActiveResource resource : session.getEspionageResources()) {
                 String resCity = resource.getCityNode();
+                
+                GameSession.AIAttacker scannedAtt = null;
+                int occurredTurn = currentTurn;
 
-                for (String suspectName : allSuspects) {
-                    List<PlanStep> suspectPlan = session.getSuspectPlans().get(suspectName);
-                    if (suspectPlan == null) continue;
-                    PlanStep suspectHistoricStep = suspectPlan.stream().filter(s -> s.getTurn() == tMinus6).findFirst().orElse(null);
-                    if (suspectHistoricStep == null) continue;
+                // Check current turn T
+                if (session.getAiAttackers() != null) {
+                    for (GameSession.AIAttacker attacker : session.getAiAttackers()) {
+                        if (!attacker.isEliminated() && resCity.equals(attacker.getCurrentLocation())) {
+                            scannedAtt = attacker;
+                            occurredTurn = currentTurn;
+                            break;
+                        }
+                    }
+                }
 
-                    if ("CCTV".equals(resource.getType()) && resCity.equals(suspectHistoricStep.getSuspectLocation())) {
+                // If not found at T, check previous turn T-1
+                if (scannedAtt == null) {
+                    int prevTurn = currentTurn - 1;
+                    if (prevTurn >= 1 && session.getAiMasterPlan() != null && session.getAiMasterPlan().getPrimaryPlan() != null) {
+                        PlanStep prevStep = session.getAiMasterPlan().getPrimaryPlan().stream()
+                                .filter(s -> s.getTurn() == prevTurn)
+                                .findFirst()
+                                .orElse(null);
+                        if (prevStep != null && prevStep.getAttackerHistories() != null) {
+                            for (PlanStep.AttackerHistory hist : prevStep.getAttackerHistories()) {
+                                if (!hist.isEliminated() && resCity.equals(hist.getLocation())) {
+                                     scannedAtt = session.getAiAttackers().stream()
+                                             .filter(a -> a.getName().equals(hist.getName()) && !a.isEliminated())
+                                             .findFirst()
+                                             .orElse(null);
+                                     if (scannedAtt != null) {
+                                        occurredTurn = prevTurn;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (scannedAtt != null) {
+                    String suffix = occurredTurn < currentTurn ? " (Turn " + occurredTurn + ")" : "";
+                    if ("CCTV".equals(resource.getType())) {
                         GameSession.Clue cctvClue = new GameSession.Clue(
                                 currentTurn,
                                 "CCTV_SCAN",
-                                "CCTV Scan: Visual match confirmed for target " + suspectName + " in " + resCity + " traffic logs 6 turns ago.",
+                                "CCTV Scan: Visual match confirmed for target " + scannedAtt.getName() + " in " + resCity.toUpperCase() + " traffic logs" + suffix + ".",
                                 resCity,
                                 "Surveillance Tech"
                         );
+                        cctvClue.setTurnOccurred(occurredTurn);
                         cctvClue.setAssessment("ACCEPT");
                         turnClues.add(cctvClue);
                     }
 
-                    if ("WIRE_TAP".equals(resource.getType()) && resCity.equals(suspectHistoricStep.getFinanceCity())) {
-                        GameSession.Clue wireClue = new GameSession.Clue(
-                                currentTurn,
-                                "WIRE_TAP",
-                                "Wiretap Intercept: Encrypted account wires registered to " + suspectName + " in " + resCity + " servers 6 turns ago.",
-                                resCity,
-                                "Surveillance Tech"
-                        );
-                        wireClue.setAssessment("ACCEPT");
-                        turnClues.add(wireClue);
-                    }
-
-                    if ("PHONE_TAP".equals(resource.getType()) && resCity.equals(suspectHistoricStep.getSuspectLocation())) {
+                    if ("PHONE_TAP".equals(resource.getType())) {
                         GameSession.Clue phoneClue = new GameSession.Clue(
                                 currentTurn,
                                 "PHONE_TAP",
-                                "Phone Tap: Cellular intercept confirms " + suspectName + " registered to cell tower node in " + resCity + " 6 turns ago.",
+                                "Phone Tap: Cellular intercept confirms " + scannedAtt.getName() + " registered to cell tower node in " + resCity.toUpperCase() + suffix + ".",
                                 resCity,
                                 "Surveillance Tech"
                         );
+                        phoneClue.setTurnOccurred(occurredTurn);
                         phoneClue.setAssessment("ACCEPT");
                         turnClues.add(phoneClue);
                     }
 
-                    // 6. Satellite Scan: detect suspect presence and movement in/out of covered city
-                    if ("SATELLITE".equals(resource.getType()) && resCity.equals(suspectHistoricStep.getSuspectLocation())) {
+                    if ("SATELLITE".equals(resource.getType())) {
                         Node node = config.getNodes().stream().filter(n -> n.getId().equals(resCity)).findFirst().orElse(null);
                         String cityName = node != null ? node.getName() : resCity;
-                        PlanStep suspectTwoTurnsAgo = suspectPlan.stream().filter(s -> s.getTurn() == tMinus6 - 1).findFirst().orElse(null);
-                        String movementDetail;
-                        if (suspectTwoTurnsAgo != null && !resCity.equals(suspectTwoTurnsAgo.getSuspectLocation())) {
-                            Node prevNode = config.getNodes().stream().filter(n -> n.getId().equals(suspectTwoTurnsAgo.getSuspectLocation())).findFirst().orElse(null);
-                            String prevCityName = prevNode != null ? prevNode.getName() : suspectTwoTurnsAgo.getSuspectLocation();
-                            movementDetail = suspectName + " moved into " + cityName + " from " + prevCityName + " 6 turns ago.";
-                        } else {
-                            movementDetail = suspectName + " was tracked to " + cityName + " via satellite reconnaissance 6 turns ago.";
-                        }
+                        
                         GameSession.Clue satClue = new GameSession.Clue(
                                 currentTurn,
                                 "SATELLITE_SCAN",
-                                "Satellite Imagery Analysis: " + movementDetail,
+                                "Satellite Imagery Analysis: " + scannedAtt.getName() + " was tracked to " + cityName + " via satellite reconnaissance" + suffix + ".",
                                 resCity,
                                 "Satellite Recon"
                         );
+                        satClue.setTurnOccurred(occurredTurn);
                         satClue.setAssessment("ACCEPT");
                         turnClues.add(satClue);
+                    }
+                }
+                
+                if ("WIRE_TAP".equals(resource.getType())) {
+                    for (GameSession.AIAttacker att : session.getAiAttackers()) {
+                        if (!att.isEliminated() && !att.isFinanceCollected() && resCity.equals(att.getRequestedFinanceCity())) {
+                            GameSession.Clue wireClue = new GameSession.Clue(
+                                    currentTurn,
+                                    "WIRE_TAP",
+                                    "Wiretap Intercept: Encrypted account wires registered to " + att.getName() + " in " + resCity.toUpperCase() + " servers.",
+                                    resCity,
+                                    "Surveillance Tech"
+                            );
+                            wireClue.setAssessment("ACCEPT");
+                            turnClues.add(wireClue);
+                        }
                     }
                 }
             }
         }
 
-        // 4.1 Generate Decoy Clues matching standard scans if any decoys are active (Attacker mode)
-        if (session.getActiveDecoys() != null) {
-            for (GameSession.ActiveDecoy decoy : session.getActiveDecoys()) {
-                if ("CCTV".equals(decoy.getType())) {
-                    GameSession.Clue decoyClue = new GameSession.Clue(
-                            currentTurn,
-                            "CCTV_SCAN",
-                            "CCTV Scan: Visual match confirmed for target " + actualAttacker + " in " + decoy.getCityNode() + " traffic logs.",
-                            decoy.getCityNode(),
-                            "Surveillance Tech"
-                    );
-                    decoyClue.setAssessment("ACCEPT");
-                    turnClues.add(decoyClue);
-                } else if ("SATELLITE".equals(decoy.getType())) {
-                    Node node = config.getNodes().stream().filter(n -> n.getId().equals(decoy.getCityNode())).findFirst().orElse(null);
-                    String cityName = node != null ? node.getName() : decoy.getCityNode();
-                    GameSession.Clue decoyClue = new GameSession.Clue(
-                            currentTurn,
-                            "SATELLITE_SCAN",
-                            "Satellite Imagery Analysis: " + actualAttacker + " was tracked to " + cityName + " via satellite reconnaissance.",
-                            decoy.getCityNode(),
-                            "Satellite Recon"
-                    );
-                    decoyClue.setAssessment("ACCEPT");
-                    turnClues.add(decoyClue);
-                }
-            }
-        }
-
-        // 5. Trusted Intelligence Milestone Every 6 Turns (turn 6, 12, 18...)
-        if (currentTurn % 6 == 0) {
-            List<PlanStep> fullPlan = session.getAiMasterPlan().getPrimaryPlan();
-            if (fullPlan != null) {
-                boolean financePhaseDone = fullPlan.stream().anyMatch(s -> s.getTurn() <= currentTurn && s.getFinanceCity() != null && !s.getFinanceCity().isEmpty());
-                boolean logisticsPhaseDone = fullPlan.stream().anyMatch(s -> s.getTurn() <= currentTurn && s.getLogisticsCity() != null && !s.getLogisticsCity().isEmpty());
-                boolean crossingPhaseDone = fullPlan.stream().anyMatch(s -> s.getTurn() <= currentTurn && (s.isSmuggling() || "BORDER_CROSSING".equals(s.getPhase())));
-                boolean attackPhaseReached = fullPlan.stream().anyMatch(s -> s.getTurn() <= currentTurn && "ATTACK".equals(s.getPhase()));
-
-                StringBuilder milestoneBuilder = new StringBuilder();
-                milestoneBuilder.append("TRUSTED INTELLIGENCE BRIEF (Cycle ").append(currentTurn / 6).append("): Threat cell activity summary — ");
-                if (financePhaseDone) milestoneBuilder.append("Financing confirmed. ");
-                else milestoneBuilder.append("No financial trail detected yet. ");
-                if (logisticsPhaseDone) milestoneBuilder.append("Logistics network active. ");
-                else milestoneBuilder.append("Logistics sourcing not yet observed. ");
-                if (crossingPhaseDone) milestoneBuilder.append("Border crossing operations in progress. ");
-                if (attackPhaseReached) milestoneBuilder.append("ATTENTION — Attack phase reached, imminent threat. ");
-                if (!financePhaseDone && !logisticsPhaseDone && !crossingPhaseDone && !attackPhaseReached) {
-                    milestoneBuilder.append("Cell appears to be in early planning stages.");
-                }
-
-                GameSession.Clue milestoneClue = new GameSession.Clue(
-                        currentTurn,
-                        "TRUSTED_INTEL",
-                        milestoneBuilder.toString(),
-                        "HQ",
-                        "Strategic Analysis Unit"
-                );
-                milestoneClue.setAssessment("ACCEPT");
-                turnClues.add(milestoneClue);
-            }
-        }
-
-        // 6. Generate clues about combat team movements
-        if (session.getTacticalTeams() != null) {
+        // 5. Generate clues about combat team movements (Attacker only)
+        if (session.getTacticalTeams() != null && "ATTACKER".equals(session.getPlayerRole())) {
             for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
                 if (team.getCooldownRemaining() > 0) {
                     turnClues.add(new GameSession.Clue(
@@ -391,5 +323,39 @@ public class ClueGenerationEngine {
         }
 
         return turnClues;
+    }
+
+    private GameSession.AIAttacker getAttackerInCityAtTOrTMinus1(GameSession session, String cityId) {
+        if (session.getAiAttackers() == null) {
+            return null;
+        }
+        
+        // Check current turn T
+        for (GameSession.AIAttacker attacker : session.getAiAttackers()) {
+            if (!attacker.isEliminated() && cityId.equals(attacker.getCurrentLocation())) {
+                return attacker;
+            }
+        }
+        
+        // Check previous turn T-1
+        int prevTurn = session.getCurrentTurn() - 1;
+        if (prevTurn >= 1 && session.getAiMasterPlan() != null && session.getAiMasterPlan().getPrimaryPlan() != null) {
+            PlanStep prevStep = session.getAiMasterPlan().getPrimaryPlan().stream()
+                    .filter(s -> s.getTurn() == prevTurn)
+                    .findFirst()
+                    .orElse(null);
+            if (prevStep != null && prevStep.getAttackerHistories() != null) {
+                for (PlanStep.AttackerHistory hist : prevStep.getAttackerHistories()) {
+                    if (!hist.isEliminated() && cityId.equals(hist.getLocation())) {
+                        return session.getAiAttackers().stream()
+                                .filter(a -> a.getName().equals(hist.getName()) && !a.isEliminated())
+                                .findFirst()
+                                .orElse(null);
+                    }
+                }
+            }
+        }
+        
+        return null;
     }
 }

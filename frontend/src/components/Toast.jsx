@@ -13,7 +13,7 @@ const Toast = ({ toasts, removeToast }) => {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`toast toast.${toast.type}`}
+          className={`toast ${toast.type}`}
           onClick={(e) => {
             e.currentTarget.classList.add('toast-exit');
             setTimeout(() => removeToast(toast.id), 300);

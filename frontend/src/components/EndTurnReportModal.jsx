@@ -200,7 +200,7 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
                     {isAttacker ? (
                       <span>Your safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>{s.safehouseCode || '???'}</span> — evasion failed.</span>
                     ) : (
-                      <span>Hostile safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>{s.safehouseCode || '???'}</span>{s.origin !== 'DEFAULT' ? ' — cell eliminated.' : '. Raid to dismantle.'}</span>
+                      <span>Hostile safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>{s.safehouseCode || '???'}</span>. Raid to dismantle.</span>
                     )}
                   </li>
                 ))}

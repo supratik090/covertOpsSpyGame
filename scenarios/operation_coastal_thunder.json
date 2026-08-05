@@ -1,5 +1,7 @@
 {
   "scenarioId": "operation_thunder",
+  "attackingCountry": "Pakistan",
+  "defendingCountry": "India",
   "title": "Operation  Thunder",
   "briefing": "Intelligence reports indicate a rogue cell is plotting a high-yield BOMB_BLAST strike targeting Mumbai or New Delhi. Disrupt their logistics, intercept payments in Karachi or Muzaffarabad, and secure the border corridors before Turn 25.",
   "attackerBriefing": "Major high-yield BOMB_BLAST strike targeting Mumbai. Execute attack with precision. Evade active security patrols, acquire logistical and financial assets, infiltrate the border, and neutralize the target VIP.",
