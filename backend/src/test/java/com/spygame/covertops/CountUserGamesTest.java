@@ -12,7 +12,7 @@ import java.util.List;
 public class CountUserGamesTest {
     @Test
     public void testCount() throws Exception {
-        String uri = "mongodb+srv://supratikde090:ztDTTjn5upUs2gai@cluster0.hgdwptz.mongodb.net/covert_ops";
+        String uri = "mongo_URL";
         try (MongoClient client = MongoClients.create(uri)) {
             MongoDatabase db = client.getDatabase("covert_ops");
             MongoCollection<Document> col = db.getCollection("game_sessions");

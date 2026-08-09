@@ -73,6 +73,15 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
   const suspects = session?.attackerNames || [];
   const [selectedSuspect, setSelectedSuspect] = useState(suspects[0] || null);
 
+  const getInitials = (fullName) => {
+    if (!fullName) return '';
+    return fullName
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase();
+  };
+
   // All accepted clues (plus relocation footprint clues automatically)
   const acceptedClues = (session?.discoveredClues || [])
     .map((clue, index) => ({ clue, index }))
@@ -151,6 +160,7 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
         .suspect-selector-container {
           display: flex;
           gap: 10px;
+          margin-top: 12px;
           margin-bottom: 24px;
           flex-wrap: wrap;
         }
@@ -182,41 +192,73 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
           color: var(--text-dim);
           margin-top: 2px;
         }
-        @media (max-width: 600px) {
+        .desktop-name { display: inline; }
+        .mobile-name { display: none; }
+        .desktop-count { display: inline; }
+        .mobile-count { display: none; }
+        .dossier-header-container {
+          margin-bottom: 20px;
+          border-bottom: 1px solid rgba(0,240,255,0.15);
+          padding-bottom: 14px;
+        }
+        .dossier-header-title {
+          font-family: monospace;
+          font-size: 17px;
+          font-weight: 700;
+          color: var(--cyan);
+          letter-spacing: 0.06em;
+          margin: 0;
+        }
+        .dossier-header-subtitle {
+          font-size: 10px;
+          color: var(--text-dim);
+          font-family: monospace;
+          margin-top: 4px;
+          margin-bottom: 0;
+        }
+        @media (max-width: 768px) {
+          .dossier-header-container {
+            display: none;
+          }
+          .desktop-name { display: none; }
+          .mobile-name { display: inline; }
+          .desktop-count { display: none; }
+          .mobile-count { display: inline; }
           .suspect-selector-container {
             gap: 6px;
+            margin-top: 12px;
             margin-bottom: 16px;
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            padding-bottom: 6px;
+            flex-wrap: wrap !important;
+            overflow-x: visible !important;
+            padding-bottom: 0px;
           }
           .suspect-selector-btn {
-            gap: 6px;
-            padding: 5px 8px 5px 5px;
+            gap: 8px;
+            padding: 6px 10px 6px 6px;
             border-radius: 6px;
             flex-shrink: 0;
           }
           .suspect-selector-img-container {
-            width: 26px;
-            height: 26px;
+            width: 32px;
+            height: 32px;
             border-radius: 4px;
           }
           .suspect-selector-name {
-            font-size: 9px;
+            font-size: 10px;
           }
           .suspect-selector-count {
-            font-size: 7px;
+            font-size: 8px;
             margin-top: 1px;
           }
         }
       `}</style>
 
       {/* ── Header ── */}
-      <div style={{ marginBottom: '20px', borderBottom: '1px solid rgba(0,240,255,0.15)', paddingBottom: '14px' }}>
-        <h2 style={{ fontFamily: 'monospace', fontSize: '17px', fontWeight: 700, color: 'var(--cyan)', letterSpacing: '0.06em', margin: 0 }}>
+      <div className="dossier-header-container">
+        <h2 className="dossier-header-title">
           CASE FILE DOSSIER
         </h2>
-        <p style={{ fontSize: '10px', color: 'var(--text-dim)', fontFamily: 'monospace', marginTop: '4px' }}>
+        <p className="dossier-header-subtitle">
           Select a suspect to view their confirmed intelligence timeline
         </p>
       </div>
@@ -266,10 +308,12 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
                     textDecoration: currentAttackerObj?.eliminated ? 'line-through' : 'none',
                   }}
                 >
-                  {name.toUpperCase()} {currentAttackerObj?.eliminated && '(LOST)'}
+                  <span className="desktop-name">{name.toUpperCase()} {currentAttackerObj?.eliminated && '(LOST)'}</span>
+                  <span className="mobile-name">{getInitials(name)} {currentAttackerObj?.eliminated && '(L)'}</span>
                 </div>
                 <div className="suspect-selector-count">
-                  {count} clue{count !== 1 ? 's' : ''} confirmed
+                  <span className="desktop-count">{count} clue{count !== 1 ? 's' : ''} confirmed</span>
+                  <span className="mobile-count">{count} Clue{count !== 1 ? 's' : ''}</span>
                 </div>
               </div>
               {isSelected && (
