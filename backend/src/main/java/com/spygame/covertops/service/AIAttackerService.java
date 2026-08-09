@@ -62,14 +62,29 @@ public class AIAttackerService {
                 attacker.setCurrentLocation(loc);
             }
 
-            // 1. Heat Defense Check: construct safehouse if in a city and budget allows (max 4 safehouses per city node)
             long safehousesInLoc = session.getSafehouses().stream()
                     .filter(s -> s.getCityNode().equals(attacker.getCurrentLocation()) && "HOSTILE".equals(s.getOwnerFaction()))
                     .count();
             int budget = attacker.getBudget();
             int shCost = attacker.getCurrentLocation().toLowerCase().contains("mumbai") || attacker.getCurrentLocation().toLowerCase().contains("delhi") ? 150000 : 50000;
-            
-            boolean shouldBuild = (safehousesInLoc == 0) || (safehousesInLoc < 4 && budget >= shCost * 2 && random.nextDouble() < 0.40);
+
+            Node currentLocNode = pathfinder.getNode(attacker.getCurrentLocation(), config);
+            boolean isCurrentInHome = currentLocNode != null && "HOME_TERRITORY".equals(currentLocNode.getTerritory());
+            boolean capReached = false;
+            if (isCurrentInHome) {
+                long homeShs = session.getSafehouses().stream()
+                        .filter(s -> "HOSTILE".equals(s.getOwnerFaction()))
+                        .filter(s -> {
+                            Node n = pathfinder.getNode(s.getCityNode(), config);
+                            return n != null && "HOME_TERRITORY".equals(n.getTerritory());
+                        })
+                        .count();
+                if (homeShs >= 6) {
+                    capReached = true;
+                }
+            }
+
+            boolean shouldBuild = !capReached && ((safehousesInLoc == 0) || (safehousesInLoc < 4 && budget >= shCost * 2 && random.nextDouble() < 0.40));
             
             if (shouldBuild && budget >= shCost) {
                 boolean buildSecure = budget >= shCost * 2 && random.nextBoolean();
@@ -192,7 +207,9 @@ public class AIAttackerService {
                         .count();
                 if (crossingCount < 2) {
                     attacker.setPermissionToCrossBorderApproved(true);
-                    attacker.setState("Border crossed");
+                    // FIX 2: Use internal 'Clearance approved' state — 'Border crossed' is set only
+                    // after the attacker physically steps from HOSTILE into HOME territory below.
+                    attacker.setState("Clearance approved");
                     
                     GameSession.Clue crossingClue = new GameSession.Clue(
                             currentTurn + 1,
@@ -206,7 +223,7 @@ public class AIAttackerService {
                 }
             }
 
-            if ("Border crossed".equals(attacker.getState())) {
+            if ("Border crossed".equals(attacker.getState()) || "Clearance approved".equals(attacker.getState())) {
                 if (loc.equalsIgnoreCase(config.getTargetCity())) {
                     attacker.setState("Permission to engage");
 
@@ -264,16 +281,94 @@ public class AIAttackerService {
             // 6. Dynamic Routing: Calculate next target node
             boolean hasSafehouseInLocCurrent = session.getSafehouses().stream()
                     .anyMatch(s -> s.getCityNode().equals(attacker.getCurrentLocation()) && "HOSTILE".equals(s.getOwnerFaction()));
-            
+
             if (hasSafehouseInLocCurrent) {
                 String targetDestination = determineNextTargetDestination(attacker, config);
                 String nextStepNode = pathfinder.findOptimalPathNode(attacker, session, loc, targetDestination, config, turnsRemaining);
-                
+
                 if (nextStepNode != null && !nextStepNode.equals(loc)) {
                     Node startNode = pathfinder.getNode(loc, config);
                     Node endNode = pathfinder.getNode(nextStepNode, config);
                     boolean isBorderCrossing = startNode != null && endNode != null && !startNode.getTerritory().equals(endNode.getTerritory());
-                    
+
+                    // FIX 1: Destination safehouse gate for HOME_TERRITORY.
+                    // When moving into friendly territory the attacker must have a HOSTILE safehouse
+                    // at the destination city — just like in hostile territory. If none exists,
+                    // skip movement this turn and instead try to build one at the current city
+                    // so the attacker can move there next turn.
+                    if (endNode != null && "HOME_TERRITORY".equals(endNode.getTerritory())) {
+                        final String currentLoc = loc; // final alias for lambda capture
+                        final String destLoc = nextStepNode; // final alias for lambda capture
+                        boolean hasSafehouseAtDest = session.getSafehouses().stream()
+                                .anyMatch(s -> s.getCityNode().equals(destLoc) && "HOSTILE".equals(s.getOwnerFaction()));
+                        if (!hasSafehouseAtDest) {
+                            boolean hasClearance = "Clearance approved".equals(attacker.getState()) 
+                                    || "Permission to cross border".equals(attacker.getState()) 
+                                    || "Border crossed".equals(attacker.getState());
+                            if (hasClearance) {
+                                long homeShs = session.getSafehouses().stream()
+                                        .filter(s -> "HOSTILE".equals(s.getOwnerFaction()))
+                                        .filter(s -> {
+                                            Node n = pathfinder.getNode(s.getCityNode(), config);
+                                            return n != null && "HOME_TERRITORY".equals(n.getTerritory());
+                                        })
+                                        .count();
+                                if (homeShs >= 6) {
+                                    continue; // Cap reached, cannot build safehouse in HOME_TERRITORY
+                                }
+
+                                int targetShCost = destLoc.toLowerCase().contains("mumbai") || destLoc.toLowerCase().contains("delhi") ? 150000 : 50000;
+                                boolean buildSecure = attacker.getBudget() >= targetShCost * 2 && random.nextBoolean();
+                                int finalCost = buildSecure ? targetShCost * 2 : targetShCost;
+                                if (attacker.getBudget() >= finalCost) {
+                                    attacker.setBudget(attacker.getBudget() - finalCost);
+                                    String shCode = String.valueOf(100 + random.nextInt(900));
+                                    GameSession.Safehouse newSh = new GameSession.Safehouse(destLoc, "HOSTILE", "PURCHASED", !buildSecure, shCode);
+                                    newSh.setAttackerName(attacker.getName());
+                                    newSh.setSecure(buildSecure);
+                                    session.getSafehouses().add(newSh);
+                                    
+                                    if (buildSecure) {
+                                        if (session.getSecureSafehouseTurns() == null) {
+                                            session.setSecureSafehouseTurns(new java.util.HashMap<>());
+                                        }
+                                        session.getSecureSafehouseTurns().put(destLoc, 5);
+                                    }
+
+                                    session.getDiscoveredClues().add(new GameSession.Clue(
+                                            currentTurn,
+                                            "SAFEHOUSE_ESTABLISHED",
+                                            "AI ATTACKER: " + (buildSecure ? "High-security secure safehouse" : "Safehouse") + " [REDACTED] established in friendly city [REDACTED]."
+                                    ));
+                                } else {
+                                    continue;
+                                }
+                            } else {
+                                // Build a safehouse at current location first (pre-staging for next turn)
+                                long shsHere = session.getSafehouses().stream()
+                                        .filter(s -> s.getCityNode().equals(currentLoc) && "HOSTILE".equals(s.getOwnerFaction()))
+                                        .count();
+                                int stagingCost = 50000;
+                                if (shsHere < 4 && attacker.getBudget() >= stagingCost) {
+                                    attacker.setBudget(attacker.getBudget() - stagingCost);
+                                    String stageCode = String.valueOf(100 + random.nextInt(900));
+                                    GameSession.Safehouse stageSh = new GameSession.Safehouse(currentLoc, "HOSTILE", "PURCHASED", true, stageCode);
+                                    stageSh.setAttackerName(attacker.getName());
+                                    session.getSafehouses().add(stageSh);
+                                    Node locNode = pathfinder.getNode(currentLoc, config);
+                                    String locTerrType = locNode != null && "HOSTILE_TERRITORY".equals(locNode.getTerritory()) ? "hostile" : "friendly";
+                                    session.getDiscoveredClues().add(new GameSession.Clue(
+                                            currentTurn,
+                                            "SAFEHOUSE_ESTABLISHED",
+                                            "AI ATTACKER: Safehouse [REDACTED] established in " + locTerrType + " city [REDACTED] (staging for advance)."
+                                    ));
+                                }
+                                // Cannot move — no safehouse at destination yet and no clearance
+                                continue;
+                            }
+                        }
+                    }
+
                     boolean isBorderGuardActive = false;
                     boolean isTransitCheckpointActive = false;
                     if (session.getEspionageResources() != null) {
@@ -282,19 +377,19 @@ public class AIAttackerService {
                         isTransitCheckpointActive = session.getEspionageResources().stream()
                                 .anyMatch(r -> "TRANSIT_CHECKPOINT".equals(r.getType()) && r.getCityNode().equals(nextStepNode));
                     }
-                    
+
                     if (isBorderCrossing) {
                         if (isTransitCheckpointActive) {
                             if (random.nextDouble() < 0.80) {
                                 String cityName = endNode.getName();
                                 attacker.setEliminated(true);
                                 attacker.setState("Lost");
-                                
+
                                 boolean allEliminated = session.getAiAttackers().stream().allMatch(GameSession.AIAttacker::isEliminated);
                                 if (allEliminated) {
                                     session.setStatus("SUCCESS");
                                 }
-                                
+
                                 addLaggedClue(
                                         session,
                                         clueTurn,
@@ -321,12 +416,14 @@ public class AIAttackerService {
                             }
                         }
                     }
-                    
+
                     attacker.setCurrentLocation(nextStepNode);
                     Node targetNode = pathfinder.getNode(nextStepNode, config);
                     String displayCityName = targetNode != null ? targetNode.getName() : nextStepNode.toUpperCase();
-                    
+
                     if (isBorderCrossing) {
+                        // FIX 2: Set 'Border crossed' state only NOW — after physical territory crossing
+                        attacker.setState("Border crossed");
                         session.getDiscoveredClues().add(new GameSession.Clue(
                                 currentTurn,
                                 "BORDER_CROSSING",
@@ -336,13 +433,34 @@ public class AIAttackerService {
                         ));
                     }
 
+                    // FIX 3: Build a HOSTILE safehouse at the NEW location immediately after moving
+                    // so the destination gate is satisfied for the next turn's move.
+                    long shsAtNewLoc = session.getSafehouses().stream()
+                            .filter(s -> s.getCityNode().equals(nextStepNode) && "HOSTILE".equals(s.getOwnerFaction()))
+                            .count();
+                    int newLocShCost = 50000;
+                    if (shsAtNewLoc == 0 && attacker.getBudget() >= newLocShCost) {
+                        attacker.setBudget(attacker.getBudget() - newLocShCost);
+                        String newCode = String.valueOf(100 + random.nextInt(900));
+                        GameSession.Safehouse newSh = new GameSession.Safehouse(nextStepNode, "HOSTILE", "PURCHASED", true, newCode);
+                        newSh.setAttackerName(attacker.getName());
+                        session.getSafehouses().add(newSh);
+                        Node newNode = pathfinder.getNode(nextStepNode, config);
+                        String newTerrType = newNode != null && "HOSTILE_TERRITORY".equals(newNode.getTerritory()) ? "hostile" : "friendly";
+                        session.getDiscoveredClues().add(new GameSession.Clue(
+                                currentTurn,
+                                "SAFEHOUSE_ESTABLISHED",
+                                "AI ATTACKER: Safehouse [REDACTED] established in " + newTerrType + " city [REDACTED]."
+                        ));
+                    }
+
                     addLaggedClue(
-                             session,
-                             clueTurn,
-                             currentTurn,
-                             "SUSPECT_RELOCATION",
-                             "Operative " + attacker.getName() + " relocated to " + displayCityName + " (Turn " + currentTurn + ")",
-                             nextStepNode
+                            session,
+                            clueTurn,
+                            currentTurn,
+                            "SUSPECT_RELOCATION",
+                            "Operative " + attacker.getName() + " relocated to " + displayCityName + " (Turn " + currentTurn + ")",
+                            nextStepNode
                     );
 
                     if ("Exfiltration".equals(attacker.getState())) {

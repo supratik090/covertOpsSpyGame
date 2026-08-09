@@ -173,6 +173,14 @@ public class GameSessionLobbyService {
                         .map(sMap -> new GameSession.Safehouse(sMap.get("cityId"), "DEFENDER", "DEFAULT", true))
                         .collect(Collectors.toList());
             }
+            if (!isDefender && session.getSuspectLocation() != null) {
+                String spawnLoc = session.getSuspectLocation();
+                boolean exists = safehousesList.stream()
+                        .anyMatch(s -> s.getCityNode().equals(spawnLoc) && "HOSTILE".equals(s.getOwnerFaction()));
+                if (!exists) {
+                    safehousesList.add(new GameSession.Safehouse(spawnLoc, "HOSTILE", "DEFAULT", false));
+                }
+            }
             // DEFENDER session: no pre-placed safehouses — player places them in deployment screen
 
             List<PlanStep> allSteps = new ArrayList<>();
@@ -308,6 +316,14 @@ public class GameSessionLobbyService {
                 safehousesList = config.getStartingDefenderSafehouses().stream()
                         .map(sMap -> new GameSession.Safehouse(sMap.get("cityId"), "DEFENDER", "DEFAULT", true))
                         .collect(Collectors.toList());
+            }
+            if (!isDefenderMP && session.getSuspectLocation() != null) {
+                String startLoc = session.getSuspectLocation();
+                boolean exists = safehousesList.stream()
+                        .anyMatch(s -> s.getCityNode().equals(startLoc) && "HOSTILE".equals(s.getOwnerFaction()));
+                if (!exists) {
+                    safehousesList.add(new GameSession.Safehouse(startLoc, "HOSTILE", "DEFAULT", false));
+                }
             }
 
             List<PlanStep> allSteps = new ArrayList<>();

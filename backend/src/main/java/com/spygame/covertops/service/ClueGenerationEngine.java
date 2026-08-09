@@ -91,7 +91,7 @@ public class ClueGenerationEngine {
             String cityName = node.getName();
 
             GameSession.Agent agentInCity = session.getAgents().stream()
-                    .filter(a -> a.getCurrentCity().equals(cityId) && "FIND_SUSPECT".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
+                    .filter(a -> a.getCurrentCity() != null && a.getCurrentCity().equals(cityId) && "FIND_SUSPECT".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
                     .findFirst()
                     .orElse(null);
 
@@ -148,7 +148,7 @@ public class ClueGenerationEngine {
             String cityName = node.getName();
 
             GameSession.Agent financeAgent = session.getAgents().stream()
-                    .filter(a -> a.getCurrentCity().equals(cityId) && "MONITOR_FINANCE".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
+                    .filter(a -> a.getCurrentCity() != null && a.getCurrentCity().equals(cityId) && "MONITOR_FINANCE".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
                     .findFirst()
                     .orElse(null);
 
@@ -174,7 +174,7 @@ public class ClueGenerationEngine {
             }
 
             GameSession.Agent logisticsAgent = session.getAgents().stream()
-                    .filter(a -> a.getCurrentCity().equals(cityId) && "MONITOR_LOGISTICS".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
+                    .filter(a -> a.getCurrentCity() != null && a.getCurrentCity().equals(cityId) && "MONITOR_LOGISTICS".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
                     .findFirst()
                     .orElse(null);
 

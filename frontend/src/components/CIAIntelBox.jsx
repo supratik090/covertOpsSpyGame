@@ -205,7 +205,9 @@ export default function CIAIntelBox({
                   <span className="text-dim font-mono">NONE OPERATIONAL</span>
                 ) : (
                   friendlySafehouses.map((s, idx) => (
-                    <span key={idx} className="cia-tag cyan font-mono">#{s.safehouseCode}</span>
+                    <span key={idx} className={`cia-tag font-mono ${s.secure ? 'cyan' : 'cyan'}`}>
+                      {s.secure ? `🛡️ $#${s.safehouseCode}` : `#${s.safehouseCode}`}
+                    </span>
                   ))
                 )}
               </div>
@@ -218,7 +220,7 @@ export default function CIAIntelBox({
                 ) : (
                   hostileSafehouses.map((s, idx) => (
                     <span key={idx} className="cia-tag red font-mono">
-                      #{s.safehouseCode} (EXPOSED)
+                      {s.secure ? `🛡️ $#${s.safehouseCode}` : `#${s.safehouseCode}`} (EXPOSED)
                     </span>
                   ))
                 )}

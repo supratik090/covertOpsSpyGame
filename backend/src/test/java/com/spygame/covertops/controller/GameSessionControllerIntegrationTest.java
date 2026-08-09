@@ -110,6 +110,26 @@ public class GameSessionControllerIntegrationTest {
         GameSession fetchedSession = objectMapper.readValue(getJson, GameSession.class);
         assertEquals(session.getId(), fetchedSession.getId());
 
+        // Deploy assets first
+        java.util.Map<String, Object> deployPayload = new java.util.HashMap<>();
+        deployPayload.put("safehouses", java.util.Arrays.asList("srinagar"));
+        java.util.Map<String, String> agentDeployments = new java.util.HashMap<>();
+        agentDeployments.put("1", "new_delhi");
+        agentDeployments.put("2", "chandigarh");
+        agentDeployments.put("3", "new_delhi");
+        agentDeployments.put("4", "chandigarh");
+        deployPayload.put("agentDeployments", agentDeployments);
+        java.util.Map<String, String> teamDeployments = new java.util.HashMap<>();
+        teamDeployments.put("1", "new_delhi");
+        teamDeployments.put("2", "chandigarh");
+        deployPayload.put("teamDeployments", teamDeployments);
+
+        mockMvc.perform(post("/api/game/" + session.getId() + "/deploy")
+                        .content(objectMapper.writeValueAsString(deployPayload))
+                        .header("Authorization", "Bearer test_token")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
         // 3. Post End-Turn payload via POST /api/game/{id}/end-turn
         EndTurnRequest request = new EndTurnRequest();
         request.setCovertActions(new ArrayList<>());

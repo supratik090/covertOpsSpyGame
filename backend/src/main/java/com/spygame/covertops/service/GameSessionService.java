@@ -209,25 +209,43 @@ public class GameSessionService {
 
         int currentTurn = session.getCurrentTurn();
 
-        // 1. Apply Defender actions (agent/team relocations, builds, tasks, resources)
-        long defActionsStart = System.currentTimeMillis();
-        session = defenderActionService.applyDefenderActions(session, request, config);
-        log.info("[TIMING] applyDefenderActions took: {} ms", System.currentTimeMillis() - defActionsStart);
+        // 1. Apply actions and execute AI turn based on player role
+        if (!session.isMultiplayer()) {
+            if ("ATTACKER".equals(session.getPlayerRole())) {
+                // Apply Human Attacker actions
+                long attActionsStart = System.currentTimeMillis();
+                session = playerAttackerService.applyAttackerActions(session, request, config);
+                log.info("[TIMING] applyAttackerActions took: {} ms", System.currentTimeMillis() - attActionsStart);
+
+                // Execute AI Defender turn
+                long aiStart = System.currentTimeMillis();
+                session = aiDefenderService.executeTurn(session, config);
+                log.info("[TIMING] aiDefenderService.executeTurn took: {} ms", System.currentTimeMillis() - aiStart);
+            } else {
+                // Apply Human Defender actions
+                long defActionsStart = System.currentTimeMillis();
+                session = defenderActionService.applyDefenderActions(session, request, config);
+                log.info("[TIMING] applyDefenderActions took: {} ms", System.currentTimeMillis() - defActionsStart);
+
+                // Execute AI Attacker turn
+                long aiStart = System.currentTimeMillis();
+                session = aiService.executeTurn(session, config);
+                log.info("[TIMING] aiService.executeTurn took: {} ms", System.currentTimeMillis() - aiStart);
+            }
+        } else {
+            // Multiplayer Mode: Only apply Defender actions here since Attacker actions 
+            // were already applied and saved during the Attacker's active sub-turn.
+            long defActionsStart = System.currentTimeMillis();
+            session = defenderActionService.applyDefenderActions(session, request, config);
+            log.info("[TIMING] applyDefenderActions (Multiplayer) took: {} ms", System.currentTimeMillis() - defActionsStart);
+        }
 
         List<Map<String, Object>> covertActions = request.getCovertActions();
         if (covertActions == null) {
             covertActions = new ArrayList<>();
         }
 
-        // 2. Fetch or execute AI plan step dynamically for current turn
-        long aiStart = System.currentTimeMillis();
-        PlanStep currentStep = null;
-        if (!session.isMultiplayer() && "DEFENDER".equals(session.getPlayerRole())) {
-            session = aiService.executeTurn(session, config);
-        }
-        log.info("[TIMING] aiService.executeTurn took: {} ms", System.currentTimeMillis() - aiStart);
-
-        currentStep = new PlanStep();
+        PlanStep currentStep = new PlanStep();
         currentStep.setTurn(currentTurn);
         currentStep.setSuspectLocation(session.getSuspectLocation() != null ? session.getSuspectLocation() : "karachi");
         currentStep.setPhase(session.getActiveAttackerPhase() != null ? session.getActiveAttackerPhase() : "TRAIL_BREAKING");

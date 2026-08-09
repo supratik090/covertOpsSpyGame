@@ -199,6 +199,7 @@ public class CombatResolutionService {
                             escaped.setState("Initial decoy");
                         }
                         session.setSuspectEscapedBefore(true);
+                        session.setCurrentTurn(Math.max(1, session.getCurrentTurn() - 10));
 
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "TACTICAL_FORCE",
                                 "COMBAT ENGAGEMENT: " + typeStr + " [" + targetCode + "] in " + city.toUpperCase() + " was destroyed by " + (team != null ? team.getName() : "Vanguard Unit") + ". Threat agents (" + kNames + ") were neutralized, but (" + eNames + ") escaped the dragnet and entered a 5-turn lockout. Any finance or logistics collected has been lost and must be re-sourced."));
@@ -222,6 +223,7 @@ public class CombatResolutionService {
                             escaped.setState("Initial decoy");
                         }
                         session.setSuspectEscapedBefore(true);
+                        session.setCurrentTurn(Math.max(1, session.getCurrentTurn() - 10));
 
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "TACTICAL_FORCE",
                                 "COMBAT ENGAGEMENT: " + (team != null ? team.getName() : "Delta Team") + " raided the " + typeStr + " [" + targetCode + "] in " + city.toUpperCase() + ". Safehouse was dismantled. All suspects (" + eNames + ") escaped and are now in a 5-turn lockout. Any finance or logistics collected has been forfeited and must be re-sourced."));
@@ -245,7 +247,9 @@ public class CombatResolutionService {
                         int currentCityHeat = session.getCityHeat().getOrDefault(city, 0);
                         session.getCityHeat().put(city, Math.min(100, currentCityHeat + 40));
                     }
-                    return repository.save(session);
+                    // FIX 4: Do NOT return early here — allow the loop to continue so a second
+                    // RAID_SAFEHOUSE from a second combat team in the same turn is also processed.
+                    continue;
                 } else {
                     // Intel breach / empty safehouse or wrong code
                     if (isCorrectCode) {
@@ -261,7 +265,8 @@ public class CombatResolutionService {
                     }
                     int currentCityHeat = session.getCityHeat().getOrDefault(city, 0);
                     session.getCityHeat().put(city, Math.min(100, currentCityHeat + 20));
-                    return repository.save(session);
+                    // FIX 4: Do NOT return early here — allow loop to continue for subsequent raids.
+                    continue;
                 }
             }
 
@@ -354,7 +359,6 @@ public class CombatResolutionService {
             }
 
             if (isMatch) {
-                session.setMaxTurns(session.getMaxTurns() + 3);
                 session.setSuspectEscapedBefore(true);
                 session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER",
                         "Alert! Operative " + session.getActualAttacker() + " path disrupted in " + city.toUpperCase() + ". Sourcing delayed. Timeline extended by 3 turns."));

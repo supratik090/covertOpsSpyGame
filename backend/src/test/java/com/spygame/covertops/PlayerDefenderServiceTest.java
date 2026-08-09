@@ -77,7 +77,7 @@ public class PlayerDefenderServiceTest {
 
     @Test
     public void testRelocateAgentWithSafehouse() {
-        GameSession session = sessionService.createSession("operation_silent_edge");
+        GameSession session = createTestSession();
         
         // Find Agent 1 (Marcus Vance - starts in New Delhi)
         GameSession.Agent analyst = session.getAgents().stream()
@@ -107,7 +107,7 @@ public class PlayerDefenderServiceTest {
 
     @Test
     public void testRelocateAgentWithoutSafehouseThrowsException() {
-        GameSession session = sessionService.createSession("operation_silent_edge");
+        GameSession session = createTestSession();
         
         // Srinagar does NOT have a starting friendly safehouse built in the list
         // Attempting to move there must throw an Exception
@@ -118,7 +118,7 @@ public class PlayerDefenderServiceTest {
 
     @Test
     public void testBuildSafehouse() {
-        GameSession session = sessionService.createSession("operation_silent_edge");
+        GameSession session = createTestSession();
         int startingBudget = session.getBudget();
 
         // Build safehouse in Srinagar (Home territory, cost $20,000)
@@ -137,7 +137,7 @@ public class PlayerDefenderServiceTest {
     @Test
     public void testRelocationToSafehouseBuiltInSameTurn() {
         // Create session
-        GameSession session = sessionService.createSession("operation_silent_edge");
+        GameSession session = createTestSession();
         UUID sessionId = UUID.randomUUID();
         session.setId(sessionId);
         when(repository.findById(sessionId)).thenReturn(java.util.Optional.of(session));
@@ -184,7 +184,7 @@ public class PlayerDefenderServiceTest {
     @Test
     public void testSecuritySweepCoolingPeriod() {
         // Create session
-        GameSession session = sessionService.createSession("operation_silent_edge");
+        GameSession session = createTestSession();
         UUID sessionId = UUID.randomUUID();
         session.setId(sessionId);
         when(repository.findById(sessionId)).thenReturn(java.util.Optional.of(session));
@@ -254,5 +254,39 @@ public class PlayerDefenderServiceTest {
 
         assertEquals("COMPROMISED", sessionAttacker.getStatus());
         assertTrue(sessionAttacker.getDiscoveredClues().stream().anyMatch(c -> c.getClueText().contains("MISSION FAILURE")));
+    }
+
+    private GameSession createTestSession() {
+        GameSession session = sessionService.createSession("operation_silent_edge");
+        session.setDeploymentPending(false);
+        if (config.getAgents() != null) {
+            for (GameSession.Agent agent : session.getAgents()) {
+                java.util.Map<String, Object> aMap = config.getAgents().stream()
+                        .filter(m -> ((Integer) m.get("id")).equals(agent.getId()))
+                        .findFirst()
+                        .orElse(null);
+                if (aMap != null) {
+                    agent.setCurrentCity((String) aMap.get("startingCity"));
+                }
+            }
+        }
+        if (config.getTacticalTeams() != null) {
+            for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
+                java.util.Map<String, Object> tMap = config.getTacticalTeams().stream()
+                        .filter(m -> ((Integer) m.get("id")).equals(team.getId()))
+                        .findFirst()
+                        .orElse(null);
+                if (tMap != null) {
+                    team.setCurrentCity((String) tMap.get("startingCity"));
+                }
+            }
+        }
+        if (config.getStartingDefenderSafehouses() != null) {
+            java.util.List<GameSession.Safehouse> safehousesList = config.getStartingDefenderSafehouses().stream()
+                    .map(sMap -> new GameSession.Safehouse(sMap.get("cityId"), "DEFENDER", "DEFAULT", true))
+                    .collect(java.util.stream.Collectors.toList());
+            session.setSafehouses(safehousesList);
+        }
+        return session;
     }
 }
