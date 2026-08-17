@@ -31,7 +31,8 @@ public class DeploymentService {
     public GameSession commitDeployment(UUID sessionId,
                                         List<String> safehouses,
                                         Map<String, String> agentDeployments,
-                                        Map<String, String> teamDeployments) {
+                                        Map<String, String> teamDeployments,
+                                        String droneBaseCity) {
         GameSession session = repository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 
@@ -75,6 +76,27 @@ public class DeploymentService {
                 if (cityId != null && !cityId.isBlank()) {
                     team.setCurrentCity(cityId);
                 }
+            }
+        }
+
+        // 3.5. Place drone base and drones
+        String finalDroneBaseCity = droneBaseCity;
+        if (finalDroneBaseCity == null || finalDroneBaseCity.isBlank()) {
+            if (safehouses != null && !safehouses.isEmpty()) {
+                finalDroneBaseCity = safehouses.get(0);
+            } else {
+                finalDroneBaseCity = "amritsar"; // fallback
+            }
+        }
+
+        List<String> droneBases = new ArrayList<>();
+        droneBases.add(finalDroneBaseCity);
+        session.setDroneBases(droneBases);
+
+        if (session.getDrones() != null) {
+            for (GameSession.Drone drone : session.getDrones()) {
+                drone.setCurrentCity(finalDroneBaseCity);
+                drone.setStatus("ACTIVE");
             }
         }
 

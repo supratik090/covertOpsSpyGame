@@ -26,6 +26,43 @@ public class DefenderActionService {
             }
         }
 
+        // 1.5. Apply drone base builds
+        if (request.getDroneBasesToBuild() != null) {
+            for (String cityNode : request.getDroneBasesToBuild()) {
+                try {
+                    session = defenderService.buildDroneBase(session, cityNode, config);
+                } catch (Exception e) {
+                    System.err.println("Failed drone base build: " + e.getMessage());
+                }
+            }
+        }
+
+        // 1.6. Apply drone deployments
+        if (request.getDroneDeployments() != null) {
+            for (Map.Entry<Integer, String> entry : request.getDroneDeployments().entrySet()) {
+                try {
+                    int droneId = entry.getKey();
+                    String targetBase = entry.getValue();
+                    GameSession.Drone drone = session.getDrones().stream()
+                            .filter(d -> d.getId() == droneId)
+                            .findFirst()
+                            .orElse(null);
+                    if (drone != null) {
+                        if (session.getDroneBases() != null && session.getDroneBases().contains(targetBase)) {
+                            drone.setCurrentCity(targetBase);
+                            if ("RESERVE".equals(drone.getStatus())) {
+                                drone.setStatus("ACTIVE");
+                            }
+                        } else {
+                            System.err.println("Cannot deploy drone " + droneId + " to " + targetBase + ": No drone base exists.");
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed drone deployment: " + e.getMessage());
+                }
+            }
+        }
+
         // 2. Apply tech deployments next
         if (request.getTechDeployments() != null) {
             for (Map<String, String> deploy : request.getTechDeployments()) {

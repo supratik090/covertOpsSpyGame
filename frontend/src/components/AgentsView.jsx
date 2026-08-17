@@ -42,6 +42,7 @@ export default function AgentsView({
               agent={agent}
               isSelected={selectedAgent?.id === agent.id}
               onNavigate={() => handleAgentSelect(agent)}
+              safehouses={session.safehouses || []}
             />
           ))}
           {lostAgentsList.map(agent => (
@@ -49,6 +50,7 @@ export default function AgentsView({
               key={`lost-${agent.id}`}
               agent={agent}
               isLost
+              safehouses={session.safehouses || []}
             />
           ))}
         </div>

@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Compass, Cpu, Radio, Archive, DollarSign, Activity, Users } from 'lucide-react';
 
+const formatK = (amt) => {
+  if (typeof amt !== 'number') return amt;
+  if (amt >= 1000) {
+    const k = amt / 1000;
+    return `$${Number.isInteger(k) ? k : k.toFixed(0)}K`;
+  }
+  return `$${amt}`;
+};
+
 export default function AttackerIntelBox({
   cityId,
   session,
@@ -140,11 +149,11 @@ export default function AttackerIntelBox({
           style={stdBtnStyle}
           disabled={isWaiting}
         >
-          <span>ESTABLISH HIDE-OUT</span>
+          <span style={{ whiteSpace: 'nowrap' }}>ESTABLISH HIDE-OUT</span>
           {isBuildQueued ? (
-            <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.2)] text-emerald-400">&#10003;&nbsp; ADDED</span>
+            <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.2)] text-emerald-400" style={{ whiteSpace: 'nowrap' }}>&#10003;&nbsp; ADDED</span>
           ) : (
-            <span className="text-muted text-[9.5px]">${standardCost.toLocaleString()}</span>
+            <span className="text-muted text-[9.5px]" style={{ whiteSpace: 'nowrap', fontWeight: 'bold' }}>{formatK(standardCost)}</span>
           )}
         </button>
         <button
@@ -153,11 +162,11 @@ export default function AttackerIntelBox({
           style={secBtnStyle}
           disabled={isWaiting}
         >
-          <span>ESTABLISH SECURE SAFEHOUSE</span>
+          <span style={{ whiteSpace: 'nowrap' }}>ESTABLISH SECURE SAFEHOUSE</span>
           {isSecureBuildQueued ? (
-            <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.2)] text-emerald-400">&#10003;&nbsp; ADDED</span>
+            <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.2)] text-emerald-400" style={{ whiteSpace: 'nowrap' }}>&#10003;&nbsp; ADDED</span>
           ) : (
-            <span className="text-muted text-[9.5px]">${secureCost.toLocaleString()}</span>
+            <span className="text-muted text-[9.5px]" style={{ whiteSpace: 'nowrap', fontWeight: 'bold' }}>{formatK(secureCost)}</span>
           )}
         </button>
       </div>
@@ -215,7 +224,7 @@ export default function AttackerIntelBox({
         {disabled ? (
           <span className="text-[8.5px] text-dim" style={{ textTransform: 'uppercase' }}>REQUIRES OPERATIVE</span>
         ) : (
-          <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '12px' }}>${cost.toLocaleString()}</span>
+          <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '12px', whiteSpace: 'nowrap' }}>{formatK(cost)}</span>
         )}
       </button>
     );

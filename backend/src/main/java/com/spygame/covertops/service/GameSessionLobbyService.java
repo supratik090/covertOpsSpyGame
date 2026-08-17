@@ -205,6 +205,26 @@ public class GameSessionLobbyService {
             }
             session.setSafehouses(safehousesList);
 
+            // Initialize drones
+            String defaultHomeCity = "amritsar"; // fallback
+            if (config.getNodes() != null) {
+                for (com.spygame.covertops.model.Node node : config.getNodes()) {
+                    if ("HOME_TERRITORY".equals(node.getTerritory())) {
+                        defaultHomeCity = node.getId();
+                        break;
+                    }
+                }
+            }
+
+            List<GameSession.Drone> initialDrones = new ArrayList<>();
+            initialDrones.add(new GameSession.Drone(1, defaultHomeCity, "ACTIVE"));
+            initialDrones.add(new GameSession.Drone(2, defaultHomeCity, "ACTIVE"));
+            session.setDrones(initialDrones);
+
+            List<String> initialDroneBases = new ArrayList<>();
+            initialDroneBases.add(defaultHomeCity);
+            session.setDroneBases(initialDroneBases);
+
             // Mark deployment pending for DEFENDER — player must place assets before turn 1
             if (isDefender) {
                 session.setDeploymentPending(true);
@@ -347,6 +367,26 @@ public class GameSessionLobbyService {
                 }
             }
             session.setSafehouses(safehousesList);
+
+            // Initialize drones
+            String defaultHomeCityMP = "amritsar"; // fallback
+            if (config.getNodes() != null) {
+                for (com.spygame.covertops.model.Node node : config.getNodes()) {
+                    if ("HOME_TERRITORY".equals(node.getTerritory())) {
+                        defaultHomeCityMP = node.getId();
+                        break;
+                    }
+                }
+            }
+
+            List<GameSession.Drone> initialDronesMP = new ArrayList<>();
+            initialDronesMP.add(new GameSession.Drone(1, defaultHomeCityMP, "ACTIVE"));
+            initialDronesMP.add(new GameSession.Drone(2, defaultHomeCityMP, "ACTIVE"));
+            session.setDrones(initialDronesMP);
+
+            List<String> initialDroneBasesMP = new ArrayList<>();
+            initialDroneBasesMP.add(defaultHomeCityMP);
+            session.setDroneBases(initialDroneBasesMP);
 
             // Mark deployment pending for DEFENDER — player must place assets before turn 1
             if (isDefenderMP) {

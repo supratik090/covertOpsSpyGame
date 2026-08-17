@@ -289,4 +289,38 @@ public class PlayerDefenderServiceTest {
         }
         return session;
     }
+
+    @Test
+    public void testDroneAviationSystem() {
+        GameSession session = createTestSession();
+        
+        assertNotNull(session.getDrones());
+        assertEquals(2, session.getDrones().size());
+        assertEquals("ACTIVE", session.getDrones().get(0).getStatus());
+
+        // amritsar already has a drone base by default, so we can check that or build a new one
+        if (!session.getDroneBases().contains("amritsar")) {
+            session = defenderService.buildDroneBase(session, "amritsar", config);
+        }
+        assertTrue(session.getDroneBases().contains("amritsar"));
+
+        GameSession.Drone drone = session.getDrones().get(0);
+        drone.setCurrentCity("amritsar");
+        drone.setStatus("ACTIVE");
+        
+        com.spygame.covertops.model.EndTurnRequest request = new com.spygame.covertops.model.EndTurnRequest();
+        java.util.List<java.util.Map<String, Object>> ops = new java.util.ArrayList<>();
+        java.util.Map<String, Object> op = new java.util.HashMap<>();
+        op.put("droneId", drone.getId());
+        op.put("actionType", "RECON");
+        op.put("targetCity", "jammu");
+        ops.add(op);
+        request.setDroneOperations(ops);
+
+        Mockito.when(repository.findById(session.getId())).thenReturn(java.util.Optional.of(session));
+        session = sessionService.processEndTurn(session.getId(), request);
+
+        assertTrue(session.getDiscoveredClues().stream()
+                .anyMatch(c -> c.getClueText().contains("RECON") && c.getClueText().toUpperCase().contains("JAMMU")));
+    }
 }

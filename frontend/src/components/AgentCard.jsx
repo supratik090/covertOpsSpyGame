@@ -4,7 +4,8 @@ export default function AgentCard({
   agent,
   isSelected,
   onNavigate,
-  isLost
+  isLost,
+  safehouses = []
 }) {
   const skills = [
     { id: 'humint', label: 'HUMINT', value: agent.skills.humint },
@@ -12,6 +13,13 @@ export default function AgentCard({
     { id: 'infiltration', label: 'INFILTRATION', value: agent.skills.infiltration },
     { id: 'survivability', label: 'SURVIVABILITY', value: agent.skills.survivability }
   ];
+
+  const agentSafehouse = safehouses.find(s => 
+    s.cityNode?.toLowerCase() === agent.currentCity?.toLowerCase() && s.ownerFaction === 'DEFENDER'
+  );
+  const safehouseText = agentSafehouse 
+    ? `${agentSafehouse.secure ? 'Secure' : 'Standard'} Safehouse (#${agentSafehouse.safehouseCode})`
+    : 'None';
 
   return (
     <div
@@ -29,6 +37,9 @@ export default function AgentCard({
         {!isLost && agent.cooldownRemaining > 0 && (
           <span className="cooldown-badge">COOLDOWN: {agent.cooldownRemaining}</span>
         )}
+      </div>
+      <div className="card-meta" style={{ marginTop: '-4px', marginBottom: '8px' }}>
+        <span>SAFEHOUSE: {safehouseText.toUpperCase()}</span>
       </div>
 
       {!isLost && (

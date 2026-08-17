@@ -2201,5 +2201,93 @@ body {
   }
 }
 
+/* Fumes and Smoke Animation for Safehouse Attacks */
+.smoke-fumes-container {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 5;
+  width: 20px;
+  height: 30px;
+}
 
+.fume-particle {
+  position: absolute;
+  bottom: 0;
+  width: 6px;
+  height: 6px;
+  background: rgba(180, 180, 180, 0.65);
+  border-radius: 50%;
+  filter: blur(1.5px);
+  animation: fume-rise 2.5s infinite ease-out;
+}
 
+.fume-particle:nth-child(2) {
+  animation-delay: 0.8s;
+  background: rgba(140, 140, 140, 0.5);
+  width: 9px;
+  height: 9px;
+  filter: blur(2px);
+}
+
+.fume-particle:nth-child(3) {
+  animation-delay: 1.6s;
+  background: rgba(220, 220, 220, 0.4);
+  width: 5px;
+  height: 5px;
+  filter: blur(1px);
+}
+
+@keyframes fume-rise {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  60% {
+    transform: translateY(-15px) translateX(var(--wind, 3px)) scale(1.5);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translateY(-32px) translateX(var(--wind-far, 8px)) scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* =============================================================================
+   DRONE PATROL ORBIT & ROTOR SPIN ANIMATIONS
+   ============================================================================= */
+@keyframes drone-circular-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes drone-rotor-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.drone-orbit-spinner {
+  animation: drone-circular-orbit 5s linear infinite;
+  transform-origin: center center;
+}
+
+.drone-rotor-spin {
+  animation: drone-rotor-spin 2.5s linear infinite;
+  display: inline-block;
+}

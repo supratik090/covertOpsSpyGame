@@ -214,7 +214,7 @@ public class PlayerAttackerService {
         String code = String.valueOf(100 + rand.nextInt(900));
         
         // Save safehouse in list (owner is HOSTILE as seen by the Defender, i.e. the Attacker)
-        GameSession.Safehouse sh = new GameSession.Safehouse(cityNode, "HOSTILE", "PURCHASED", !isSecure, code);
+        GameSession.Safehouse sh = new GameSession.Safehouse(cityNode, "HOSTILE", "PURCHASED", false, code);
         sh.setSecure(isSecure);
         session.getSafehouses().add(sh);
 

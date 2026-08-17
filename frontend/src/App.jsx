@@ -51,6 +51,9 @@ export default function App() {
   const [localAgentTasks, setLocalAgentTasks] = useState({});      // agentId -> task
   const [localSafehouseBuilds, setLocalSafehouseBuilds] = useState([]); // [cityNode, ...]
   const [localTechDeploys, setLocalTechDeploys] = useState([]);     // [{type, cityNode}, ...]
+  const [localDroneBaseBuilds, setLocalDroneBaseBuilds] = useState([]); // [cityNode, ...]
+  const [localDroneDeployments, setLocalDroneDeployments] = useState({}); // droneId -> target base city
+  const [localDroneOperations, setLocalDroneOperations] = useState([]); // [{droneId, actionType, targetCity}, ...]
 
   // Attacker-specific buffered turn actions
   const [localSuspectMove, setLocalSuspectMove] = useState('');
@@ -74,6 +77,7 @@ export default function App() {
   const [replayTurn, setReplayTurn] = useState(1);
   const [showGodMode, setShowGodMode] = useState(false);
   const [endTurnReport, setEndTurnReport] = useState(null);
+  const [pendingEndTurnReport, setPendingEndTurnReport] = useState(null);
   const [showGameOver, setShowGameOver] = useState(false);
 
   // Lost agents accumulated across turns (render in AgentsView instead of disappearing)
@@ -680,6 +684,9 @@ export default function App() {
         agentTasks: localAgentTasks,
         safehouseBuilds: localSafehouseBuilds,
         techDeployments: localTechDeploys,
+        droneBasesToBuild: localDroneBaseBuilds,
+        droneDeployments: localDroneDeployments,
+        droneOperations: localDroneOperations,
         
         // Attacker specific fields
         suspectMoveTarget: localSuspectMove,
@@ -728,7 +735,7 @@ export default function App() {
       const sweepAlertClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_ALERT');
       const sweepLossClues = newClues.filter(c => c.source === 'SECURITY_SWEEP_LOSS');
       const combatOpClues = newClues.filter(c =>
-        c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT' || c.source === 'COMMAND_CENTER'
+        c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT' || c.source === 'COMMAND_CENTER' || c.source === 'SAFEHOUSE_ATTACK' || c.source === 'DRONE_RECON' || c.source === 'DRONE_ATTACK'
       );
       // Permission related clues (border permission, attack request/approval)
       const permissionClues = newClues.filter(c =>
@@ -738,7 +745,7 @@ export default function App() {
       const strikeClues = newClues.filter(c => c.source === 'STRIKE_EXECUTED');
 
       if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0 || handoverClues.length > 0 || strikeClues.length > 0) {
-        setEndTurnReport({
+        setPendingEndTurnReport({
           newFinance,
           newLogistics,
           newSafehouses,
@@ -763,6 +770,9 @@ export default function App() {
       setLocalAgentTasks({});
       setLocalSafehouseBuilds([]);
       setLocalTechDeploys([]);
+      setLocalDroneBaseBuilds([]);
+      setLocalDroneDeployments({});
+      setLocalDroneOperations([]);
 
       // Reset Attacker states
       setLocalSuspectMove('');
@@ -837,6 +847,14 @@ export default function App() {
     setSelectedTeam(null);
     setSelectedCityNode(null);
     fetchSessions();
+  };
+
+  // Called by MapView when all post-turn animations finish playing
+  const handleMapAnimationComplete = () => {
+    if (pendingEndTurnReport) {
+      setEndTurnReport(pendingEndTurnReport);
+      setPendingEndTurnReport(null);
+    }
   };
 
   const onLoginSuccess = () => {
@@ -980,6 +998,12 @@ export default function App() {
                 onToggleCovertAction={toggleCovertAction}
                 localTechDeploys={localTechDeploys}
                 localSafehouseBuilds={localSafehouseBuilds}
+                localDroneBaseBuilds={localDroneBaseBuilds}
+                setLocalDroneBaseBuilds={setLocalDroneBaseBuilds}
+                localDroneDeployments={localDroneDeployments}
+                setLocalDroneDeployments={setLocalDroneDeployments}
+                localDroneOperations={localDroneOperations}
+                setLocalDroneOperations={setLocalDroneOperations}
                 addToast={addToast}
                 isWaiting={isWaiting}
                 localSuspectMove={localSuspectMove}
@@ -1001,6 +1025,7 @@ export default function App() {
                 localBeginHandover={localBeginHandover}
                 setLocalBeginHandover={setLocalBeginHandover}
                 setReplayTurn={setReplayTurn}
+                onAnimationComplete={handleMapAnimationComplete}
               />
             )}
 
@@ -1056,6 +1081,7 @@ export default function App() {
                 session={session}
                 isAttacker={session ? session.playerRole === 'ATTACKER' : false}
                 onRevertTurn={handleRevertTurn}
+                nodes={activeScenario?.nodes || []}
               />
             )}
           </main>

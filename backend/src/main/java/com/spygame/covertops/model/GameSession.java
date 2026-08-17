@@ -30,6 +30,8 @@ public class GameSession {
     private List<Clue> discoveredClues = new ArrayList<>();
     private List<String> uncoveredFinanceCities = new ArrayList<>();
     private List<String> uncoveredLogisticsCities = new ArrayList<>();
+    private List<String> droneBases = new ArrayList<>();
+    private List<Drone> drones = new ArrayList<>();
     private List<String> hostilePatrolCities = new ArrayList<>();
     private List<String> surprisePatrolCities = new ArrayList<>();
     private java.util.Map<String, List<PlanStep>> suspectPlans = new java.util.HashMap<>();
@@ -550,5 +552,39 @@ public class GameSession {
 
         public int getHealingTurnsRemaining() { return healingTurnsRemaining; }
         public void setHealingTurnsRemaining(int healingTurnsRemaining) { this.healingTurnsRemaining = healingTurnsRemaining; }
+    }
+
+    public List<String> getDroneBases() { return droneBases; }
+    public void setDroneBases(List<String> droneBases) { this.droneBases = droneBases; }
+
+    public List<Drone> getDrones() { return drones; }
+    public void setDrones(List<Drone> drones) { this.drones = drones; }
+
+    public static class Drone {
+        private int id;
+        private String currentCity; // base city, or null/empty if in reserve
+        private String status; // ACTIVE, SHOT_DOWN, RESERVE
+        private int cooldown;
+
+        public Drone() {}
+
+        public Drone(int id, String currentCity, String status) {
+            this.id = id;
+            this.currentCity = currentCity;
+            this.status = status;
+            this.cooldown = 0;
+        }
+
+        public int getId() { return id; }
+        public void setId(int id) { this.id = id; }
+
+        public String getCurrentCity() { return currentCity; }
+        public void setCurrentCity(String currentCity) { this.currentCity = currentCity; }
+
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+
+        public int getCooldown() { return cooldown; }
+        public void setCooldown(int cooldown) { this.cooldown = cooldown; }
     }
 }

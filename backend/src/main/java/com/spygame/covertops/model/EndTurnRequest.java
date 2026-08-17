@@ -93,4 +93,17 @@ public class EndTurnRequest {
 
     public boolean isBeginHandover() { return beginHandover; }
     public void setBeginHandover(boolean beginHandover) { this.beginHandover = beginHandover; }
+
+    private List<String> droneBasesToBuild;
+    private Map<Integer, String> droneDeployments;
+    private List<Map<String, Object>> droneOperations;
+
+    public List<String> getDroneBasesToBuild() { return droneBasesToBuild; }
+    public void setDroneBasesToBuild(List<String> droneBasesToBuild) { this.droneBasesToBuild = droneBasesToBuild; }
+
+    public Map<Integer, String> getDroneDeployments() { return droneDeployments; }
+    public void setDroneDeployments(Map<Integer, String> droneDeployments) { this.droneDeployments = droneDeployments; }
+
+    public List<Map<String, Object>> getDroneOperations() { return droneOperations; }
+    public void setDroneOperations(List<Map<String, Object>> droneOperations) { this.droneOperations = droneOperations; }
 }

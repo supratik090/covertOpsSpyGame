@@ -6,6 +6,7 @@ import CIAIntelBox from './CIAIntelBox';
 import AttackerIntelBox from './AttackerIntelBox';
 import GodModeOverlay, { GodModePanel } from './GodModeOverlay';
 import { Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { safehouseIconHtml, safehouseAnimSvgGroup, SafehouseIcon, droneBaseIconHtml, droneIconHtml, DroneBaseIcon, DroneIcon } from './GameSymbols';
 
 export default function MapView({
   session,
@@ -50,7 +51,14 @@ export default function MapView({
   setLocalCollectLogistics,
   localBeginHandover,
   setLocalBeginHandover,
-  setReplayTurn
+  setReplayTurn,
+  localDroneBaseBuilds = [],
+  setLocalDroneBaseBuilds,
+  localDroneDeployments = {},
+  setLocalDroneDeployments,
+  localDroneOperations = [],
+  setLocalDroneOperations,
+  onAnimationComplete
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -118,7 +126,7 @@ export default function MapView({
   const struckCities = React.useMemo(() => {
     if (!session || !session.discoveredClues) return [];
     return session.discoveredClues
-      .filter(c => c.source === 'STRIKE_EXECUTED' && c.cityName)
+      .filter(c => (c.source === 'STRIKE_EXECUTED' || c.source === 'SAFEHOUSE_ATTACK') && c.cityName)
       .map(c => c.cityName.toLowerCase());
   }, [session]);
 
@@ -272,8 +280,11 @@ export default function MapView({
   const [expiredTechScans, setExpiredTechScans] = useState([]);
   const [confettiCities, setConfettiCities] = useState([]);
   const [lostCities, setLostCities] = useState([]);
+  const [destroyedFriendlyCities, setDestroyedFriendlyCities] = useState([]);
+  const [destroyedEnemyCities, setDestroyedEnemyCities] = useState([]);
   const [isShaking, setIsShaking] = useState(false);
   const [mapVersion, setMapVersion] = useState(0);
+  const onAnimCompleteRef = useRef(onAnimationComplete);
 
   // Force re-render overlay coordinates when Leaflet map moves/zooms
   useEffect(() => {
@@ -286,6 +297,9 @@ export default function MapView({
       map.off('move zoom viewreset drag', handleMapUpdate);
     };
   }, [session, isTacticalView]);
+
+  // Keep animation-complete callback ref in sync to avoid stale closures
+  useEffect(() => { onAnimCompleteRef.current = onAnimationComplete; }, [onAnimationComplete]);
 
   // Initialize Map
   useEffect(() => {
@@ -400,7 +414,11 @@ export default function MapView({
       const hasExposedSecureSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered && s.secure);
       
       const isSecureSafehouse = hasHostileSafehouse && session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.secure);
-      const showSafehouseIcon = isAttacker ? (hasHostileSafehouse ? (isSecureSafehouse ? '🛡️' : '🏠') : '') : (hasDefenderSafehouse ? '🏠' : '');
+      // Build safehouse icon HTML string for Leaflet markers (SVG from GameSymbols)
+      const shColor = isAttacker ? (isSecureSafehouse ? '#ffcc00' : '#ff3b30') : '#00f0ff';
+      const showSafehouseIconHtml = isAttacker
+        ? (hasHostileSafehouse ? safehouseIconHtml({ size: 13, color: shColor, secure: isSecureSafehouse, hostile: true }) : '')
+        : (hasDefenderSafehouse ? safehouseIconHtml({ size: 13, color: '#00f0ff' }) : '');
       const showExposedNormalIcon = !isAttacker && hasExposedNormalSH;
       const showExposedSecureIcon = !isAttacker && hasExposedSecureSH;
       
@@ -477,21 +495,51 @@ export default function MapView({
 
        const isStruck = struckCities.includes(cityId.toLowerCase());
 
+       const hasDroneBase = !isAttacker && (session.droneBases?.includes(cityId) || localDroneBaseBuilds.includes(cityId));
+       const cityDronesCount = (isAttacker && !showGodMode) ? 0 : (session.drones || []).filter(d => {
+         const plannedBase = localDroneDeployments[d.id];
+         if (plannedBase) return plannedBase === cityId;
+         return d.currentCity === cityId;
+       }).length;
+
+       const droneBaseHtml = hasDroneBase ? `
+         <div class="city-marker-drone-base" title="Drone Base" style="position: absolute; bottom: -18px; left: -18px; background: rgba(0, 240, 255, 0.15); border: 1px solid #00f0ff; border-radius: 4px; padding: 2px; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; z-index: 10;">
+           ${droneBaseIconHtml({ size: 12, color: '#00f0ff' })}
+         </div>
+       ` : '';
+
+       const droneHtml = cityDronesCount > 0 ? `
+         <div class="drone-orbit-container" style="position: absolute; top: 50%; left: 50%; width: 46px; height: 46px; margin-top: -23px; margin-left: -23px; pointer-events: none; animation: drone-circular-orbit 4.5s linear infinite; z-index: 12;">
+           <div style="position: absolute; inset: 0; border: 1px dashed rgba(16, 185, 129, 0.45); border-radius: 50%;"></div>
+           <div style="position: absolute; top: -6px; left: 16px; width: 14px; height: 14px;">
+             ${droneIconHtml({ size: 14, color: '#10b981' })}
+           </div>
+         </div>
+         <div class="city-marker-drone-count" title="${cityDronesCount} Drone(s) stationed" style="position: absolute; bottom: -18px; right: -18px; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 4px; padding: 2px; height: 16px; display: flex; align-items: center; justify-content: center; gap: 2px; padding-left: 3px; padding-right: 4px; z-index: 10;">
+           ${droneIconHtml({ size: 11, color: '#10b981' })}
+           <span style="font-size: 8px; font-weight: bold; color: #10b981;">${cityDronesCount}</span>
+         </div>
+       ` : '';
+
        // Construct dynamic HTML for Leaflet markers matching the index.css styling
        const markerHtml = `
          <div class="city-marker-wrapper ${isSelected ? 'selected' : ''} ${hasIdleAgent ? 'has-idle' : ''} ${isSweptZone ? 'swept-zone' : ''} ${isSuspectHere ? 'suspect-here-wrapper' : ''} ${isStruck ? 'city-struck' : ''}">
            ${isSweptZone ? '<div class="city-marker-sweep-ring"></div>' : ''}
            ${isSuspectHere ? '<div class="suspect-radar-ring"></div>' : ''}
-           ${isStruck ? '<div class="smoke-cloud-1"></div><div class="smoke-cloud-2"></div><div class="fire-flame">🔥</div>' : ''}
+           ${destroyedFriendlyCities.includes(cityId) ? '<div class="safehouse-alert-badge compromised">🚨 SAFEHOUSE COMPROMISED</div>' : ''}
+           ${destroyedEnemyCities.includes(cityId) ? '<div class="safehouse-alert-badge neutralized">🎯 ENEMY SAFEHOUSE NEUTRALIZED</div>' : ''}
+           ${isStruck ? '<div class="smoke-fumes-container"><div class="fume-particle" style="--wind: -3px; --wind-far: -8px"></div><div class="fume-particle" style="--wind: 4px; --wind-far: 9px"></div><div class="fume-particle" style="--wind: -1px; --wind-far: -3px"></div></div><div class="fire-flame">🔥</div>' : ''}
            <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''} ${isStruck ? 'struck' : ''}"></div>
            <div class="city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}"></div>
-           ${showSafehouseIcon ? `<div class="city-marker-safehouse" style="display: flex; align-items: center; justify-content: center; font-size: 11px;">${showSafehouseIcon}</div>` : ''}
-           ${showExposedNormalIcon ? `<div class="city-marker-exposed-hostile">👁️</div>` : ''}
-           ${showExposedSecureIcon ? `<div class="city-marker-exposed-secure">🛡️</div>` : ''}
+           ${showSafehouseIconHtml ? `<div class="city-marker-safehouse" style="display: flex; align-items: center; justify-content: center;">${showSafehouseIconHtml}</div>` : ''}
+           ${showExposedNormalIcon ? `<div class="city-marker-exposed-hostile">${safehouseIconHtml({ size: 11, color: '#f59e0b' })}👁️</div>` : ''}
+           ${showExposedSecureIcon ? `<div class="city-marker-exposed-secure">${safehouseIconHtml({ size: 11, color: '#ffcc00', secure: true })}🛡️</div>` : ''}
            ${isSuspectHere ? `<div class="city-marker-badge suspect pulse-badge" style="background: #ff3b30; box-shadow: 0 0 15px #ff3b30; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 2px solid white; border-radius: 50%; width: 22px; height: 22px; transform: translate(12px, -24px); z-index: 1000;">🎯</div>` : ''}
            ${agentsCount > 0 ? `<div class="city-marker-badge agents">${agentsCount}</div>` : ''}
            ${teamsCount > 0 ? `<div class="city-marker-badge teams">${teamsCount}</div>` : ''}
            ${techMarkersHtml}
+           ${droneBaseHtml}
+           ${droneHtml}
            ${hasIdleAgent ? `<div class="city-marker-idle">⚠</div>` : ''}
            ${isSweptZone ? '<div class="city-marker-sweep-label">⚠ SWEEP</div>' : ''}
            <div class="city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}">${cityId.replace('_', ' ').toUpperCase()}</div>
@@ -600,198 +648,223 @@ export default function MapView({
     }
   }, [selectedCityNode, isTacticalView]);
 
-  // Turn Change Transition & Delta Animations Trigger
+  // Sequential Turn Animation System
   useEffect(() => {
     const prevSession = prevSessionRef.current;
     prevSessionRef.current = session;
 
     if (!prevSession || prevSession.id !== session.id) {
-      // Direct load: fit to bounds, no animation
       handleFit();
       return;
     }
 
-    if (session.currentTurn !== prevSession.currentTurn) {
-      // 1. Zoom out map to full bounds automatically on turn end
-      handleFit();
+    if (session.currentTurn === prevSession.currentTurn) return;
 
-      const newMoving = [];
-      const newBuilding = [];
-      const newExposing = [];
-      const newCombat = [];
+    handleFit();
 
-      // 2. Identify Agent moves
-      session.agents.forEach(agent => {
-        const prevAgent = prevSession.agents.find(a => a.id === agent.id);
-        if (prevAgent && prevAgent.currentCity !== agent.currentCity) {
-          newMoving.push({
-            type: 'agent',
-            fromCity: prevAgent.currentCity,
-            toCity: agent.currentCity,
-            progress: 0,
-            color: '#00f0ff'
-          });
-        }
-      });
+    // ── Collect all deltas ──────────────────────────────────────
+    const newMoving = [];
+    session.agents.forEach(agent => {
+      const prevAgent = prevSession.agents.find(a => a.id === agent.id);
+      if (prevAgent && prevAgent.currentCity !== agent.currentCity) {
+        newMoving.push({ type: 'agent', fromCity: prevAgent.currentCity, toCity: agent.currentCity, progress: 0, color: '#00f0ff' });
+      }
+    });
+    session.tacticalTeams.forEach(team => {
+      const prevTeam = prevSession.tacticalTeams.find(t => t.id === team.id);
+      if (prevTeam && prevTeam.currentCity !== team.currentCity) {
+        newMoving.push({ type: 'team', fromCity: prevTeam.currentCity, toCity: team.currentCity, progress: 0, color: '#ff3b30' });
+      }
+    });
 
-      // 3. Identify Combat Team moves
-      session.tacticalTeams.forEach(team => {
-        const prevTeam = prevSession.tacticalTeams.find(t => t.id === team.id);
-        if (prevTeam && prevTeam.currentCity !== team.currentCity) {
-          newMoving.push({
-            type: 'team',
-            fromCity: prevTeam.currentCity,
-            toCity: team.currentCity,
-            progress: 0,
-            color: '#ff3b30'
-          });
-        }
-      });
+    const newBuilds = [];
+    session.safehouses.forEach(sh => {
+      const wasPresent = prevSession.safehouses.some(psh => psh.cityNode === sh.cityNode && psh.ownerFaction === sh.ownerFaction);
+      if (!wasPresent) newBuilds.push({ cityId: sh.cityNode, ownerFaction: sh.ownerFaction, progress: 0 });
+    });
 
-      // 4. Identify Safehouses built this turn (Defender & Hostile)
-      session.safehouses.forEach(sh => {
-        const wasPresent = prevSession.safehouses.some(psh => 
-          psh.cityNode === sh.cityNode && psh.ownerFaction === sh.ownerFaction
-        );
-        if (!wasPresent) {
-          newBuilding.push({ cityId: sh.cityNode, progress: 0 });
-        }
-      });
+    const newExposes = [];
+    session.safehouses.forEach(sh => {
+      if (sh.ownerFaction === 'HOSTILE' && sh.uncovered) {
+        const wasExposed = prevSession.safehouses.some(psh => psh.cityNode === sh.cityNode && psh.ownerFaction === 'HOSTILE' && psh.uncovered);
+        if (!wasExposed) newExposes.push({ cityId: sh.cityNode, progress: 0 });
+      }
+    });
 
-      // 5. Identify newly exposed hostile safehouses
-      session.safehouses.forEach(sh => {
-        if (sh.ownerFaction === 'HOSTILE' && sh.uncovered) {
-          const wasExposed = prevSession.safehouses.some(psh =>
-            psh.cityNode === sh.cityNode && psh.ownerFaction === 'HOSTILE' && psh.uncovered
-          );
-          if (!wasExposed) {
-            newExposing.push({ cityId: sh.cityNode, progress: 0 });
+    const lastTurnClues = session.discoveredClues.filter(c => c.turnDiscovered === prevSession.currentTurn);
+    const newCombat = [];
+    const wasCombatEncountered = lastTurnClues.some(c => c.source === 'TACTICAL_FORCE' || c.clueText?.includes('COMBAT') || c.clueText?.includes('raided'));
+    if (wasCombatEncountered) {
+      const step = session.aiMasterPlan?.primaryPlan?.find(s => s.turn === prevSession.currentTurn);
+      if (step?.suspectLocation) newCombat.push({ cityId: step.suspectLocation, progress: 0 });
+    }
+
+    lastTurnClues.forEach(c => {
+      if (c.source === 'DRONE_RECON' || c.source === 'DRONE_ATTACK') {
+        const droneMatch = c.clueText?.match(/Drone (\d+)/i);
+        if (droneMatch) {
+          const droneId = parseInt(droneMatch[1]);
+          const targetNode = activeScenario?.nodes?.find(n => c.clueText?.toLowerCase().includes(n.id.toLowerCase()) || (n.name && c.clueText?.toLowerCase().includes(n.name.toLowerCase())));
+          if (targetNode) {
+            const toCity = targetNode.id;
+            const prevDrone = prevSession.drones?.find(d => d.id === droneId);
+            const fromCity = prevDrone ? prevDrone.currentCity : null;
+            if (fromCity && fromCity !== toCity) newMoving.push({ type: 'drone', fromCity, toCity, progress: 0, color: '#10b981' });
+            if (c.clueText?.includes('SHOT DOWN') || c.clueText?.includes('DRONE DOWN')) newCombat.push({ cityId: toCity, progress: 0 });
           }
         }
-      });
+      }
+    });
 
-      // 6. Identify Combat Raids (by looking at new tactical clues this turn)
-      const lastTurnClues = session.discoveredClues.filter(c => c.turnDiscovered === prevSession.currentTurn);
-      const wasCombatEncountered = lastTurnClues.some(c => 
-        c.source === 'TACTICAL_FORCE' || c.clueText.includes('COMBAT') || c.clueText.includes('raided')
-      );
-      if (wasCombatEncountered) {
-        const step = session.aiMasterPlan?.primaryPlan?.find(s => s.turn === prevSession.currentTurn);
-        if (step && step.suspectLocation) {
-          newCombat.push({ cityId: step.suspectLocation, progress: 0 });
-          setIsShaking(true);
-          setTimeout(() => setIsShaking(false), 1200); // Shake map for 1.2s
+    const newTechDeploysList = [];
+    session.espionageResources.forEach(res => {
+      if (!prevSession.espionageResources.some(pr => pr.id === res.id)) newTechDeploysList.push({ cityId: res.cityNode, type: res.type });
+    });
+    const expiredTechList = [];
+    prevSession.espionageResources.forEach(res => {
+      if (!session.espionageResources.some(r => r.id === res.id)) expiredTechList.push({ cityId: res.cityNode, type: res.type });
+    });
+
+    const isAttackerRole = session?.playerRole === 'ATTACKER';
+    const friendlyLostSafehouses = [];
+    const enemyLostSafehouses = [];
+    prevSession.safehouses.forEach(psh => {
+      if (!session.safehouses.some(sh => sh.cityNode === psh.cityNode && sh.ownerFaction === psh.ownerFaction)) {
+        const isFriendly = isAttackerRole ? psh.ownerFaction === 'HOSTILE' : psh.ownerFaction === 'DEFENDER';
+        if (isFriendly) {
+          friendlyLostSafehouses.push(psh.cityNode);
+        } else {
+          enemyLostSafehouses.push(psh.cityNode);
         }
       }
+    });
+    const lostAgentCities = [];
+    prevSession.agents.forEach(pa => {
+      const sa = session.agents.find(a => a.id === pa.id);
+      if (pa.active && sa && !sa.active) lostAgentCities.push(sa.currentCity);
+    });
 
-      // 7. Identify newly deployed tech scans
-      const newTechDeploysList = [];
-      session.espionageResources.forEach(res => {
-        const wasPresent = prevSession.espionageResources.some(pr => pr.id === res.id);
-        if (!wasPresent) {
-          newTechDeploysList.push({ cityId: res.cityNode, type: res.type });
+    const lossData = {
+      friendly: [...friendlyLostSafehouses, ...lostAgentCities],
+      enemy: enemyLostSafehouses
+    };
+
+    // ── Sequential phase runner ──────────────────────────────────
+    let rafId;
+
+    const finishAll = () => {
+      cancelAnimationFrame(rafId);
+      setBuildingSafehouses([]); setExposingSafehouses([]); setCombatAlerts([]);
+      setNewSafehouses([]); setUncoveredSafehouses([]); setNewTechDeploys([]);
+      setExpiredTechScans([]); setMovingUnits([]); setLostCities([]);
+      setDestroyedFriendlyCities([]); setDestroyedEnemyCities([]); setConfettiCities([]);
+      setIsShaking(false);
+      setTimeout(() => { onAnimCompleteRef.current?.(); }, 300);
+    };
+
+    const runLossPhase = (loss) => {
+      const friendlyCount = loss?.friendly?.length || 0;
+      const enemyCount = loss?.enemy?.length || 0;
+      if (friendlyCount === 0 && enemyCount === 0) { finishAll(); return; }
+      if (friendlyCount > 0) setDestroyedFriendlyCities(loss.friendly);
+      if (enemyCount > 0) setDestroyedEnemyCities(loss.enemy);
+      setTimeout(() => {
+        setDestroyedFriendlyCities([]);
+        setDestroyedEnemyCities([]);
+        finishAll();
+      }, 2600);
+    };
+
+    const runTechPhase = (deploys, expireds, lost) => {
+      if (deploys.length > 0) setNewTechDeploys(deploys);
+      if (expireds.length > 0) setExpiredTechScans(expireds);
+      setTimeout(() => { setExpiredTechScans([]); runLossPhase(lost); }, (deploys.length > 0 || expireds.length > 0) ? 1000 : 0);
+    };
+
+    const runCombatPhase = (items, tech, expired, lost) => {
+      if (items.length === 0) { runTechPhase(tech, expired, lost); return; }
+      setCombatAlerts(items.map(c => ({ ...c, progress: 0 })));
+      setIsShaking(true);
+      const start = performance.now(); const dur = 1400;
+      const loop = (t) => {
+        const p = Math.min((t - start) / dur, 1.0);
+        setCombatAlerts(prev => prev.map(c => ({ ...c, progress: p })));
+        if (p < 1.0) { rafId = requestAnimationFrame(loop); }
+        else { setCombatAlerts([]); setIsShaking(false); setTimeout(() => runTechPhase(tech, expired, lost), 200); }
+      };
+      rafId = requestAnimationFrame(loop);
+    };
+
+    const runExposurePhase = (items, combat, tech, expired, lost) => {
+      if (items.length === 0) { runCombatPhase(combat, tech, expired, lost); return; }
+      setExposingSafehouses(items.map(e => ({ ...e, progress: 0 })));
+      setConfettiCities(items.map(e => e.cityId));
+      const start = performance.now(); const dur = 1300;
+      const loop = (t) => {
+        const p = Math.min((t - start) / dur, 1.0);
+        setExposingSafehouses(prev => prev.map(e => ({ ...e, progress: p })));
+        if (p < 1.0) { rafId = requestAnimationFrame(loop); }
+        else {
+          setExposingSafehouses([]); setConfettiCities([]);
+          setUncoveredSafehouses(items.map(e => e.cityId));
+          setTimeout(() => runCombatPhase(combat, tech, expired, lost), 300);
         }
-      });
+      };
+      rafId = requestAnimationFrame(loop);
+    };
 
-      // 8. Identify expired tech scans
-      const expiredTechList = [];
-      prevSession.espionageResources.forEach(res => {
-        const isStillPresent = session.espionageResources.some(r => r.id === res.id);
-        if (!isStillPresent) {
-          expiredTechList.push({ cityId: res.cityNode, type: res.type });
-        }
-      });
-
-      // 9. Identify lost safehouses and eliminated agents (representing combat/safehouse loss)
-      const lostSafehouses = [];
-      prevSession.safehouses.forEach(psh => {
-        const isStillPresent = session.safehouses.some(sh =>
-          sh.cityNode === psh.cityNode && sh.ownerFaction === psh.ownerFaction
-        );
-        if (!isStillPresent) {
-          lostSafehouses.push({ cityId: psh.cityNode });
-        }
-      });
-
-      const eliminatedAgents = [];
-      prevSession.agents.forEach(pa => {
-        const sa = session.agents.find(a => a.id === pa.id);
-        if (pa.active && sa && !sa.active) {
-          eliminatedAgents.push(sa.currentCity);
-        }
-      });
-
-      const newLostCities = [
-        ...lostSafehouses.map(l => l.cityId),
-        ...eliminatedAgents
-      ];
-
-      if (newMoving.length > 0 || newBuilding.length > 0 || newExposing.length > 0 || newCombat.length > 0 || newTechDeploysList.length > 0 || expiredTechList.length > 0 || newLostCities.length > 0) {
-        setMovingUnits(newMoving);
-        setBuildingSafehouses(newBuilding);
-        setExposingSafehouses(newExposing);
-        setCombatAlerts(newCombat);
-
-        setNewSafehouses(newBuilding.map(b => b.cityId));
-        setUncoveredSafehouses(newExposing.map(e => e.cityId));
-        setNewTechDeploys(newTechDeploysList);
-        setExpiredTechScans(expiredTechList);
-
-        // Trigger confetti shower on combat cities and newly discovered (exposed) safehouse cities
-        const citiesToShower = [
-          ...newCombat.map(c => c.cityId),
-          ...newExposing.map(e => e.cityId)
-        ];
-        if (citiesToShower.length > 0) {
-          setConfettiCities(citiesToShower);
-          setTimeout(() => {
-            setConfettiCities([]);
-          }, 3000);
-        }
-
-        // Trigger sad/compromised horror warning particle burst on lost cities for 3 seconds
-        if (newLostCities.length > 0) {
-          setLostCities(newLostCities);
-          setTimeout(() => {
-            setLostCities([]);
-          }, 3000);
-        }
-
-        // Run animation loop over 2.0 seconds
-        const duration = 2000;
-        const startTime = performance.now();
-        let frameId;
-
-        const loop = (time) => {
-          const elapsed = time - startTime;
-          const progress = Math.min(elapsed / duration, 1.0);
-
-          setMovingUnits(prev => prev.map(m => ({ ...m, progress })));
-          setBuildingSafehouses(prev => prev.map(b => ({ ...b, progress })));
-          setExposingSafehouses(prev => prev.map(e => ({ ...e, progress })));
-          setCombatAlerts(prev => prev.map(c => ({ ...c, progress })));
-
-          if (progress < 1.0) {
-            frameId = requestAnimationFrame(loop);
-          } else {
-            // End animations cleanly
-            setTimeout(() => {
-              setMovingUnits([]);
-              setBuildingSafehouses([]);
-              setExposingSafehouses([]);
-              setCombatAlerts([]);
-              setNewSafehouses([]);
-              setUncoveredSafehouses([]);
-              setNewTechDeploys([]);
-              setExpiredTechScans([]);
-            }, 600);
+    const runBuildPhase = (builds, exposes, combat, tech, expired, lost) => {
+      if (builds.length === 0) { runExposurePhase(exposes, combat, tech, expired, lost); return; }
+      let buildIdx = 0;
+      const buildNext = () => {
+        if (buildIdx >= builds.length) { runExposurePhase(exposes, combat, tech, expired, lost); return; }
+        const b = builds[buildIdx++];
+        // Phase A: ring expand (700ms)
+        setBuildingSafehouses([{ ...b, progress: 0 }]);
+        const ringStart = performance.now(); const ringDur = 700;
+        const ringLoop = (t) => {
+          const p = Math.min((t - ringStart) / ringDur, 1.0);
+          setBuildingSafehouses(prev => prev.map(x => ({ ...x, progress: p })));
+          if (p < 1.0) { rafId = requestAnimationFrame(ringLoop); }
+          else {
+            setBuildingSafehouses([]);
+            // Phase B: drop-bounce icon (900ms)
+            setNewSafehouses(prev => [...prev, b.cityId]);
+            setTimeout(() => { setNewSafehouses([]); setTimeout(buildNext, 200); }, 900);
           }
         };
-        frameId = requestAnimationFrame(loop);
-        return () => cancelAnimationFrame(frameId);
-      }
+        rafId = requestAnimationFrame(ringLoop);
+      };
+      buildNext();
+    };
+
+    const runMovePhase = (moves, builds, exposes, combat, tech, expired, lost) => {
+      if (moves.length === 0) { runBuildPhase(builds, exposes, combat, tech, expired, lost); return; }
+      setMovingUnits(moves);
+      const start = performance.now(); const dur = 1400;
+      const loop = (t) => {
+        const p = Math.min((t - start) / dur, 1.0);
+        setMovingUnits(prev => prev.map(m => ({ ...m, progress: p })));
+        if (p < 1.0) { rafId = requestAnimationFrame(loop); }
+        else { setMovingUnits([]); setTimeout(() => runBuildPhase(builds, exposes, combat, tech, expired, lost), 300); }
+      };
+      rafId = requestAnimationFrame(loop);
+    };
+
+    const hasAnything = newMoving.length > 0 || newBuilds.length > 0 || newExposes.length > 0 ||
+      newCombat.length > 0 || newTechDeploysList.length > 0 || expiredTechList.length > 0 ||
+      lossData.friendly.length > 0 || lossData.enemy.length > 0;
+
+    if (hasAnything) {
+      runMovePhase(newMoving, newBuilds, newExposes, newCombat, newTechDeploysList, expiredTechList, lossData);
+    } else {
+      setTimeout(() => { onAnimCompleteRef.current?.(); }, 200);
     }
+
+    return () => cancelAnimationFrame(rafId);
   }, [session]);
+
+
 
   // Leaflet LatLng coordinates converter helper
   const getPixelCoords = (cityId) => {
@@ -859,6 +932,20 @@ export default function MapView({
         if (start.x === 0 || end.x === 0) return null;
         const currentX = start.x + (end.x - start.x) * m.progress;
         const currentY = start.y + (end.y - start.y) * m.progress;
+        if (m.type === 'drone') {
+          const droneScale = isTacticalView ? 0.3 : 1;
+          const iconSize = isTacticalView ? 3 : 16;
+          return (
+            <g key={`move-${idx}`} className="drone-flight-path">
+              <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={m.color} strokeWidth={1.5 * droneScale} strokeDasharray="3,3" opacity="0.4" />
+              <line x1={start.x} y1={start.y} x2={currentX} y2={currentY} stroke={m.color} strokeWidth={2.5 * droneScale} opacity="0.75" />
+              <g transform={`translate(${currentX - iconSize / 2}, ${currentY - iconSize / 2})`}>
+                <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#10b981' }) }} />
+              </g>
+            </g>
+          );
+        }
+
         return (
           <g key={`move-${idx}`}>
             <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={m.color} strokeWidth="2" strokeDasharray="5,5" opacity="0.3" />
@@ -871,17 +958,33 @@ export default function MapView({
       {buildingSafehouses.map((b, idx) => {
         const center = getPixelCoords(b.cityId);
         if (center.x === 0) return null;
-        const radius = 10 + b.progress * 40;
+        const color = (b.ownerFaction === 'HOSTILE') ? '#ff3b30' : '#00f0ff';
+        // Scale ring size based on view type
+        const baseR = isTacticalView ? 2 : 10;
+        const maxR = isTacticalView ? 10 : 55;
+        const r1 = baseR + (maxR - baseR) * b.progress;
+        const r2 = r1 * 0.68;
+        const r3 = r1 * 0.38;
         const opacity = 1.0 - b.progress;
+        const iconSize = isTacticalView ? 2.5 : 11;
+        const iconOpacity = b.progress > 0.35 ? Math.min((b.progress - 0.35) / 0.65, 1.0) : 0;
         return (
           <g key={`build-${idx}`}>
-            <circle cx={center.x} cy={center.y} r={radius} fill="none" stroke="#00f0ff" strokeWidth="1.5" strokeDasharray="4,4" opacity={opacity} />
-            <circle cx={center.x} cy={center.y} r={radius - 5} fill="none" stroke="#00f0ff" strokeWidth="0.8" opacity={opacity} />
-            <line x1={center.x - radius - 5} y1={center.y} x2={center.x + radius + 5} y2={center.y} stroke="#00f0ff" strokeWidth="0.8" opacity={opacity} />
-            <line x1={center.x} y1={center.y - radius - 5} x2={center.x} y2={center.y + radius + 5} stroke="#00f0ff" strokeWidth="0.8" opacity={opacity} />
+            {/* Three expanding rings */}
+            <circle cx={center.x} cy={center.y} r={r1} fill="none" stroke={color} strokeWidth={isTacticalView ? '0.5' : '2'} strokeDasharray="4,4" opacity={opacity} />
+            <circle cx={center.x} cy={center.y} r={r2} fill="none" stroke={color} strokeWidth={isTacticalView ? '0.35' : '1.4'} strokeDasharray="3,3" opacity={opacity * 0.75} />
+            <circle cx={center.x} cy={center.y} r={r3} fill="none" stroke={color} strokeWidth={isTacticalView ? '0.2' : '0.8'} opacity={opacity * 0.5} />
+            {/* Crosshair lines */}
+            <line x1={center.x - r1 - (isTacticalView ? 1 : 6)} y1={center.y} x2={center.x + r1 + (isTacticalView ? 1 : 6)} y2={center.y} stroke={color} strokeWidth={isTacticalView ? '0.25' : '1'} opacity={opacity * 0.65} />
+            <line x1={center.x} y1={center.y - r1 - (isTacticalView ? 1 : 6)} x2={center.x} y2={center.y + r1 + (isTacticalView ? 1 : 6)} stroke={color} strokeWidth={isTacticalView ? '0.25' : '1'} opacity={opacity * 0.65} />
+            {/* Safehouse icon materializing as rings fade */}
+            {iconOpacity > 0 && (
+              <g opacity={iconOpacity} dangerouslySetInnerHTML={{ __html: safehouseAnimSvgGroup(center.x, center.y, color, iconSize) }} />
+            )}
           </g>
         );
       })}
+
       {exposingSafehouses.map((e, idx) => {
         const center = getPixelCoords(e.cityId);
         if (center.x === 0) return null;
@@ -901,12 +1004,61 @@ export default function MapView({
         const center = getPixelCoords(c.cityId);
         if (center.x === 0) return null;
         const opacity = Math.sin(c.progress * Math.PI * 4.5) * 0.4 + 0.6;
+        const scale = isTacticalView ? 0.25 : 1;
         return (
           <g key={`combat-${idx}`}>
-            <circle cx={center.x} cy={center.y} r="24" fill="rgba(255, 59, 48, 0.08)" stroke="#ff3b30" strokeWidth="2.5" opacity={opacity} />
-            <circle cx={center.x} cy={center.y} r="36" fill="none" stroke="#ff3b30" strokeWidth="1.2" strokeDasharray="6,3" opacity={opacity} />
-            <line x1={center.x - 48} y1={center.y} x2={center.x + 48} y2={center.y} stroke="#ff3b30" strokeWidth="1.5" opacity={opacity} />
-            <line x1={center.x} y1={center.y - 48} x2={center.x} y2={center.y + 48} stroke="#ff3b30" strokeWidth="1.5" opacity={opacity} />
+            <circle cx={center.x} cy={center.y} r={24 * scale} fill="rgba(255, 59, 48, 0.08)" stroke="#ff3b30" strokeWidth="2.5" opacity={opacity} />
+            <circle cx={center.x} cy={center.y} r={36 * scale} fill="none" stroke="#ff3b30" strokeWidth="1.2" strokeDasharray="6,3" opacity={opacity} />
+            <line x1={center.x - 48 * scale} y1={center.y} x2={center.x + 48 * scale} y2={center.y} stroke="#ff3b30" strokeWidth="1.5" opacity={opacity} />
+            <line x1={center.x} y1={center.y - 48 * scale} x2={center.x} y2={center.y + 48 * scale} stroke="#ff3b30" strokeWidth="1.5" opacity={opacity} />
+          </g>
+        );
+      })}
+      {destroyedFriendlyCities.map((cityId, idx) => {
+        const center = getPixelCoords(cityId);
+        if (center.x === 0) return null;
+        const scale = isTacticalView ? 0.3 : 1;
+        return (
+          <g key={`friendly-destroy-${idx}`}>
+            <circle cx={center.x} cy={center.y} r={32 * scale} fill="rgba(255, 59, 48, 0.15)" stroke="#ff3b30" strokeWidth="2.5" strokeDasharray="4,4" className="animate-pulse" />
+            <line x1={center.x - 20 * scale} y1={center.y - 20 * scale} x2={center.x + 20 * scale} y2={center.y + 20 * scale} stroke="#ff3b30" strokeWidth="3" />
+            <line x1={center.x + 20 * scale} y1={center.y - 20 * scale} x2={center.x - 20 * scale} y2={center.y + 20 * scale} stroke="#ff3b30" strokeWidth="3" />
+          </g>
+        );
+      })}
+      {destroyedEnemyCities.map((cityId, idx) => {
+        const center = getPixelCoords(cityId);
+        if (center.x === 0) return null;
+        const scale = isTacticalView ? 0.3 : 1;
+        return (
+          <g key={`enemy-destroy-${idx}`}>
+            <circle cx={center.x} cy={center.y} r={36 * scale} fill="rgba(16, 185, 129, 0.15)" stroke="#10b981" strokeWidth="2.5" strokeDasharray="6,3" className="animate-ping" />
+            <circle cx={center.x} cy={center.y} r={18 * scale} fill="none" stroke="#ffee00" strokeWidth="2" />
+            <polygon points={`${center.x},${center.y - 22 * scale} ${center.x + 18 * scale},${center.y + 12 * scale} ${center.x - 18 * scale},${center.y + 12 * scale}`} fill="none" stroke="#10b981" strokeWidth="1.5" />
+          </g>
+        );
+      })}
+
+      {/* Ambient stationing drone orbital flights in Tactical View */}
+      {isTacticalView && (session?.droneBases || []).map(baseCityId => {
+        const cityDrones = (session?.drones || []).filter(d => {
+          const plannedBase = localDroneDeployments[d.id];
+          if (plannedBase) return plannedBase === baseCityId;
+          return d.currentCity === baseCityId && d.status === 'ACTIVE';
+        });
+        if (cityDrones.length === 0) return null;
+        const center = getPixelCoords(baseCityId);
+        if (center.x === 0) return null;
+        const orbitRadius = 4.5;
+        const droneSize = 2.4;
+        return (
+          <g key={`stationed-drone-orbit-${baseCityId}`}>
+            <circle cx={center.x} cy={center.y} r={orbitRadius} fill="none" stroke="rgba(16, 185, 129, 0.45)" strokeWidth="0.3" strokeDasharray="0.8,0.8" />
+            <g style={{ transformOrigin: `${center.x}px ${center.y}px`, animation: 'drone-circular-orbit 5s linear infinite' }}>
+              <g transform={`translate(${center.x - droneSize / 2}, ${center.y - orbitRadius - droneSize / 2})`}>
+                <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: droneSize, color: '#10b981' }) }} />
+              </g>
+            </g>
           </g>
         );
       })}
@@ -1139,6 +1291,60 @@ export default function MapView({
           pointer-events: none;
           z-index: 101;
           font-family: monospace;
+        }
+
+        @keyframes enemyLossBurst {
+          0% {
+            transform: translate(0, 0) scale(0.4) rotate(0deg);
+            opacity: 0;
+          }
+          20% { opacity: 1; filter: drop-shadow(0 0 12px #39ff14); }
+          50% {
+            transform: translate(var(--tx), var(--ty)) scale(1.4) rotate(45deg);
+            filter: drop-shadow(0 0 12px #ffee00);
+          }
+          100% {
+            transform: translate(var(--fall-x), var(--fall-y)) scale(0.2) rotate(180deg);
+            opacity: 0;
+          }
+        }
+        .enemy-loss-particle {
+          position: absolute;
+          font-size: var(--size);
+          color: #10b981;
+          text-shadow: 0 0 10px rgba(16, 185, 129, 0.9);
+          animation: enemyLossBurst 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) var(--delay) forwards;
+          pointer-events: none;
+          z-index: 101;
+          font-family: monospace;
+        }
+
+        .safehouse-alert-badge {
+          position: absolute;
+          top: -34px;
+          left: 50%;
+          transform: translateX(-50%);
+          font-family: monospace;
+          font-size: 9px;
+          font-weight: bold;
+          padding: 3px 7px;
+          border-radius: 4px;
+          white-space: nowrap;
+          z-index: 110;
+          pointer-events: none;
+          letter-spacing: 0.05em;
+        }
+        .safehouse-alert-badge.compromised {
+          background: rgba(255, 59, 48, 0.95);
+          color: #ffffff;
+          border: 1px solid #ff3b30;
+          box-shadow: 0 0 14px rgba(255, 59, 48, 0.8);
+        }
+        .safehouse-alert-badge.neutralized {
+          background: rgba(16, 185, 129, 0.95);
+          color: #ffffff;
+          border: 1px solid #10b981;
+          box-shadow: 0 0 14px rgba(16, 185, 129, 0.8);
         }
         .loss-container {
           position: absolute;
@@ -1477,7 +1683,8 @@ export default function MapView({
               const hasExposedSecureSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered && s.secure);
               
               const isSecureSafehouse = hasHostileSafehouse && session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.secure);
-              const showSafehouseIcon = isAttacker ? (hasHostileSafehouse ? (isSecureSafehouse ? '🛡️' : '🏠') : '') : (hasDefenderSafehouse ? '🏠' : '');
+              const showSafehouseIcon = isAttacker ? hasHostileSafehouse : hasDefenderSafehouse;
+              const shColorT = isAttacker ? (isSecureSafehouse ? '#ffcc00' : '#ff3b30') : '#00f0ff';
               const showExposedNormalIcon = !isAttacker && hasExposedNormalSH;
               const showExposedSecureIcon = !isAttacker && hasExposedSecureSH;
               
@@ -1579,6 +1786,13 @@ export default function MapView({
               const hasHostileSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE');
               const isImminentDanger = cityHeat > 80 || (session.heatPercentage > 80 && (isSuspectLocation || hasHostileSH));
 
+              const hasDroneBase = !isAttacker && (session.droneBases?.includes(cityId) || localDroneBaseBuilds.includes(cityId));
+              const cityDronesCount = (isAttacker && !showGodMode) ? 0 : (session.drones || []).filter(d => {
+                const plannedBase = localDroneDeployments[d.id];
+                if (plannedBase) return plannedBase === cityId;
+                return d.currentCity === cityId;
+              }).length;
+
               return (
                 <div
                   key={cityId}
@@ -1599,8 +1813,11 @@ export default function MapView({
                         <span className="danger-text">HEAT {Math.max(cityHeat, session.heatPercentage)}%</span>
                       </div>
                     )}
-                    {lostCities.includes(cityId) && (
+                    {destroyedFriendlyCities.includes(cityId) && (
                       <div className="loss-container">
+                        <div className="safehouse-alert-badge compromised animate-bounce">
+                          🚨 SAFEHOUSE COMPROMISED
+                        </div>
                         {Array.from({ length: 25 }).map((_, i) => {
                           const angle = Math.random() * Math.PI * 2;
                           const distance = 15 + Math.random() * 35;
@@ -1610,11 +1827,45 @@ export default function MapView({
                           const fallY = ty + 40 + Math.random() * 20;
                           const size = 10 + Math.random() * 6;
                           const delay = Math.random() * 0.2;
-                          const char = ['💀', '✖', '⚠', '⚡', '❗'][Math.floor(Math.random() * 5)];
+                          const char = ['🚨', '☣️', '🔒', '💀', '💥', '❌'][Math.floor(Math.random() * 6)];
                           return (
                             <div 
                               key={i} 
-                              className="loss-particle" 
+                              className="friendly-loss-particle" 
+                              style={{
+                                '--tx': `${tx}px`,
+                                '--ty': `${ty}px`,
+                                '--fall-x': `${fallX}px`,
+                                '--fall-y': `${fallY}px`,
+                                '--size': `${size}px`,
+                                '--delay': `${delay}s`
+                              }}
+                            >
+                              {char}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {destroyedEnemyCities.includes(cityId) && (
+                      <div className="loss-container">
+                        <div className="safehouse-alert-badge neutralized animate-bounce">
+                          🎯 ENEMY SAFEHOUSE NEUTRALIZED
+                        </div>
+                        {Array.from({ length: 25 }).map((_, i) => {
+                          const angle = Math.random() * Math.PI * 2;
+                          const distance = 15 + Math.random() * 35;
+                          const tx = Math.cos(angle) * distance;
+                          const ty = Math.sin(angle) * distance;
+                          const fallX = tx + (Math.random() * 30 - 15);
+                          const fallY = ty + 40 + Math.random() * 20;
+                          const size = 10 + Math.random() * 6;
+                          const delay = Math.random() * 0.2;
+                          const char = ['🎯', '⚔️', '💥', '⚡', '🛡️', '🔥'][Math.floor(Math.random() * 6)];
+                          return (
+                            <div 
+                              key={i} 
+                              className="enemy-loss-particle" 
                               style={{
                                 '--tx': `${tx}px`,
                                 '--ty': `${ty}px`,
@@ -1664,8 +1915,11 @@ export default function MapView({
                     {isSuspectHere && <div className="suspect-radar-ring"></div>}
                     {struckCities.includes(cityId.toLowerCase()) && (
                       <>
-                        <div className="smoke-cloud-1"></div>
-                        <div className="smoke-cloud-2"></div>
+                        <div className="smoke-fumes-container">
+                          <div className="fume-particle" style={{ '--wind': '-3px', '--wind-far': '-8px' }}></div>
+                          <div className="fume-particle" style={{ '--wind': '4px', '--wind-far': '9px' }}></div>
+                          <div className="fume-particle" style={{ '--wind': '-1px', '--wind-far': '-3px' }}></div>
+                        </div>
                         <div className="fire-flame">🔥</div>
                       </>
                     )}
@@ -1674,16 +1928,27 @@ export default function MapView({
                     {showSafehouseIcon && (
                       <div 
                         className={`city-marker-safehouse ${isNewSafehouse ? 'safehouse-drop-bounce' : ''}`} 
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' }}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        {showSafehouseIcon}
+                        <SafehouseIcon
+                          size={11}
+                          color={shColorT}
+                          secure={isSecureSafehouse}
+                          hostile={isAttacker && hasHostileSafehouse}
+                        />
                       </div>
                     )}
                     {showExposedNormalIcon && (
-                      <div className={`city-marker-exposed-hostile ${isNewExposed ? 'safehouse-reveal-bounce' : ''}`}>👁️</div>
+                      <div className={`city-marker-exposed-hostile ${isNewExposed ? 'safehouse-reveal-bounce' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                        <SafehouseIcon size={9} color="#f59e0b" />
+                        <span style={{ fontSize: '8px' }}>👁️</span>
+                      </div>
                     )}
                     {showExposedSecureIcon && (
-                      <div className={`city-marker-exposed-secure ${isNewExposed ? 'safehouse-reveal-bounce' : ''}`}>🛡️</div>
+                      <div className={`city-marker-exposed-secure ${isNewExposed ? 'safehouse-reveal-bounce' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                        <SafehouseIcon size={9} color="#ffcc00" secure />
+                        <span style={{ fontSize: '8px' }}>👁️</span>
+                      </div>
                     )}
                     {isSuspectHere && <div className="city-marker-badge suspect pulse-badge" style={{ background: '#ff3b30', boxShadow: '0 0 15px #ff3b30', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', border: '2px solid white', borderRadius: '50%', width: '22px', height: '22px', transform: 'translate(12px, -24px)', zIndex: 1000 }}>🎯</div>}
                     {agentsCount > 0 && <div className="city-marker-badge agents">{agentsCount}</div>}
@@ -1693,6 +1958,53 @@ export default function MapView({
                         {combinedTech}
                       </div>
                     )}
+                    {hasDroneBase && (
+                       <div 
+                         className="city-marker-drone-base" 
+                         title="Drone Base" 
+                         style={{ 
+                           position: 'absolute', 
+                           bottom: '-18px', 
+                           left: '-18px', 
+                           background: 'rgba(0, 240, 255, 0.15)', 
+                           border: '1px solid #00f0ff', 
+                           borderRadius: '4px', 
+                           padding: '2px', 
+                           width: '16px', 
+                           height: '16px', 
+                           display: 'flex', 
+                           alignItems: 'center', 
+                           justifyContent: 'center', 
+                           zIndex: 10 
+                         }}
+                       >
+                         <DroneBaseIcon size={12} color="#00f0ff" />
+                       </div>
+                     )}
+                     {cityDronesCount > 0 && (
+                       <div 
+                         className="city-marker-drone-count" 
+                         title={`${cityDronesCount} Drone(s) stationed`} 
+                         style={{ 
+                           position: 'absolute', 
+                           bottom: '-18px', 
+                           right: '-18px', 
+                           background: 'rgba(16, 185, 129, 0.15)', 
+                           border: '1px solid #10b981', 
+                           borderRadius: '4px', 
+                           padding: '2px 4px', 
+                           height: '16px', 
+                           display: 'flex', 
+                           alignItems: 'center', 
+                           justifyContent: 'center', 
+                           gap: '2px',
+                           zIndex: 10 
+                         }}
+                       >
+                         <DroneIcon size={11} color="#10b981" />
+                         <span style={{ fontSize: '8px', fontWeight: 'bold', color: '#10b981' }}>{cityDronesCount}</span>
+                       </div>
+                     )}
                     {hasIdleAgent && <div className="city-marker-idle">⚠</div>}
                     {isSweptZone && <div className="city-marker-sweep-label">⚠ SWEEP</div>}
                     <div className={`city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}`}>{cityId.replace('_', ' ').toUpperCase()}</div>
@@ -1791,6 +2103,34 @@ export default function MapView({
             setSelectedCityNode={setSelectedCityNode}
             localTechDeploys={localTechDeploys}
             localSafehouseBuilds={localSafehouseBuilds}
+            localDroneBaseBuilds={localDroneBaseBuilds}
+            onBuildDroneBase={(cityNode) => {
+              setLocalDroneBaseBuilds(prev =>
+                prev.includes(cityNode) ? prev.filter(c => c !== cityNode) : [...prev, cityNode]
+              );
+            }}
+            localDroneDeployments={localDroneDeployments}
+            onDeployDrone={(droneId, city) => {
+              setLocalDroneDeployments(prev => ({
+                ...prev,
+                [droneId]: prev[droneId] === city ? null : city
+              }));
+            }}
+            localDroneOperations={localDroneOperations}
+            onToggleDroneOperation={(droneId, actionType, targetCity) => {
+              setLocalDroneOperations(prev => {
+                const exists = prev.find(op => op.droneId === droneId);
+                if (exists) {
+                  if (exists.actionType === actionType && exists.targetCity === targetCity) {
+                    return prev.filter(op => op.droneId !== droneId);
+                  } else {
+                    return prev.map(op => op.droneId === droneId ? { droneId, actionType, targetCity } : op);
+                  }
+                } else {
+                  return [...prev, { droneId, actionType, targetCity }];
+                }
+              });
+            }}
           />
         )
       )}

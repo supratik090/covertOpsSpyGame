@@ -105,6 +105,31 @@ public class PlayerDefenderService {
         return session;
     }
 
+    public GameSession buildDroneBase(GameSession session, String cityNode, ScenarioConfig config) {
+        Node node = config.getNodes().stream()
+                .filter(n -> n.getId().equals(cityNode))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Node not found: " + cityNode));
+
+        if (!"HOME_TERRITORY".equals(node.getTerritory())) {
+            throw new IllegalArgumentException("Drone base can only be built in friendly territory.");
+        }
+
+        int cost = 200000;
+        if (session.getBudget() < cost) {
+            throw new IllegalStateException("Insufficient budget to build drone base in " + cityNode);
+        }
+
+        session.setBudget(session.getBudget() - cost);
+        if (session.getDroneBases() == null) {
+            session.setDroneBases(new java.util.ArrayList<>());
+        }
+        if (!session.getDroneBases().contains(cityNode)) {
+            session.getDroneBases().add(cityNode);
+        }
+        return session;
+    }
+
     // Spends budget dynamically based on config to purchase and deploy a tech asset to a node.
     public GameSession deployEspionageResource(GameSession session, String type, String cityNode, ScenarioConfig config) {
         if ("BORDER_GUARD".equals(type) && !isFriendlyBorderCity(cityNode, config)) {

@@ -1,5 +1,6 @@
 import React from 'react';
-import { X, ShieldAlert, ShieldCheck, Radio, AlertTriangle, Skull, UserX, Home, Siren, Crosshair, Activity } from 'lucide-react';
+import { X, ShieldAlert, ShieldCheck, Radio, AlertTriangle, Skull, UserX, Siren, Crosshair, Activity } from 'lucide-react';
+import { SafehouseIcon, HostileSafehouseIcon, ExposedSafehouseIcon } from './GameSymbols';
 
 export default function EndTurnReportModal({ report, onClose, isAttacker }) {
   if (!report) return null;
@@ -93,15 +94,25 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
 
         {/* Report Content */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '360px', overflowY: 'auto' }}>
+          <style>{`
+            @keyframes reportCardSlideIn {
+              from { opacity: 0; transform: translateY(10px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+            .report-card {
+              animation: reportCardSlideIn 0.35s ease both;
+            }
+          `}</style>
           
           {/* Critical Security Strike Events */}
           {!isAttacker && report.strikeEvents?.length > 0 && (
-            <div style={{
+            <div className="report-card" style={{
               border: '2px dashed rgba(255, 59, 48, 0.85)',
               background: 'rgba(255, 59, 48, 0.08)',
               padding: '14px',
               borderRadius: '6px',
-              boxShadow: '0 0 16px rgba(255, 59, 48, 0.25)'
+              boxShadow: '0 0 16px rgba(255, 59, 48, 0.25)',
+              animationDelay: '0ms'
             }}>
               <span style={{ color: '#ff3b30', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', letterSpacing: '0.05em' }}>
                 <Skull size={14} /> 💥 CRITICAL Espionage IMPACT
@@ -116,11 +127,12 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
 
           {/* Combat Operations */}
           {!isAttacker && report.combatOps?.length > 0 && (
-            <div style={{
+            <div className="report-card" style={{
               border: '1px solid rgba(255, 59, 48, 0.35)',
               background: 'rgba(255, 59, 48, 0.04)',
               padding: '14px',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              animationDelay: '60ms'
             }}>
               <span style={{ color: '#ff3b30', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                 <Crosshair size={14} /> {isAttacker ? 'TACTICAL RAIDS / DETECTIONS' : 'COMBAT OPERATIONS'}
@@ -135,11 +147,12 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
 
           {/* Sweep Alerts */}
           {report.sweepAlerts?.length > 0 && (
-            <div style={{
+            <div className="report-card" style={{
               border: '1px solid rgba(255, 64, 0, 0.3)',
               background: 'rgba(255, 64, 0, 0.04)',
               padding: '14px',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              animationDelay: '120ms'
             }}>
               <span style={{ color: '#ff4000', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                 <Siren size={14} /> {isAttacker ? 'GRID SEARCH / SWEEP ALERTS' : 'SECURITY SWEEP WARNINGS'}
@@ -154,11 +167,12 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
 
           {/* Asset Losses (from sweep loss clues) */}
           {!isAttacker && report.sweepLosses?.length > 0 && (
-            <div style={{
+            <div className="report-card" style={{
               border: '1px solid rgba(255, 0, 64, 0.3)',
               background: 'rgba(255, 0, 64, 0.04)',
               padding: '14px',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              animationDelay: '180ms'
             }}>
               <span style={{ color: '#ff0040', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                 <Skull size={14} /> CASUALTY REPORT
@@ -173,11 +187,12 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
 
           {/* Lost Agents */}
           {!isAttacker && report.lostAgents?.length > 0 && (
-            <div style={{
+            <div className="report-card" style={{
               border: '1px solid rgba(255, 0, 0, 0.25)',
               background: 'rgba(255, 0, 0, 0.03)',
               padding: '14px',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              animationDelay: '240ms'
             }}>
               <span style={{ color: '#ff4444', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                 <UserX size={14} /> AGENTS DISAVOWED
@@ -215,14 +230,16 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
 
           {/* Exposed Safehouses */}
           {!isAttacker && report.newExposedHostileSH?.length > 0 && (
-            <div style={{
+            <div className="report-card" style={{
               border: '1px solid rgba(255, 200, 0, 0.3)',
               background: 'rgba(255, 200, 0, 0.04)',
               padding: '14px',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              animationDelay: '360ms'
             }}>
               <span style={{ color: '#ffcc00', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <ShieldAlert size={14} /> {isAttacker ? 'YOUR SAFEHOUSE LOCATIONS UNCOVERED' : 'ENEMY SAFEHOUSES EXPOSED'}
+                <ExposedSafehouseIcon size={14} />
+                {isAttacker ? 'YOUR SAFEHOUSE LOCATIONS UNCOVERED' : 'ENEMY SAFEHOUSES EXPOSED'}
               </span>
               <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                 {report.newExposedHostileSH.map(s => (
@@ -240,14 +257,16 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
 
           {/* Lost Safehouses */}
           {report.lostSafehouses?.length > 0 && (
-            <div style={{
+            <div className="report-card" style={{
               border: '1px solid rgba(255, 0, 0, 0.25)',
               background: 'rgba(255, 0, 0, 0.03)',
               padding: '14px',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              animationDelay: '300ms'
             }}>
               <span style={{ color: '#ff4444', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <Home size={14} /> {isAttacker ? 'YOUR SAFEHOUSE DESTROYED' : 'SAFEHOUSES COMPROMISED'}
+                <HostileSafehouseIcon size={14} />
+                {isAttacker ? 'YOUR SAFEHOUSE DESTROYED' : 'SAFEHOUSES COMPROMISED'}
               </span>
               <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                 {report.lostSafehouses.map(s => (
@@ -295,14 +314,16 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
 
           {/* New Safehouses */}
           {report.newSafehouses.length > 0 && (
-            <div style={{
+            <div className="report-card" style={{
               border: `1px solid ${isAttacker ? 'rgba(255, 59, 48, 0.25)' : 'rgba(0, 240, 255, 0.2)'}`,
               background: isAttacker ? 'rgba(255, 59, 48, 0.04)' : 'rgba(0, 240, 255, 0.02)',
               padding: '14px',
-              borderRadius: '6px'
+              borderRadius: '6px',
+              animationDelay: '420ms'
             }}>
               <span style={{ color: primaryColor, fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                <ShieldCheck size={14} /> {isAttacker ? 'NEW HIDE-OUT OPERATIONAL' : 'NEW OPERATIONAL SAFEHOUSE'}
+                <SafehouseIcon size={14} color={primaryColor} />
+                {isAttacker ? 'NEW HIDE-OUT OPERATIONAL' : 'NEW OPERATIONAL SAFEHOUSE'}
               </span>
               <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                 {report.newSafehouses.map(s => {
@@ -310,8 +331,11 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
                   return (
                     <li key={s.cityNode}>
                       {isFriendly ? (
-                        <span>
-                          Friendly {s.secure ? 'Secure' : 'Standard'} hide-out established in <strong style={{ color: isAttacker ? '#ff7070' : 'var(--cyan)' }}>{s.cityNode.toUpperCase()}</strong>. Safehouse Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace', fontWeight: 'bold' }}>#{s.safehouseCode}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <SafehouseIcon size={11} color={isAttacker ? '#ff7070' : 'var(--cyan)'} secure={s.secure} />
+                          {s.secure ? 'Secure' : 'Standard'} safehouse established in{' '}
+                          <strong style={{ color: isAttacker ? '#ff7070' : 'var(--cyan)' }}>{s.cityNode.toUpperCase()}</strong>.
+                          Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace', fontWeight: 'bold' }}>#{s.safehouseCode}</span>
                         </span>
                       ) : (
                         <span className="text-threat">

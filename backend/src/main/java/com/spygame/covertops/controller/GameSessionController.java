@@ -195,7 +195,8 @@ public class GameSessionController {
         Map<String, String> agentDeployments = (Map<String, String>) body.get("agentDeployments");
         @SuppressWarnings("unchecked")
         Map<String, String> teamDeployments = (Map<String, String>) body.get("teamDeployments");
-        return deploymentService.commitDeployment(id, safehouses, agentDeployments, teamDeployments);
+        String droneBaseCity = (String) body.get("droneBaseCity");
+        return deploymentService.commitDeployment(id, safehouses, agentDeployments, teamDeployments, droneBaseCity);
     }
 
     private ScenarioConfig loadConfig(String scenarioId) throws Exception {

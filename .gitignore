@@ -30,3 +30,4 @@ backend/node_modules/
 
 # Temporary test tools
 backend/src/test/java/com/spygame/covertops/PrintHistory.java
+backend/src/test/java/com/spygame/covertops/PrintSafehouses.java

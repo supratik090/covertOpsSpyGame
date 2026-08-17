@@ -5,9 +5,11 @@ import com.spygame.covertops.model.AIMasterPlan;
 import com.spygame.covertops.model.GameSession;
 import com.spygame.covertops.model.PlanStep;
 import com.spygame.covertops.model.ScenarioConfig;
+import com.spygame.covertops.model.Node;
 import com.spygame.covertops.repository.GameSessionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -281,6 +283,132 @@ public class GameSessionService {
         long combatStart = System.currentTimeMillis();
         session = combatResolutionService.resolveCovertActions(session, covertActions, currentStep, config);
         log.info("[TIMING] resolveCovertActions took: {} ms", System.currentTimeMillis() - combatStart);
+
+        // 3.5. Resolve Drone Operations
+        List<Map<String, Object>> droneOps = request.getDroneOperations();
+        if (droneOps != null && !droneOps.isEmpty()) {
+            Random rand = new Random();
+            for (Map<String, Object> op : droneOps) {
+                try {
+                    Integer droneIdObj = (Integer) op.get("droneId");
+                    if (droneIdObj == null) continue;
+                    int droneId = droneIdObj;
+                    String actionType = (String) op.get("actionType");
+                    String targetCity = (String) op.get("targetCity");
+
+                    GameSession.Drone drone = session.getDrones().stream()
+                            .filter(d -> d.getId() == droneId)
+                            .findFirst()
+                            .orElse(null);
+
+                    if (drone == null || !"ACTIVE".equals(drone.getStatus())) {
+                        continue;
+                    }
+
+                    int opCost = "RECON".equals(actionType) ? 50000 : 100000;
+                    if (session.getBudget() < opCost) {
+                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
+                                "Drone " + droneId + " operation " + actionType + " in " + targetCity + " cancelled: Insufficient budget."));
+                        continue;
+                    }
+                    session.setBudget(session.getBudget() - opCost);
+
+                    Node targetNode = config.getNodes().stream()
+                            .filter(n -> n.getId().equalsIgnoreCase(targetCity))
+                            .findFirst()
+                            .orElse(null);
+                    boolean isEnemyNode = (targetNode != null) && "HOSTILE_TERRITORY".equals(targetNode.getTerritory());
+                    boolean shotDown = isEnemyNode && (rand.nextInt(100) < 10);
+
+                    if (shotDown) {
+                        drone.setStatus("SHOT_DOWN");
+                        drone.setCurrentCity(targetCity);
+                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
+                                "DRONE DOWN: Drone " + droneId + " was SHOT DOWN by air defenses during " + actionType + " sweep in " + targetCity.toUpperCase() + "!"));
+                        continue;
+                    }
+
+                    if ("RECON".equals(actionType)) {
+                        List<GameSession.Safehouse> targetSHs = session.getSafehouses().stream()
+                                .filter(s -> s.getCityNode().equalsIgnoreCase(targetCity) && "HOSTILE".equals(s.getOwnerFaction()) && !s.isUncovered())
+                                .collect(Collectors.toList());
+
+                        int countToUncover = Math.min(targetSHs.size(), rand.nextInt(4));
+                        Collections.shuffle(targetSHs, rand);
+                        List<String> uncoveredCodes = new ArrayList<>();
+                        for (int i = 0; i < countToUncover; i++) {
+                            GameSession.Safehouse sh = targetSHs.get(i);
+                            sh.setUncovered(true);
+                            uncoveredCodes.add("#" + sh.getSafehouseCode());
+                        }
+
+                        if (uncoveredCodes.isEmpty()) {
+                            session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
+                                    "Drone " + droneId + " completed RECON in " + targetCity.toUpperCase() + ": No new hostile safehouses discovered."));
+                        } else {
+                            session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
+                                    "RECON SUCCESS: Drone " + droneId + " uncovered " + uncoveredCodes.size() + " hostile safehouse(s) in " + targetCity.toUpperCase() + ": " + String.join(", ", uncoveredCodes)));
+                        }
+                    } else if ("ATTACK".equals(actionType)) {
+                        List<GameSession.Safehouse> exposedSHs = session.getSafehouses().stream()
+                                .filter(s -> s.getCityNode().equalsIgnoreCase(targetCity) && "HOSTILE".equals(s.getOwnerFaction()) && s.isUncovered())
+                                .collect(Collectors.toList());
+
+                        if (exposedSHs.isEmpty()) {
+                            session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_ATTACK",
+                                    "Drone " + droneId + " completed ATTACK run in " + targetCity.toUpperCase() + ": No exposed hostile safehouses found."));
+                        } else {
+                            List<String> attackedCodes = new ArrayList<>();
+                            List<String> neutralizedAttackers = new ArrayList<>();
+                            
+                            for (GameSession.Safehouse sh : exposedSHs) {
+                                attackedCodes.add("#" + sh.getSafehouseCode());
+
+                                List<GameSession.AIAttacker> activeAttackersInSH = session.getAiAttackers().stream()
+                                        .filter(a -> !a.isEliminated() && targetCity.equalsIgnoreCase(a.getCurrentLocation()))
+                                        .filter(a -> sh.getAttackerName() == null || sh.getAttackerName().equalsIgnoreCase(a.getName()))
+                                        .collect(Collectors.toList());
+
+                                if (!activeAttackersInSH.isEmpty()) {
+                                    boolean success = false;
+                                    if (sh.isSecure()) {
+                                        success = rand.nextInt(100) < 50;
+                                    } else {
+                                        success = (rand.nextInt(100) < 50) || session.isSuspectEscapedBefore();
+                                    }
+
+                                    if (success) {
+                                        int count = activeAttackersInSH.size();
+                                        int toKill = count == 1 ? ((rand.nextInt(100) < 80) ? 1 : 0) : 2;
+                                        Collections.shuffle(activeAttackersInSH, rand);
+                                        for (int i = 0; i < Math.min(count, toKill); i++) {
+                                            GameSession.AIAttacker att = activeAttackersInSH.get(i);
+                                            att.setEliminated(true);
+                                            neutralizedAttackers.add(att.getName());
+                                        }
+                                    }
+                                }
+                            }
+
+                            session.getSafehouses().removeAll(exposedSHs);
+
+                            String combatLog = "";
+                            if (!neutralizedAttackers.isEmpty()) {
+                                combatLog = " AI Operative(s) neutralized: " + String.join(", ", neutralizedAttackers);
+                            } else {
+                                combatLog = " Operatives escaped.";
+                            }
+
+                            session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_ATTACK",
+                                    "DRONE STRIKE: Drone " + droneId + " attacked and destroyed hostile safehouses (" + String.join(", ", attackedCodes) + ") in " + targetCity.toUpperCase() + "!" + combatLog));
+                        }
+                    }
+
+                } catch (Exception e) {
+                    System.err.println("Failed to resolve drone operation: " + e.getMessage());
+                }
+            }
+        }
 
         if (!"ACTIVE".equals(session.getStatus())) {
             long saveStart = System.currentTimeMillis();

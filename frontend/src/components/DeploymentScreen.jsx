@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Shield, Users, MapPin, CheckCircle, ChevronRight, AlertTriangle, X, List } from 'lucide-react';
+import { Shield, Users, MapPin, CheckCircle, ChevronRight, AlertTriangle, X, List, Cpu } from 'lucide-react';
 import { GAME_API_BASE } from '../config';
 
 const PHASES = [
   { id: 1, key: 'safehouses', label: 'SAFEHOUSES', icon: Shield,  color: '#00f0ff' },
   { id: 2, key: 'agents',     label: 'AGENTS',     icon: Users,   color: '#10b981' },
   { id: 3, key: 'teams',      label: 'TEAMS',      icon: MapPin,  color: '#f59e0b' },
+  { id: 4, key: 'drones',     label: 'DRONES',     icon: Cpu,     color: '#10B981' },
 ];
 
 const territoryColor = (t) =>
@@ -21,6 +22,7 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
   const [safehouseCities, setSafehouseCities] = useState(new Set());
   const [agentPlacements, setAgentPlacements] = useState({});
   const [teamPlacements, setTeamPlacements]   = useState({});
+  const [droneBaseCity, setDroneBaseCity] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [dragOver, setDragOver] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -42,7 +44,8 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
   const phase1Done = safehouseCities.size >= safehouseCount;
   const phase2Done = phase1Done && unplacedAgents.length === 0;
   const phase3Done = phase2Done && unplacedTeams.length === 0;
-  const allDone    = phase3Done;
+  const phase4Done = phase3Done && droneBaseCity !== null;
+  const allDone    = phase4Done;
 
   const handleCityDrop = useCallback((cityId) => {
     if (!dragging && !selected) return;
@@ -59,13 +62,21 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
     } else if (phase === 3 && active.type === 'team') {
       if (!safehouseCities.has(cityId)) return;
       setTeamPlacements(prev => ({ ...prev, [active.id]: cityId }));
+    } else if (phase === 4 && (active.type === 'drone_base' || active.type === 'drone')) {
+      const node = nodes.find(n => n.id === cityId);
+      if (node && node.territory === 'HOME_TERRITORY') {
+        setDroneBaseCity(cityId);
+      } else {
+        addToast?.('Drone Base can only be established in friendly home territory.', 'warning');
+      }
     }
     setDragging(null); setSelected(null); setDragOver(null);
-  }, [dragging, selected, phase, safehouseCities, safehouseCount]);
+  }, [dragging, selected, phase, safehouseCities, safehouseCount, nodes, addToast]);
 
   const removeSafehouse = (id) => setSafehouseCities(prev => { const s = new Set(prev); s.delete(id); return s; });
   const removeAgent = (id) => setAgentPlacements(prev => { const n = { ...prev }; delete n[id]; return n; });
   const removeTeam  = (id) => setTeamPlacements(prev  => { const n = { ...prev }; delete n[id]; return n; });
+  const removeDroneBase = () => setDroneBaseCity(null);
 
   const handleConfirm = async () => {
     if (!allDone || submitting) return;
@@ -75,6 +86,7 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
         safehouses: [...safehouseCities],
         agentDeployments: Object.fromEntries(Object.entries(agentPlacements).map(([k,v]) => [String(k),v])),
         teamDeployments:  Object.fromEntries(Object.entries(teamPlacements).map(([k,v])  => [String(k),v])),
+        droneBaseCity: droneBaseCity
       };
       const token = localStorage.getItem('spy_game_token');
       const res = await fetch(`${GAME_API_BASE}/${session.id}/deploy`, {
@@ -188,6 +200,14 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
                 ))}
               </div>
             )}
+            {droneBaseCity === node.id && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 3 }}>
+                <span onClick={e => { e.stopPropagation(); removeDroneBase(); }}
+                  style={{ fontSize: 7, color: '#00f0ff', background: 'rgba(0,240,255,0.1)', border: '1px solid rgba(0,240,255,0.3)', borderRadius: 3, padding: '1px 4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>
+                  🏭 DRONE BASE (2 🚁)
+                </span>
+              </div>
+            )}
             {isHovered && (
               <div style={{ position: 'absolute', inset: 0, borderRadius: 6, pointerEvents: 'none', border: `2px solid ${currentPhase.color}`, boxShadow: `inset 0 0 16px ${currentPhase.color}30`, animation: 'pulse 1s ease-in-out infinite' }} />
             )}
@@ -289,6 +309,41 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
           ))}
         </>
       )}
+      {phase === 4 && (
+        <>
+          <div style={{ fontSize: 9, color: '#666', letterSpacing: '0.1em' }}>
+            ESTABLISH DRONE BASE & ALLOCATE DRONES
+            <span style={{ color: droneBaseCity ? '#10b981' : currentPhase.color, marginLeft: 8 }}>
+              {droneBaseCity ? '✓ BASE ESTABLISHED' : '1 BASE REQUIRED'}
+            </span>
+          </div>
+          <div draggable={!droneBaseCity}
+            onDragStart={() => !droneBaseCity && setDragging({ type: 'drone_base', id: 'db-1', label: 'DRONE BASE HANGAR' })}
+            onDragEnd={() => setDragging(null)}
+            onClick={() => !droneBaseCity && handleAssetTap('drone_base', 'db-1', 'DRONE BASE HANGAR')}
+            style={{ padding: '10px 12px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.2s',
+              cursor: droneBaseCity ? 'default' : 'grab', opacity: droneBaseCity ? 0.4 : 1,
+              border: `1px solid ${droneBaseCity ? '#10b98140' : selected?.id === 'db-1' ? currentPhase.color : 'rgba(0,240,255,0.2)'}`,
+              background: droneBaseCity ? 'rgba(16,185,129,0.05)' : selected?.id === 'db-1' ? `${currentPhase.color}18` : 'rgba(0,240,255,0.04)',
+            }}>
+            <Cpu size={13} style={{ color: droneBaseCity ? '#10b981' : currentPhase.color }} />
+            <div>
+              <div style={{ fontSize: 9, color: droneBaseCity ? '#10b981' : currentPhase.color, letterSpacing: '0.1em' }}>DRONE BASE HANGAR</div>
+              <div style={{ fontSize: 7, color: '#555', marginTop: 1 }}>{droneBaseCity ? `ESTABLISHED AT ${cityLabel(droneBaseCity)}` : isMobile ? 'TAP → HOME CITY' : 'DRAG TO HOME CITY'}</div>
+            </div>
+          </div>
+
+          {droneBaseCity && (
+            <div style={{ padding: '10px 12px', borderRadius: 4, opacity: 0.8, display: 'flex', alignItems: 'center', gap: 8, border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.05)' }}>
+              <Cpu size={13} style={{ color: '#10b981' }} />
+              <div>
+                <div style={{ fontSize: 9, color: '#10b981', letterSpacing: '0.1em' }}>2x DRONES ASSIGNED</div>
+                <div style={{ fontSize: 7, color: '#888', marginTop: 1 }}>STATIONED AT {cityLabel(droneBaseCity)}</div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 
@@ -318,6 +373,17 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
         {teams.filter(t => teamPlacements[t.id]).map(t => <div key={t.id} style={{ fontSize: 8, color: '#f59e0baa', padding: '2px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>▸ {t.name} → {cityLabel(teamPlacements[t.id])}</div>)}
         {Object.keys(teamPlacements).length === 0 && <div style={{ fontSize: 8, color: '#333', fontStyle: 'italic' }}>None stationed</div>}
       </div>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+          <span style={{ fontSize: 9, color: '#10b98188', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: 4 }}><Cpu size={9} /> DRONE SYSTEM</span>
+          <span style={{ fontSize: 9, color: phase4Done ? '#10b981' : '#888' }}>{droneBaseCity ? '1/1' : '0/1'}</span>
+        </div>
+        {droneBaseCity ? (
+          <div style={{ fontSize: 8, color: '#10b981aa', padding: '2px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>◆ BASE → {cityLabel(droneBaseCity)} (2x Drones Stationed)</div>
+        ) : (
+          <div style={{ fontSize: 8, color: '#333', fontStyle: 'italic' }}>None established</div>
+        )}
+      </div>
       {allDone && (
         <button onClick={handleConfirm} disabled={submitting} className="flash-proceed"
           style={{ width: '100%', padding: '10px 0', border: '1px solid #10b981', borderRadius: 4, background: 'rgba(16,185,129,0.15)', color: '#10b981', fontSize: 10, letterSpacing: '0.12em', cursor: 'pointer', fontWeight: 700, transition: 'all 0.2s', fontFamily: "'Share Tech Mono','Courier New',monospace", '--flash-color': '#10b981', '--flash-bg-high': 'rgba(16,185,129,0.32)', '--flash-bg-low': 'rgba(16,185,129,0.06)' }}>
@@ -329,18 +395,19 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
 
   const renderPhaseNav = () => (
     <div style={{ display: 'flex', gap: 8 }}>
-      {phase < 3 && (
+      {phase < 4 && (
         <button onClick={() => {
           if (phase === 1 && phase1Done) setPhase(2);
           else if (phase === 2 && phase2Done) setPhase(3);
+          else if (phase === 3 && phase3Done) setPhase(4);
           else addToast?.(`Complete ${currentPhase.label.toLowerCase()} first.`, 'warning');
         }}
-          className={(phase === 1 && phase1Done) || (phase === 2 && phase2Done) ? 'flash-proceed' : ''}
-          style={{ flex: 1, padding: '10px', border: `1px solid ${currentPhase.color}`, borderRadius: 4, background: `${currentPhase.color}18`, color: currentPhase.color, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', fontFamily: "'Share Tech Mono','Courier New',monospace", opacity: (phase === 1 && phase1Done) || (phase === 2 && phase2Done) ? 1 : 0.35, transition: 'all 0.2s', '--flash-color': currentPhase.color, '--flash-bg-high': `${currentPhase.color}3a`, '--flash-bg-low': `${currentPhase.color}0e` }}>
+          className={((phase === 1 && phase1Done) || (phase === 2 && phase2Done) || (phase === 3 && phase3Done)) ? 'flash-proceed' : ''}
+          style={{ flex: 1, padding: '10px', border: `1px solid ${currentPhase.color}`, borderRadius: 4, background: `${currentPhase.color}18`, color: currentPhase.color, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', fontFamily: "'Share Tech Mono','Courier New',monospace", opacity: ((phase === 1 && phase1Done) || (phase === 2 && phase2Done) || (phase === 3 && phase3Done)) ? 1 : 0.35, transition: 'all 0.2s', '--flash-color': currentPhase.color, '--flash-bg-high': `${currentPhase.color}3a`, '--flash-bg-low': `${currentPhase.color}0e` }}>
           NEXT PHASE →
         </button>
       )}
-      {phase === 3 && (
+      {phase === 4 && (
         <button onClick={handleConfirm} disabled={!allDone || submitting}
           className={allDone ? 'flash-proceed' : ''}
           style={{ flex: 1, padding: '10px', border: `1px solid ${allDone ? '#10b981' : '#333'}`, borderRadius: 4, background: allDone ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.02)', color: allDone ? '#10b981' : '#444', fontSize: 10, letterSpacing: '0.1em', fontWeight: 700, cursor: allDone ? 'pointer' : 'not-allowed', transition: 'all 0.2s', fontFamily: "'Share Tech Mono','Courier New',monospace", '--flash-color': '#10b981', '--flash-bg-high': 'rgba(16,185,129,0.32)', '--flash-bg-low': 'rgba(16,185,129,0.06)' }}>
@@ -371,11 +438,11 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8 }}>
             {PHASES.map((p, i) => {
-              const done = (p.id === 1 && phase1Done) || (p.id === 2 && phase2Done) || (p.id === 3 && phase3Done);
+              const done = (p.id === 1 && phase1Done) || (p.id === 2 && phase2Done) || (p.id === 3 && phase3Done) || (p.id === 4 && phase4Done);
               const active = p.id === phase;
               return (
                 <React.Fragment key={p.id}>
-                  <div onClick={() => { if (p.id === 1) setPhase(1); if (p.id === 2 && phase1Done) setPhase(2); if (p.id === 3 && phase2Done) setPhase(3); }}
+                  <div onClick={() => { if (p.id === 1) setPhase(1); if (p.id === 2 && phase1Done) setPhase(2); if (p.id === 3 && phase2Done) setPhase(3); if (p.id === 4 && phase3Done) setPhase(4); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 4, padding: isMobile ? '5px 8px' : '6px 14px', borderRadius: 4, transition: 'all 0.2s',
                       cursor: (p.id === 1 || (p.id === 2 && phase1Done) || (p.id === 3 && phase2Done)) ? 'pointer' : 'not-allowed',
                       border: `1px solid ${active ? p.color : done ? '#ffffff30' : '#ffffff18'}`,

@@ -62,6 +62,11 @@ public class AIAttackerService {
                 attacker.setCurrentLocation(loc);
             }
 
+            considerSafehouseAttack(attacker, session, config);
+            if (attacker.isEliminated()) {
+                continue;
+            }
+
             long safehousesInLoc = session.getSafehouses().stream()
                     .filter(s -> s.getCityNode().equals(attacker.getCurrentLocation()) && "HOSTILE".equals(s.getOwnerFaction()))
                     .count();
@@ -92,7 +97,7 @@ public class AIAttackerService {
                 attacker.setBudget(budget - finalCost);
                 String code = String.valueOf(100 + random.nextInt(900));
                 
-                GameSession.Safehouse sh = new GameSession.Safehouse(attacker.getCurrentLocation(), "HOSTILE", "PURCHASED", !buildSecure, code);
+                GameSession.Safehouse sh = new GameSession.Safehouse(attacker.getCurrentLocation(), "HOSTILE", "PURCHASED", false, code);
                 sh.setAttackerName(attacker.getName());
                 sh.setSecure(buildSecure);
                 session.getSafehouses().add(sh);
@@ -323,7 +328,7 @@ public class AIAttackerService {
                                 if (attacker.getBudget() >= finalCost) {
                                     attacker.setBudget(attacker.getBudget() - finalCost);
                                     String shCode = String.valueOf(100 + random.nextInt(900));
-                                    GameSession.Safehouse newSh = new GameSession.Safehouse(destLoc, "HOSTILE", "PURCHASED", !buildSecure, shCode);
+                                    GameSession.Safehouse newSh = new GameSession.Safehouse(destLoc, "HOSTILE", "PURCHASED", false, shCode);
                                     newSh.setAttackerName(attacker.getName());
                                     newSh.setSecure(buildSecure);
                                     session.getSafehouses().add(newSh);
@@ -352,7 +357,7 @@ public class AIAttackerService {
                                 if (shsHere < 4 && attacker.getBudget() >= stagingCost) {
                                     attacker.setBudget(attacker.getBudget() - stagingCost);
                                     String stageCode = String.valueOf(100 + random.nextInt(900));
-                                    GameSession.Safehouse stageSh = new GameSession.Safehouse(currentLoc, "HOSTILE", "PURCHASED", true, stageCode);
+                                    GameSession.Safehouse stageSh = new GameSession.Safehouse(currentLoc, "HOSTILE", "PURCHASED", false, stageCode);
                                     stageSh.setAttackerName(attacker.getName());
                                     session.getSafehouses().add(stageSh);
                                     Node locNode = pathfinder.getNode(currentLoc, config);
@@ -442,7 +447,7 @@ public class AIAttackerService {
                     if (shsAtNewLoc == 0 && attacker.getBudget() >= newLocShCost) {
                         attacker.setBudget(attacker.getBudget() - newLocShCost);
                         String newCode = String.valueOf(100 + random.nextInt(900));
-                        GameSession.Safehouse newSh = new GameSession.Safehouse(nextStepNode, "HOSTILE", "PURCHASED", true, newCode);
+                        GameSession.Safehouse newSh = new GameSession.Safehouse(nextStepNode, "HOSTILE", "PURCHASED", false, newCode);
                         newSh.setAttackerName(attacker.getName());
                         session.getSafehouses().add(newSh);
                         Node newNode = pathfinder.getNode(nextStepNode, config);
@@ -525,5 +530,126 @@ public class AIAttackerService {
         GameSession.Clue clue = new GameSession.Clue(turnDiscovered, source, text, cityName, discoveredByAgent);
         clue.setTurnOccurred(turnOccurred);
         session.getDiscoveredClues().add(clue);
+    }
+
+    private void considerSafehouseAttack(GameSession.AIAttacker attacker, GameSession session, ScenarioConfig config) {
+        String city = attacker.getCurrentLocation();
+        if (city == null || city.isEmpty() || "NONE".equals(city)) {
+            return;
+        }
+
+        List<GameSession.Safehouse> defenderSHs = session.getSafehouses().stream()
+                .filter(s -> s.getCityNode().equalsIgnoreCase(city) && "DEFENDER".equals(s.getOwnerFaction()))
+                .collect(Collectors.toList());
+
+        if (defenderSHs.isEmpty()) {
+            return;
+        }
+
+        String state = attacker.getState();
+        boolean hasPermission = attacker.isPermissionToCrossBorderApproved() || attacker.isPermissionToEngageApproved();
+        boolean isLateStage = "Permission to cross border".equals(state)
+                || "Clearance approved".equals(state)
+                || "Border crossed".equals(state)
+                || "Permission to engage".equals(state)
+                || "Attack initiated".equals(state)
+                || "Exfiltration".equals(state);
+
+        if (hasPermission || isLateStage) {
+            return;
+        }
+
+        long activeAttackers = session.getAiAttackers().stream()
+                .filter(a -> !a.isEliminated())
+                .count();
+
+        double attackChance = 0.30;
+        if (activeAttackers > 1) {
+            attackChance = 0.60;
+        }
+
+        if (random.nextDouble() > attackChance) {
+            return;
+        }
+
+        GameSession.Safehouse targetSH = defenderSHs.get(random.nextInt(defenderSHs.size()));
+        
+        boolean combatTeamPresent = session.getTacticalTeams().stream()
+                .anyMatch(t -> t.getCurrentCity().equalsIgnoreCase(city));
+        
+        boolean success = false;
+        if (combatTeamPresent) {
+            success = random.nextDouble() < 0.10;
+        } else {
+            boolean agentPresent = session.getAgents().stream()
+                    .anyMatch(a -> a.getCurrentCity().equalsIgnoreCase(city));
+            if (agentPresent) {
+                success = random.nextDouble() < 0.50;
+            } else {
+                success = true;
+            }
+        }
+
+        int currentTurn = session.getCurrentTurn();
+
+        if (success) {
+            session.getSafehouses().remove(targetSH);
+
+            List<GameSession.Agent> agentsHere = session.getAgents().stream()
+                    .filter(a -> a.getCurrentCity().equalsIgnoreCase(city))
+                    .collect(Collectors.toList());
+            session.getAgents().removeAll(agentsHere);
+
+            List<GameSession.TacticalTeam> teamsHere = session.getTacticalTeams().stream()
+                    .filter(t -> t.getCurrentCity().equalsIgnoreCase(city))
+                    .collect(Collectors.toList());
+            session.getTacticalTeams().removeAll(teamsHere);
+
+            String agentsNames = agentsHere.stream()
+                    .map(GameSession.Agent::getCodename)
+                    .collect(Collectors.joining(", "));
+            String teamsNames = teamsHere.stream()
+                    .map(GameSession.TacticalTeam::getName)
+                    .collect(Collectors.joining(", "));
+
+            String resultText = "COMBAT SUCCESS: A safehouse in " + city.toUpperCase() + " was attacked and destroyed.";
+            if (!agentsNames.isEmpty() || !teamsNames.isEmpty()) {
+                resultText += " Neutralized: ";
+                if (!agentsNames.isEmpty()) {
+                    resultText += "Agents (" + agentsNames + ") ";
+                }
+                if (!teamsNames.isEmpty()) {
+                    resultText += "Tactical Teams (" + teamsNames + ") ";
+                }
+                resultText += ".";
+            }
+
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    currentTurn,
+                    "SAFEHOUSE_ATTACK",
+                    resultText,
+                    city,
+                    "Combat Operations"
+            ));
+
+        } else {
+            String resultText = "COMBAT ENGAGEMENT: Safehouse in " + city.toUpperCase() + " was attacked. The defense held and the attack failed.";
+            
+            if (combatTeamPresent) {
+                if (random.nextDouble() < 0.20) {
+                    attacker.setEliminated(true);
+                    attacker.setState("Lost");
+                    resultText += " Hostile operative " + attacker.getName() + " was cornered and neutralized by the combat team.";
+                }
+            }
+
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    currentTurn,
+                    "SAFEHOUSE_ATTACK",
+                    resultText,
+                    city,
+                    "Combat Operations"
+            ));
+        }
     }
 }

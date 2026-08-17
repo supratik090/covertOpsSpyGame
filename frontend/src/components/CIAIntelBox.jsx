@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Users, Radio, DollarSign, Archive, Compass, Award, Cpu } from 'lucide-react';
+import { Shield, Users, Radio, Cpu } from 'lucide-react';
+import { SafehouseIcon, HostileSafehouseIcon, ExposedSafehouseIcon, DroneBaseIcon, DroneIcon } from './GameSymbols';
+
+const formatK = (amt) => {
+  if (typeof amt !== 'number') return amt;
+  if (amt >= 1000) {
+    const k = amt / 1000;
+    return `$${Number.isInteger(k) ? k : k.toFixed(0)}K`;
+  }
+  return `$${amt}`;
+};
 
 export default function CIAIntelBox({ 
   cityId, 
@@ -20,7 +30,13 @@ export default function CIAIntelBox({
   localAgentTasks = {},
   setSelectedCityNode,
   localTechDeploys = [],
-  localSafehouseBuilds = []
+  localSafehouseBuilds = [],
+  localDroneBaseBuilds = [],
+  onBuildDroneBase,
+  localDroneDeployments = {},
+  onDeployDrone,
+  localDroneOperations = [],
+  onToggleDroneOperation
 }) {
   if (!cityId || !session) return null;
 
@@ -45,6 +61,8 @@ export default function CIAIntelBox({
   
   // Track selected safehouse code for combat team raid actions
   const [selectedRaidTarget, setSelectedRaidTarget] = useState({}); // maps teamId -> safehouseCode
+  const [activeDroneId, setActiveDroneId] = useState(null);
+  const [selectedDroneMode, setSelectedDroneMode] = useState({}); // droneId -> 'RECON' | 'ATTACK'
 
   // Derive isFriendly from scenario nodesData instead of hardcoded city list
   const currentNodeInfo = nodesData.find(n => n.id === cityId);
@@ -55,15 +73,15 @@ export default function CIAIntelBox({
     const isAlreadyActive = session.espionageResources.some(r => r.cityNode === cityId && r.type === type);
     const isQueued = localTechDeploys.some(d => d.type === type && d.cityNode === cityId);
 
-    let btnStyle = { padding: '8px 10px', fontSize: '10px' };
-    let btnClass = "cia-task-btn font-mono w-full flex items-center";
+    let btnClass = "cia-dispatch-btn font-mono text-center w-full flex justify-between items-center px-3 py-1.5 mt-1";
+    let btnStyle = { fontSize: '11px', whiteSpace: 'nowrap' };
 
     if (isAlreadyActive) {
       btnClass += " border-emerald-500 text-emerald-400 bg-[rgba(16,185,129,0.08)] cursor-not-allowed";
       return (
         <button key={type} className={btnClass} style={btnStyle} disabled>
           <span>{label}</span>
-          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.15)]">ACTIVE</span>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.15)]">ACTIVE</span>
         </button>
       );
     }
@@ -73,15 +91,15 @@ export default function CIAIntelBox({
       return (
         <button key={type} onClick={() => onDeployTech?.(type, cityId)} className={btnClass} style={btnStyle}>
           <span>{label}</span>
-          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.2)] text-emerald-400" style={{ letterSpacing: '0.05em' }}>&#10003;&nbsp; ADDED</span>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.2)] text-emerald-400" style={{ letterSpacing: '0.05em' }}>&#10003;&nbsp; ADDED</span>
         </button>
       );
     }
 
     return (
       <button key={type} onClick={() => onDeployTech?.(type, cityId)} className={btnClass} style={btnStyle}>
-        <span style={{ flex: 1, textAlign: 'left' }}>{label}</span>
-        <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '12px' }}>${cost.toLocaleString()}</span>
+        <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap' }}>{label}</span>
+        <span className="text-amber text-[11px] font-bold" style={{ marginLeft: '12px', whiteSpace: 'nowrap' }}>{formatK(cost)}</span>
       </button>
     );
   };
@@ -92,9 +110,10 @@ export default function CIAIntelBox({
 
     const isQueued = localSafehouseBuilds.includes(cityId);
     const cost = isFriendly ? 40000 : 100000;
+    const costText = formatK(cost);
 
-    let btnClass = "cia-dispatch-btn font-mono text-center w-full flex justify-between items-center px-4 py-2 mt-2";
-    let btnStyle = { fontSize: '10.5px' };
+    let btnClass = "cia-dispatch-btn font-mono text-center w-full flex justify-between items-center px-3 py-2 mt-2";
+    let btnStyle = { fontSize: '12px', fontWeight: 'bold', padding: '9px 12px', whiteSpace: 'nowrap' };
 
     if (isQueued) {
       btnStyle.background = 'rgba(16, 185, 129, 0.08)';
@@ -102,8 +121,11 @@ export default function CIAIntelBox({
       btnStyle.color = '#10b981';
       return (
         <button onClick={() => onBuildSafehouse?.(cityId)} className={btnClass} style={btnStyle}>
-          <span>ESTABLISH SAFEHOUSE</span>
-          <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.2)] text-emerald-400" style={{ letterSpacing: '0.05em' }}>&#10003;&nbsp; ADDED</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+            <SafehouseIcon size={13} color="#10b981" style={{ animation: 'pulse 1.5s infinite' }} />
+            BUILD SAFEHOUSE
+          </span>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.2)] text-emerald-400" style={{ letterSpacing: '0.05em', whiteSpace: 'nowrap', marginLeft: '8px' }}>&#10003;&nbsp; QUEUED</span>
         </button>
       );
     }
@@ -112,8 +134,11 @@ export default function CIAIntelBox({
     btnStyle.border = '1px solid rgba(255, 255, 255, 0.15)';
     return (
       <button onClick={() => onBuildSafehouse?.(cityId)} className={btnClass} style={btnStyle}>
-        <span>ESTABLISH SAFEHOUSE</span>
-        <span className="text-muted text-[9.5px]">${cost.toLocaleString()}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+          <SafehouseIcon size={13} color="rgba(0,240,255,0.5)" />
+          BUILD SAFEHOUSE
+        </span>
+        <span className="text-muted text-[11px]" style={{ whiteSpace: 'nowrap', fontWeight: 'bold', marginLeft: '8px' }}>{costText}</span>
       </button>
     );
   };
@@ -196,7 +221,10 @@ export default function CIAIntelBox({
 
         {/* Safehouses Status */}
         <div className="cia-section">
-          <h4 className="cia-sub-title"><Shield size={12} /> SAFEHOUSE ASSETS</h4>
+          <h4 className="cia-sub-title">
+            <SafehouseIcon size={12} color="var(--cyan)" style={{ marginRight: '4px' }} />
+            SAFEHOUSE ASSETS
+          </h4>
           <div className="cia-grid-item">
             <div className="cia-sub-item">
               <span className="label font-mono">FRIENDLY SAFEHOUSE CODES:</span>
@@ -205,8 +233,9 @@ export default function CIAIntelBox({
                   <span className="text-dim font-mono">NONE OPERATIONAL</span>
                 ) : (
                   friendlySafehouses.map((s, idx) => (
-                    <span key={idx} className={`cia-tag font-mono ${s.secure ? 'cyan' : 'cyan'}`}>
-                      {s.secure ? `🛡️ $#${s.safehouseCode}` : `#${s.safehouseCode}`}
+                    <span key={idx} className="cia-tag cyan font-mono" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <SafehouseIcon size={10} color="#00f0ff" secure={s.secure} />
+                      #{s.safehouseCode}
                     </span>
                   ))
                 )}
@@ -219,8 +248,9 @@ export default function CIAIntelBox({
                   <span className="text-dim font-mono">NONE REVEALED</span>
                 ) : (
                   hostileSafehouses.map((s, idx) => (
-                    <span key={idx} className="cia-tag red font-mono">
-                      {s.secure ? `🛡️ $#${s.safehouseCode}` : `#${s.safehouseCode}`} (EXPOSED)
+                    <span key={idx} className="cia-tag red font-mono" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <ExposedSafehouseIcon size={10} secure={s.secure} />
+                      #{s.safehouseCode} (EXPOSED)
                     </span>
                   ))
                 )}
@@ -235,7 +265,7 @@ export default function CIAIntelBox({
         <div className="cia-section">
           <h4 className="cia-sub-title"><Users size={12} /> FIELD INTEL FORCE</h4>
           {localAgents.length === 0 ? (
-            <div className="text-dim font-mono text-[10px] py-1">NO FIELD AGENTS DEPLOYED</div>
+            <div className="text-dim font-mono text-[10px] py-1">None</div>
           ) : (
             <div className="cia-list">
               {localAgents.map(a => {
@@ -328,7 +358,7 @@ export default function CIAIntelBox({
         <div className="cia-section">
           <h4 className="cia-sub-title"><Shield size={12} /> COMBAT FORCE</h4>
           {localTeams.length === 0 ? (
-            <div className="text-dim font-mono text-[10px] py-1">NO COMBAT TEAMS DEPLOYED</div>
+            <div className="text-dim font-mono text-[10px] py-1">None</div>
           ) : (
             <div className="cia-list">
               {localTeams.map(t => {
@@ -417,7 +447,7 @@ export default function CIAIntelBox({
                              {/* Standard tactical disruptions */}
                              <div className="cia-task-button-grid mt-2">
                                {(() => {
-                                 const actOptions = ['FREEZE_FINANCE', 'RAID_LOGISTICS'];
+                                 const actOptions = [];
                                  if (isFriendly) {
                                    actOptions.push('TRANSIT_CHECKPOINT');
                                    actOptions.push('CITY_GRID_LOCKDOWN');
@@ -500,7 +530,7 @@ export default function CIAIntelBox({
                 <button 
                   onClick={() => setShowDeployMenu(!showDeployMenu)}
                   className="cia-dispatch-btn font-mono text-center w-full"
-                  style={{ background: 'rgba(255, 204, 0, 0.05)', border: '1px solid rgba(255, 204, 0, 0.4)', color: 'var(--amber)' }}
+                  style={{ background: 'rgba(255, 204, 0, 0.05)', border: '1px solid rgba(255, 204, 0, 0.4)', color: 'var(--amber)', fontSize: '13px', fontWeight: 'bold', padding: '10px 12px' }}
                 >
                   {showDeployMenu ? 'HIDE DEPLOYMENT CONSOLE' : 'DEPLOY SURVEILLANCE TECHNOLOGY'}
                 </button>
@@ -525,11 +555,235 @@ export default function CIAIntelBox({
           </div>
         </div>
 
+        {/* Drone Aviation System */}
+        {isFriendly && (
+          <div className="cia-section">
+            <h4 className="cia-sub-title"><DroneIcon size={12} color="var(--cyan)" /> DRONE AVIATION FORCE</h4>
+
+            {/* Drone Base status / construct button */}
+            {(() => {
+              const hasBase = session.droneBases?.includes(cityId);
+              const isBaseQueued = localDroneBaseBuilds.includes(cityId);
+
+              if (hasBase) {
+                return (
+                  <div className="cia-list-item mb-2" style={{ cursor: 'default' }}>
+                    <span className="value text-cyber flex items-center gap-1.5" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <DroneBaseIcon size={12} color="#00f0ff" /> DRONE BASE
+                    </span>
+                    <span className="label font-mono text-[9px] text-emerald-400 font-bold">● OPERATIONAL</span>
+                  </div>
+                );
+              }
+
+              if (isBaseQueued) {
+                return (
+                  <button 
+                    onClick={() => onBuildDroneBase?.(cityId)}
+                    className="cia-dispatch-btn font-mono text-center w-full flex justify-between items-center px-3 py-1.5 mb-2"
+                    style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid #10b981', color: '#10b981' }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <DroneBaseIcon size={12} color="#10b981" /> CONSTRUCT DRONE BASE
+                    </span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[rgba(16,185,129,0.2)] text-emerald-400">&#10003;&nbsp; QUEUED</span>
+                  </button>
+                );
+              }
+
+              return (
+                <button 
+                  onClick={() => onBuildDroneBase?.(cityId)}
+                  className="cia-dispatch-btn font-mono text-center w-full flex justify-between items-center px-3 py-1.5 mb-2"
+                  style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.15)' }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <DroneBaseIcon size={12} color="rgba(0,240,255,0.6)" /> CONSTRUCT DRONE BASE
+                  </span>
+                  <span className="text-muted text-[10px]" style={{ whiteSpace: 'nowrap', fontWeight: 'bold' }}>$200K</span>
+                </button>
+              );
+            })()}
+
+            {/* Drones List matching Field Agents and Combat Force */}
+            {(session.droneBases?.includes(cityId) || localDroneBaseBuilds.includes(cityId)) && (
+              <div>
+                {(() => {
+                  const localDrones = (session.drones || []).filter(d => {
+                    const plannedBase = localDroneDeployments[d.id];
+                    if (plannedBase) return plannedBase === cityId;
+                    return d.currentCity === cityId;
+                  });
+
+                  const reserveDrones = (session.drones || []).filter(d => 
+                    (!d.currentCity && !localDroneDeployments[d.id]) || d.status === 'RESERVE'
+                  );
+
+                  const getDroneName = (id) => {
+                    if (id === 1) return "Drone Alpha";
+                    if (id === 2) return "Drone Theta";
+                    return `Drone #${id}`;
+                  };
+
+                  if (localDrones.length === 0 && reserveDrones.length === 0) {
+                    return <div className="text-dim font-mono text-[10px] py-1">No drones deployed</div>;
+                  }
+
+                  return (
+                    <div className="cia-list">
+                      {localDrones.map(drone => {
+                        const plannedOp = localDroneOperations.find(op => op.droneId === drone.id);
+                        const droneName = getDroneName(drone.id);
+                        const currentMode = selectedDroneMode[drone.id] || 'RECON';
+
+                        return (
+                          <div key={drone.id} className="cia-agent-block">
+                            <div 
+                              className={`cia-list-item cursor-pointer ${activeDroneId === drone.id ? 'active-select' : ''}`}
+                              onClick={() => setActiveDroneId(activeDroneId === drone.id ? null : drone.id)}
+                            >
+                              <span className="value text-cyber flex items-center gap-1.5" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <DroneIcon size={12} color="var(--cyan)" className="drone-rotor-spin" /> DRONE: {droneName.toUpperCase()}
+                              </span>
+                              <span className="label font-mono text-[9px]">
+                                {plannedOp ? `${plannedOp.actionType} -> ${plannedOp.targetCity.toUpperCase()}` : (drone.status === 'ACTIVE' ? 'READY' : drone.status)}
+                              </span>
+                            </div>
+
+                            {activeDroneId === drone.id && (
+                              <div className="cia-agent-controls animate-fade-in">
+                                {plannedOp ? (
+                                  <div className="flex justify-between items-center bg-[rgba(0,240,255,0.04)] border border-[rgba(0,240,255,0.25)] p-2 rounded">
+                                    <span className="text-cyber font-mono text-[10px] font-bold">
+                                      {plannedOp.actionType === 'RECON' ? '🔍 RECON' : '🚀 ATTACK'} &rarr; {plannedOp.targetCity.replace('_', ' ').toUpperCase()}
+                                    </span>
+                                    <button 
+                                      onClick={() => onToggleDroneOperation?.(drone.id, plannedOp.actionType, plannedOp.targetCity)}
+                                      className="text-red-400 text-[9px] font-mono font-bold underline hover:text-red-300 transition-colors"
+                                    >
+                                      CANCEL ORDER
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    {/* Operation Mode Selector Buttons */}
+                                    <div>
+                                      <span className="cia-controls-label">OPERATION MODE</span>
+                                      <div className="cia-task-button-grid">
+                                        <button
+                                          onClick={() => setSelectedDroneMode(prev => ({ ...prev, [drone.id]: 'RECON' }))}
+                                          className={`cia-task-btn font-mono ${currentMode === 'RECON' ? 'active' : ''}`}
+                                        >
+                                          🔍 RECON ($50K)
+                                        </button>
+                                        <button
+                                          onClick={() => setSelectedDroneMode(prev => ({ ...prev, [drone.id]: 'ATTACK' }))}
+                                          className={`cia-task-btn font-mono ${currentMode === 'ATTACK' ? 'active' : ''}`}
+                                          style={currentMode === 'ATTACK' ? { background: 'rgba(255, 59, 48, 0.15)', borderColor: 'var(--red)', color: 'var(--red)' } : {}}
+                                        >
+                                          🚀 ATTACK ($100K)
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* Target Region Dispatch List */}
+                                    <div className="mt-3">
+                                      <span className="cia-controls-label">DISPATCH TO CONNECTING REGION</span>
+                                      <div className="cia-dispatch-list">
+                                        {currentConnections.length === 0 ? (
+                                          <span className="text-[8px] text-dim font-mono">NO CONNECTED NODES</span>
+                                        ) : (
+                                          currentConnections.map(connId => {
+                                            const connNode = nodesData.find(n => n.id === connId);
+                                            const isConnHostile = connNode ? connNode.territory === 'HOSTILE_TERRITORY' : false;
+                                            const riskText = isConnHostile ? ' (10% RISK)' : '';
+                                            const costText = currentMode === 'ATTACK' ? '$100K' : '$50K';
+
+                                            return (
+                                              <button
+                                                key={connId}
+                                                onClick={() => {
+                                                  onToggleDroneOperation?.(drone.id, currentMode, connId);
+                                                  setActiveDroneId(null);
+                                                }}
+                                                className="cia-dispatch-btn font-mono"
+                                                style={currentMode === 'ATTACK' ? { borderColor: 'rgba(255, 59, 48, 0.3)', color: '#ff3b30' } : {}}
+                                              >
+                                                <span>{connId.toUpperCase()}{riskText}</span>
+                                                <span className="text-amber text-[9px] font-bold" style={{ marginLeft: '8px' }}>
+                                                  {costText}
+                                                </span>
+                                              </button>
+                                            );
+                                          })
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Option to relocate drone to another city with an operational drone base */}
+                                    {(() => {
+                                      const otherBases = (session.droneBases || []).filter(b => b !== cityId);
+                                      if (otherBases.length === 0) return null;
+                                      return (
+                                        <div className="mt-3">
+                                          <span className="cia-controls-label">RELOCATE TO ANOTHER BASE</span>
+                                          <div className="cia-dispatch-list">
+                                            {otherBases.map(targetBase => (
+                                              <button
+                                                key={targetBase}
+                                                onClick={() => {
+                                                  onDeployDrone?.(drone.id, targetBase);
+                                                  setActiveDroneId(null);
+                                                }}
+                                                className="cia-dispatch-btn font-mono"
+                                              >
+                                                <span>RELOCATE &rarr; {targetBase.toUpperCase()}</span>
+                                                <span className="text-emerald-400 text-[9px] font-bold" style={{ marginLeft: '8px' }}>BASE READY</span>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Reserve Drones Deployment */}
+                      {reserveDrones.length > 0 && (
+                        <div className="mt-3 pt-2 border-t border-[rgba(255,255,255,0.05)]">
+                          <span className="cia-controls-label">DEPLOY RESERVE ASSET</span>
+                          <div className="cia-dispatch-list mt-1">
+                            {reserveDrones.map(d => (
+                              <button 
+                                key={d.id}
+                                onClick={() => onDeployDrone?.(d.id, cityId)}
+                                className="cia-dispatch-btn font-mono"
+                              >
+                                <span>{getDroneName(d.id).toUpperCase()}</span>
+                                <span className="text-emerald-400 text-[9px] font-bold" style={{ marginLeft: '8px' }}>DEPLOY HERE</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tech Assets */}
         <div className="cia-section">
           <h4 className="cia-sub-title"><Radio size={12} /> SURVEILLANCE MATRIX</h4>
           {localTech.length === 0 ? (
-            <div className="text-dim font-mono text-[10px] py-1">NO SCANNER FEED INSTALLED</div>
+            <div className="text-dim font-mono text-[10px] py-1">None</div>
           ) : (
             <div className="cia-tag-list">
               {localTech.map((r, i) => {
@@ -554,38 +808,7 @@ export default function CIAIntelBox({
           )}
         </div>
 
-        {/* Hostile Hotspots (Finance/Logistics) */}
-                {!isFriendly && nodeInfo && (
-                  <div className="cia-section">
-                    <h4 className="cia-sub-title"><Archive size={12} /> ENEMY HOTSPOTS</h4>
-                    <div className="cia-grid-item">
-                      <div className="cia-sub-item">
-                        <span className="label font-mono"><DollarSign size={10} /> FINANCIAL RAILS:</span>
-                        <div className="cia-tag-list mt-1">
-                          {session.uncoveredFinanceCities && session.uncoveredFinanceCities.includes(cityId) ? (
-                            nodeInfo.availableFinance && nodeInfo.availableFinance.map((f, i) => (
-                              <span key={i} className="cia-tag red font-mono">{f.replace('_', ' ')}</span>
-                            ))
-                          ) : (
-                            <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR FINANCE TO SCAN)</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="cia-sub-item mt-2">
-                        <span className="label font-mono"><Archive size={10} /> LOGISTICS SHIELD:</span>
-                        <div className="cia-tag-list mt-1">
-                          {session.uncoveredLogisticsCities && session.uncoveredLogisticsCities.includes(cityId) ? (
-                            nodeInfo.availableLogistics && nodeInfo.availableLogistics.map((l, i) => (
-                              <span key={i} className="cia-tag amber font-mono">{l.replace('_', ' ')}</span>
-                            ))
-                          ) : (
-                            <span className="text-dim font-mono text-[9px]">UNDISCOVERED (MONITOR LOGISTICS TO SCAN)</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+
 
       </div>
 
