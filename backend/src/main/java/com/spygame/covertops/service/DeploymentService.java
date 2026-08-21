@@ -59,23 +59,58 @@ public class DeploymentService {
         }
         session.setSafehouses(updatedSafehouses);
 
-        // 2. Apply agent deployments
-        if (agentDeployments != null && !agentDeployments.isEmpty()) {
-            for (GameSession.Agent agent : session.getAgents()) {
-                String cityId = agentDeployments.get(String.valueOf(agent.getId()));
-                if (cityId != null && !cityId.isBlank()) {
-                    agent.setCurrentCity(cityId);
+        // 2. Apply agent deployments (with robust fallback so agents are never lost)
+        List<GameSession.Agent> agents = session.getAgents();
+        if (agents != null && !agents.isEmpty()) {
+            for (int i = 0; i < agents.size(); i++) {
+                GameSession.Agent agent = agents.get(i);
+                String cityId = null;
+                if (agentDeployments != null) {
+                    cityId = agentDeployments.get(String.valueOf(agent.getId()));
+                    if (cityId == null) {
+                        cityId = agentDeployments.get(String.valueOf(i + 1));
+                    }
+                    if (cityId == null) {
+                        cityId = agentDeployments.get(String.valueOf(i));
+                    }
+                }
+                if (cityId == null || cityId.isBlank()) {
+                    if (safehouses != null && !safehouses.isEmpty()) {
+                        cityId = safehouses.get(i % safehouses.size());
+                    } else {
+                        cityId = "amritsar";
+                    }
+                }
+                agent.setCurrentCity(cityId);
+                if (agent.getActiveTask() == null || agent.getActiveTask().isBlank() || "NONE".equalsIgnoreCase(agent.getActiveTask())) {
+                    agent.setActiveTask("UNCOVER_SAFEHOUSE");
                 }
             }
         }
 
-        // 3. Apply tactical team deployments
-        if (teamDeployments != null && !teamDeployments.isEmpty()) {
-            for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
-                String cityId = teamDeployments.get(String.valueOf(team.getId()));
-                if (cityId != null && !cityId.isBlank()) {
-                    team.setCurrentCity(cityId);
+        // 3. Apply tactical team deployments (with robust fallback so teams are never lost)
+        List<GameSession.TacticalTeam> teams = session.getTacticalTeams();
+        if (teams != null && !teams.isEmpty()) {
+            for (int i = 0; i < teams.size(); i++) {
+                GameSession.TacticalTeam team = teams.get(i);
+                String cityId = null;
+                if (teamDeployments != null) {
+                    cityId = teamDeployments.get(String.valueOf(team.getId()));
+                    if (cityId == null) {
+                        cityId = teamDeployments.get(String.valueOf(i + 1));
+                    }
+                    if (cityId == null) {
+                        cityId = teamDeployments.get(String.valueOf(i));
+                    }
                 }
+                if (cityId == null || cityId.isBlank()) {
+                    if (safehouses != null && !safehouses.isEmpty()) {
+                        cityId = safehouses.get(i % safehouses.size());
+                    } else {
+                        cityId = "amritsar";
+                    }
+                }
+                team.setCurrentCity(cityId);
             }
         }
 

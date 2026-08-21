@@ -16,7 +16,17 @@ public class GameSession {
     private int currentTurn;
     private int maxTurns;
     private int budget;
-    private String status; // ACTIVE, SUCCESS, COMPROMISED
+    private String status; // ACTIVE, SUCCESS, PARTIAL_DEFENDER_VICTORY, COMPROMISED, INACTIVE
+
+    public static void applyDefenderVictoryStatus(GameSession session) {
+        boolean strikeExecuted = session.getDiscoveredClues() != null && session.getDiscoveredClues().stream()
+                .anyMatch(c -> "STRIKE_EXECUTED".equals(c.getSource()) || (c.getClueText() != null && c.getClueText().contains("TARGET STRIKE EXECUTED")));
+        if (strikeExecuted) {
+            session.setStatus("PARTIAL_DEFENDER_VICTORY");
+        } else {
+            session.setStatus("SUCCESS");
+        }
+    }
     private List<String> attackerNames = new ArrayList<>();
     private String actualAttacker;
     private boolean suspectEscapedBefore;
@@ -37,6 +47,7 @@ public class GameSession {
     private java.util.Map<String, List<PlanStep>> suspectPlans = new java.util.HashMap<>();
     private java.util.Map<String, Integer> cityHeat = new java.util.HashMap<>();
     private java.util.Map<String, Integer> sweepCooldownCities = new java.util.HashMap<>();
+    private java.util.Map<String, Integer> droneBaseCooldowns = new java.util.HashMap<>();
 
     private String playerRole = "DEFENDER";
     private int attackerBudget;
@@ -557,6 +568,16 @@ public class GameSession {
     public List<String> getDroneBases() { return droneBases; }
     public void setDroneBases(List<String> droneBases) { this.droneBases = droneBases; }
 
+    public java.util.Map<String, Integer> getDroneBaseCooldowns() {
+        if (droneBaseCooldowns == null) {
+            droneBaseCooldowns = new java.util.HashMap<>();
+        }
+        return droneBaseCooldowns;
+    }
+    public void setDroneBaseCooldowns(java.util.Map<String, Integer> droneBaseCooldowns) {
+        this.droneBaseCooldowns = droneBaseCooldowns;
+    }
+
     public List<Drone> getDrones() { return drones; }
     public void setDrones(List<Drone> drones) { this.drones = drones; }
 
@@ -565,6 +586,10 @@ public class GameSession {
         private String currentCity; // base city, or null/empty if in reserve
         private String status; // ACTIVE, SHOT_DOWN, RESERVE
         private int cooldown;
+        private String type = "1-HOP"; // "1-HOP" or "2-HOP"
+        private int maxHops = 1; // 1 or 2
+        private String assignedActionType; // RECON, ATTACK, or null
+        private String assignedTargetCity; // target city node or null
 
         public Drone() {}
 
@@ -572,6 +597,17 @@ public class GameSession {
             this.id = id;
             this.currentCity = currentCity;
             this.status = status;
+            this.cooldown = 0;
+            this.type = "1-HOP";
+            this.maxHops = 1;
+        }
+
+        public Drone(int id, String currentCity, String status, String type, int maxHops) {
+            this.id = id;
+            this.currentCity = currentCity;
+            this.status = status;
+            this.type = type != null ? type : "1-HOP";
+            this.maxHops = maxHops > 0 ? maxHops : 1;
             this.cooldown = 0;
         }
 
@@ -586,5 +622,17 @@ public class GameSession {
 
         public int getCooldown() { return cooldown; }
         public void setCooldown(int cooldown) { this.cooldown = cooldown; }
+
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+
+        public int getMaxHops() { return maxHops; }
+        public void setMaxHops(int maxHops) { this.maxHops = maxHops; }
+
+        public String getAssignedActionType() { return assignedActionType; }
+        public void setAssignedActionType(String assignedActionType) { this.assignedActionType = assignedActionType; }
+
+        public String getAssignedTargetCity() { return assignedTargetCity; }
+        public void setAssignedTargetCity(String assignedTargetCity) { this.assignedTargetCity = assignedTargetCity; }
     }
 }

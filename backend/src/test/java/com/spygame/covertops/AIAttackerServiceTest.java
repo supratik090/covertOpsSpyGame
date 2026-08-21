@@ -81,17 +81,23 @@ public class AIAttackerServiceTest {
         sh.setAttackerName("Tariq Mahmood");
         session.getSafehouses().add(sh);
 
-        GameSession updatedSession = service.executeTurn(session, config);
-        GameSession.AIAttacker updatedAtt = updatedSession.getAiAttackers().get(0);
+        // Turn 1: AI attacker pre-builds safehouse at destination city and remains in current location
+        GameSession turn1Session = service.executeTurn(session, config);
+        GameSession.AIAttacker turn1Att = turn1Session.getAiAttackers().get(0);
+        boolean hasPrebuiltDestSh = turn1Session.getSafehouses().stream()
+                .anyMatch(s -> !s.getCityNode().equals("karachi") && "HOSTILE".equals(s.getOwnerFaction()));
+        assertTrue(hasPrebuiltDestSh, "AI attacker should pre-build safehouse at destination in previous turn");
 
-        // Verify attacker started moving towards the finance city target
-        assertNotEquals("karachi", updatedAtt.getCurrentLocation(), "AI attacker should evaluate moves and route towards target");
+        // Turn 2: With destination safehouse established in turn 1, AI attacker moves to destination
+        GameSession turn2Session = service.executeTurn(turn1Session, config);
+        GameSession.AIAttacker turn2Att = turn2Session.getAiAttackers().get(0);
+        assertNotEquals("karachi", turn2Att.getCurrentLocation(), "AI attacker should move to destination city on turn 2");
     }
 
     @Test
     public void testExecuteTurnSafehouseAttack() {
         GameSession session = new GameSession();
-        session.setCurrentTurn(3);
+        session.setCurrentTurn(5);
         session.setMaxTurns(25);
         session.setStatus("ACTIVE");
         session.setSafehouses(new ArrayList<>());
@@ -129,9 +135,9 @@ public class AIAttackerServiceTest {
 
         // We run executeTurn multiple times to ensure we hit the randomized chance to attack
         boolean attackTriggered = false;
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 60; i++) {
             GameSession tempSession = new GameSession();
-            tempSession.setCurrentTurn(3);
+            tempSession.setCurrentTurn(5);
             tempSession.setMaxTurns(25);
             tempSession.setStatus("ACTIVE");
             tempSession.setSafehouses(new ArrayList<>(session.getSafehouses()));

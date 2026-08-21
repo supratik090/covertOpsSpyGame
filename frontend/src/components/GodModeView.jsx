@@ -134,27 +134,6 @@ export default function GodModeView({
         </div>
       ) : activeGodTab === 'timeline' ? (
         <>
-          {/* Timeline Range Scanner */}
-          <div className="resource-section full-width">
-            <div className="resource-header">
-              <Sliders size={12} />
-              <h3 style={{ fontSize: '10px', margin: 0 }}>TIMELINE SCANNER</h3>
-            </div>
-            <div className="god-mode-controls flex items-center gap-4 bg-[rgba(5,8,17,0.7)] p-4 border border-[var(--border-subtle)] rounded-[var(--radius-sm)] mt-2">
-              <input 
-                type="range" 
-                min="1" 
-                max={currentTurn} 
-                value={replayTurn > currentTurn ? currentTurn : replayTurn} 
-                onChange={(e) => setReplayTurn(parseInt(e.target.value, 10))} 
-                className="w-full cursor-pointer accent-purple-500"
-                style={{ flex: 1 }}
-              />
-              <span className="font-mono text-purple-400 font-bold whitespace-nowrap" style={{ fontSize: '10px' }}>
-                PREVIEW: TURN {replayTurn > currentTurn ? currentTurn : replayTurn} / {currentTurn}
-              </span>
-            </div>
-          </div>
 
           {/* Replay feed list */}
           <div className="timeline-feed-container mt-8 relative pl-8" style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '15px' }}>

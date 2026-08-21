@@ -91,7 +91,9 @@ public class ClueGenerationEngine {
             String cityName = node.getName();
 
             GameSession.Agent agentInCity = session.getAgents().stream()
-                    .filter(a -> a.getCurrentCity() != null && a.getCurrentCity().equals(cityId) && "FIND_SUSPECT".equals(a.getActiveTask()) && a.getCooldownRemaining() <= 0)
+                    .filter(a -> a.getCurrentCity() != null && a.getCurrentCity().equals(cityId) 
+                            && ("FIND_SUSPECT".equals(a.getActiveTask()) || "UNCOVER_SAFEHOUSE".equals(a.getActiveTask())) 
+                            && a.getCooldownRemaining() <= 0)
                     .findFirst()
                     .orElse(null);
 

@@ -97,6 +97,7 @@ public class EndTurnRequest {
     private List<String> droneBasesToBuild;
     private Map<Integer, String> droneDeployments;
     private List<Map<String, Object>> droneOperations;
+    private List<Map<String, Object>> dronesToBuy;
 
     public List<String> getDroneBasesToBuild() { return droneBasesToBuild; }
     public void setDroneBasesToBuild(List<String> droneBasesToBuild) { this.droneBasesToBuild = droneBasesToBuild; }
@@ -106,4 +107,7 @@ public class EndTurnRequest {
 
     public List<Map<String, Object>> getDroneOperations() { return droneOperations; }
     public void setDroneOperations(List<Map<String, Object>> droneOperations) { this.droneOperations = droneOperations; }
+
+    public List<Map<String, Object>> getDronesToBuy() { return dronesToBuy; }
+    public void setDronesToBuy(List<Map<String, Object>> dronesToBuy) { this.dronesToBuy = dronesToBuy; }
 }

@@ -118,28 +118,33 @@ const ScenarioSelect = ({
               ARCHIVED CAMPAIGNS
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {sessions.filter(s => s.status !== 'ACTIVE').map(s => (
-                <div key={s.id} className="scenario-card selected" style={{ borderLeftColor: s.status === 'SUCCESS' ? '#00f0ff' : '#ff3b30', marginBottom: '0px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ fontSize: '11px' }}>{getScenarioTitle(s.scenarioId)}</h3>
-                      <div className="scenario-meta" style={{ marginTop: '4px' }}>
-                        <div>TURN: <span className="val cyan">{s.currentTurn}/{s.maxTurns}</span></div>
-                        <div>ROLE: <span className={`val ${s.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{s.playerRole}</span></div>
-                        <div>STATUS: <span className={`val ${s.status === 'SUCCESS' ? 'cyan' : 'red'}`}>{s.status}</span></div>
+              {sessions.filter(s => s.status !== 'ACTIVE').map(s => {
+                const isSuccess = s.status === 'SUCCESS';
+                const isPartial = s.status === 'PARTIAL_DEFENDER_VICTORY';
+                const statusColor = isSuccess ? '#00f0ff' : isPartial ? '#f59e0b' : '#ff3b30';
+                return (
+                  <div key={s.id} className="scenario-card selected" style={{ borderLeftColor: statusColor, marginBottom: '0px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '11px' }}>{getScenarioTitle(s.scenarioId)}</h3>
+                        <div className="scenario-meta" style={{ marginTop: '4px' }}>
+                          <div>TURN: <span className="val cyan">{s.currentTurn}/{s.maxTurns}</span></div>
+                          <div>ROLE: <span className={`val ${s.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{s.playerRole}</span></div>
+                          <div>STATUS: <span className="val" style={{ color: statusColor, fontWeight: 'bold' }}>{s.status}</span></div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                        <button className="cyber-btn sm" onClick={() => onLoadGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
+                          <Play size={10} /> REVIEW
+                        </button>
+                        <button className="cyber-btn sm red" onClick={() => onDeleteGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
+                          <Trash2 size={10} /> PURGE
+                        </button>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                      <button className="cyber-btn sm" onClick={() => onLoadGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
-                        <Play size={10} /> REVIEW
-                      </button>
-                      <button className="cyber-btn sm red" onClick={() => onDeleteGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
-                        <Trash2 size={10} /> DELETE
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -159,7 +164,9 @@ const ScenarioSelect = ({
               <p style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-dim)' }}>All scenarios currently have an active campaign in progress.</p>
             </div>
           ) : availableScenarios.map(scenario => {
-            const isCompleted = sessions.some(s => s.scenarioId === scenario.scenarioId && s.status === 'SUCCESS');
+            const completedSession = sessions.find(s => s.scenarioId === scenario.scenarioId && (s.status === 'SUCCESS' || s.status === 'PARTIAL_DEFENDER_VICTORY'));
+            const isFullSuccess = completedSession?.status === 'SUCCESS';
+            const isPartialSuccess = completedSession?.status === 'PARTIAL_DEFENDER_VICTORY';
             return (
               <div 
                 key={scenario.scenarioId}
@@ -169,9 +176,14 @@ const ScenarioSelect = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <h3 style={{ margin: 0 }}>
                     {scenario.title} 
-                    {isCompleted && (
-                      <span className="cia-tag green" style={{ background: 'rgba(0, 255, 102, 0.1)', color: '#00ff66', border: '1px solid rgba(0, 255, 102, 0.4)', fontSize: '8px', padding: '1px 5px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle' }}>
-                        ✓ COMPLETED
+                    {isFullSuccess && (
+                      <span className="cia-tag green" style={{ background: 'rgba(0, 255, 102, 0.1)', color: '#00ff66', border: '1px solid rgba(0, 255, 102, 0.4)', fontSize: '8.5px', padding: '2px 6px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle', fontWeight: 'bold' }}>
+                        ✓ FULL VICTORY
+                      </span>
+                    )}
+                    {isPartialSuccess && (
+                      <span className="cia-tag gold" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.4)', fontSize: '8.5px', padding: '2px 6px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle', fontWeight: 'bold' }}>
+                        ⚡ PARTIAL VICTORY
                       </span>
                     )}
                   </h3>

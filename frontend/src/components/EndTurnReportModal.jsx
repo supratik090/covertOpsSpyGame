@@ -370,6 +370,27 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
             </div>
           )}
 
+          {/* Major Progression Events (Handover Complete, Border Permission, Border Crossed, Attack Authorization) */}
+          {report.permissionAlerts?.length > 0 && (
+            <div className="report-card" style={{
+              border: '1px solid rgba(0, 240, 255, 0.4)',
+              background: 'rgba(0, 240, 255, 0.06)',
+              padding: '14px',
+              borderRadius: '6px',
+              boxShadow: '0 0 12px rgba(0, 240, 255, 0.15)',
+              animationDelay: '480ms'
+            }}>
+              <span style={{ color: 'var(--cyan)', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                <Activity size={14} /> 📡 MAJOR OPERATIONAL & PROGRESSION EVENTS
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: '#00f0ff', lineHeight: '1.6', fontWeight: 'bold' }}>
+                {report.permissionAlerts.map((clue, idx) => (
+                  <li key={idx}>{clue.clueText}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Handover Target Site Confirmations */}
           {!isAttacker && report.handoverAlerts?.length > 0 && (
             <div style={{

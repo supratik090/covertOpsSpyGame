@@ -149,224 +149,112 @@ function TimelineCard({ step, stepIdx, session, visible }) {
 }
 
 /* ─── Main modal ─────────────────────────────────────────────────────────── */
-export default function GameOverModal({ session, replayPlan, onConfirm, onViewReplay }) {
-  const isSuccess = session?.status === 'SUCCESS';
-  const [phase, setPhase] = useState('RESULT');   // 'RESULT' | 'REPLAY'
-  const [visibleSteps, setVisibleSteps] = useState(0);
-  const [autoPlaying, setAutoPlaying] = useState(false);
-  const autoRef = useRef(null);
+export default function GameOverModal({ session, onConfirm }) {
+  const isFullSuccess = session?.status === 'SUCCESS';
+  const isPartialSuccess = session?.status === 'PARTIAL_DEFENDER_VICTORY';
+  const isDefenderWin = isFullSuccess || isPartialSuccess;
 
-  const primarySteps = replayPlan?.primaryPlan || [];
-  const fallbackSteps = replayPlan?.fallbackPlan || [];
-  const allSteps = [...primarySteps, ...fallbackSteps].sort((a, b) => a.turn - b.turn);
+  const titleText = isFullSuccess 
+    ? '✦ FULL DEFENDER VICTORY' 
+    : isPartialSuccess 
+    ? '⚡ PARTIAL DEFENDER VICTORY' 
+    : '✖ OPERATION COMPROMISED';
 
-  // Auto-animate steps with 1s delay each
-  useEffect(() => {
-    if (phase === 'REPLAY' && autoPlaying) {
-      if (visibleSteps < allSteps.length) {
-        autoRef.current = setTimeout(() => {
-          setVisibleSteps(v => v + 1);
-        }, 1000);
-      } else {
-        setAutoPlaying(false);
-      }
-    }
-    return () => clearTimeout(autoRef.current);
-  }, [phase, autoPlaying, visibleSteps, allSteps.length]);
+  const titleColor = isFullSuccess 
+    ? '#00ff66' 
+    : isPartialSuccess 
+    ? '#f59e0b' 
+    : '#ff3b30';
 
-  const startReplay = () => {
-    setPhase('REPLAY');
-    setVisibleSteps(0);
-    setAutoPlaying(true);
-  };
+  const subtitleText = isFullSuccess
+    ? 'All threat agents neutralized prior to any target strike. Target cell fully dismantled and national security preserved.'
+    : isPartialSuccess
+    ? 'Target strike was executed in friendly territory, but all hostile threat agents were subsequently neutralized by Defender forces.'
+    : 'The target attack was executed and hostile operatives exfiltrated. Intelligence gaps allowed the cell to complete their mission.';
 
-  const skipToEnd = () => {
-    setAutoPlaying(false);
-    setVisibleSteps(allSteps.length);
-  };
-
-  if (phase === 'REPLAY') {
-    return (
-      <div style={{
-        position: 'fixed', inset: 0, zIndex: 10000,
-        background: 'rgba(3,6,16,0.97)',
-        backdropFilter: 'blur(16px)',
-        display: 'flex', flexDirection: 'column',
-        overflow: 'hidden',
-      }}>
-        {/* Replay header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 28px',
-          borderBottom: '1px solid rgba(189,0,255,0.2)',
-          background: 'rgba(189,0,255,0.04)',
-          flexShrink: 0,
-        }}>
-          <div>
-            <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: '3px' }}>DECRYPTED INTELLIGENCE — GOD MODE</div>
-            <h2 style={{ fontSize: '16px', fontFamily: 'monospace', fontWeight: 700, color: '#bd00ff', letterSpacing: '0.06em', margin: 0 }}>
-              ATTACKER TIMELINE RECONSTRUCTION
-            </h2>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            {autoPlaying ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontFamily: 'monospace', color: '#bd00ff' }}>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#bd00ff', animation: 'blink 1s infinite' }} />
-                STREAMING {visibleSteps} / {allSteps.length}
-              </div>
-            ) : (
-              <span style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--text-dim)' }}>
-                {visibleSteps} / {allSteps.length} STEPS
-              </span>
-            )}
-            {!autoPlaying && visibleSteps < allSteps.length && (
-              <button onClick={() => setAutoPlaying(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '4px', border: '1px solid rgba(189,0,255,0.4)', background: 'rgba(189,0,255,0.08)', color: '#bd00ff', fontFamily: 'monospace', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
-                <Play size={11} /> RESUME
-              </button>
-            )}
-            <button onClick={skipToEnd} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '4px', border: '1px solid rgba(189,0,255,0.25)', background: 'transparent', color: 'var(--text-dim)', fontFamily: 'monospace', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
-              <SkipForward size={11} /> SKIP TO END
-            </button>
-            <button onClick={onConfirm} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '4px', border: '1px solid rgba(0,240,255,0.3)', background: 'rgba(0,240,255,0.06)', color: 'var(--cyan)', fontFamily: 'monospace', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}>
-              <LogOut size={11} /> EXIT TO SCENARIOS
-            </button>
-          </div>
-        </div>
-
-        {/* Plan type divider labels */}
-        <div style={{ display: 'flex', gap: '12px', padding: '10px 28px', borderBottom: '1px solid rgba(189,0,255,0.1)', flexShrink: 0, background: 'rgba(0,0,0,0.3)' }}>
-          <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#d480ff', letterSpacing: '0.06em', padding: '2px 8px', borderRadius: '3px', background: 'rgba(189,0,255,0.08)', border: '1px solid rgba(189,0,255,0.2)' }}>
-            PRIMARY PLAN: {primarySteps.length} STEPS
-          </span>
-          {fallbackSteps.length > 0 && (
-            <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#f97316', letterSpacing: '0.06em', padding: '2px 8px', borderRadius: '3px', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
-              FALLBACK PLAN: {fallbackSteps.length} STEPS (ACTIVATED)
-            </span>
-          )}
-        </div>
-
-        {/* Scrollable timeline */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 40px' }}>
-          {/* Vertical rail */}
-          <div style={{ position: 'relative', paddingLeft: '52px' }}>
-            <div style={{
-              position: 'absolute', left: '17px', top: 0, bottom: 0, width: '2px',
-              background: 'linear-gradient(to bottom, rgba(189,0,255,0.7), rgba(189,0,255,0.05))',
-              borderRadius: '2px',
-            }} />
-
-            {allSteps.map((step, idx) => (
-              <TimelineCard
-                key={idx}
-                step={step}
-                stepIdx={idx}
-                session={session}
-                visible={idx < visibleSteps}
-              />
-            ))}
-
-            {/* "Streaming" placeholder */}
-            {autoPlaying && visibleSteps < allSteps.length && (
-              <motion.div
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ repeat: Infinity, duration: 1.2 }}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingLeft: '0px', marginTop: '4px' }}
-              >
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px dashed rgba(189,0,255,0.3)', background: 'transparent', flexShrink: 0 }} />
-                <span style={{ fontSize: '10px', fontFamily: 'monospace', color: 'rgba(189,0,255,0.5)', letterSpacing: '0.06em' }}>
-                  DECRYPTING NEXT ENTRY...
-                </span>
-              </motion.div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── RESULT PHASE ─────────────────────────────────────────────────────────
   return (
-    <AnimatePresence>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(3,6,16,0.92)',
+      backdropFilter: 'blur(12px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '24px',
+    }}>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         style={{
-          position: 'fixed', inset: 0, zIndex: 10000,
-          background: 'rgba(3,6,16,0.96)',
-          backdropFilter: 'blur(20px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(8,14,30,0.98)',
+          border: `1px solid ${isDefenderWin ? 'rgba(0,240,255,0.3)' : 'rgba(255,59,48,0.3)'}`,
+          borderRadius: '16px',
+          padding: '40px 36px',
+          maxWidth: '540px',
+          width: '100%',
+          boxShadow: isDefenderWin
+            ? '0 0 80px rgba(0,240,255,0.12), inset 0 0 40px rgba(0,240,255,0.05)'
+            : '0 0 80px rgba(255,59,48,0.15), inset 0 0 40px rgba(255,59,48,0.05)',
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        {/* Ambient glow */}
         <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: isSuccess
-            ? 'radial-gradient(ellipse at 50% 40%, rgba(0,255,102,0.06) 0%, transparent 65%)'
-            : 'radial-gradient(ellipse at 50% 40%, rgba(255,59,48,0.08) 0%, transparent 65%)',
+          position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
+          background: isFullSuccess
+            ? 'linear-gradient(90deg, transparent, #00ff66, transparent)'
+            : isPartialSuccess
+            ? 'linear-gradient(90deg, transparent, #f59e0b, transparent)'
+            : 'linear-gradient(90deg, transparent, #ff3b30, transparent)',
         }} />
 
-        <motion.div
-          initial={{ scale: 0.88, opacity: 0, y: 24 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-          style={{
-            width: '100%', maxWidth: '560px',
-            margin: '20px',
-            padding: '40px',
-            borderRadius: '12px',
-            background: 'rgba(8,14,30,0.95)',
-            border: `1px solid ${isSuccess ? 'rgba(0,255,102,0.3)' : 'rgba(255,59,48,0.3)'}`,
-            boxShadow: isSuccess
-              ? '0 0 80px rgba(0,255,102,0.08), 0 24px 80px rgba(0,0,0,0.6)'
-              : '0 0 80px rgba(255,59,48,0.1), 0 24px 80px rgba(0,0,0,0.6)',
-            position: 'relative',
-            textAlign: 'center',
-          }}
-        >
-          {/* Corner accents */}
-          <div style={{ position: 'absolute', top: '-1px', left: '-1px', width: '14px', height: '14px', borderTop: `2px solid ${isSuccess ? '#00ff66' : '#ff3b30'}`, borderLeft: `2px solid ${isSuccess ? '#00ff66' : '#ff3b30'}` }} />
-          <div style={{ position: 'absolute', bottom: '-1px', right: '-1px', width: '14px', height: '14px', borderBottom: `2px solid ${isSuccess ? '#00ff66' : '#ff3b30'}`, borderRight: `2px solid ${isSuccess ? '#00ff66' : '#ff3b30'}` }} />
-
-          {/* Status icon */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            transition={{ type: 'spring', delay: 0.2, stiffness: 400 }}
             style={{
               width: '72px', height: '72px', borderRadius: '50%',
               margin: '0 auto 20px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: isSuccess ? 'rgba(0,255,102,0.1)' : 'rgba(255,59,48,0.1)',
-              border: `2px solid ${isSuccess ? 'rgba(0,255,102,0.5)' : 'rgba(255,59,48,0.5)'}`,
-              boxShadow: isSuccess ? '0 0 30px rgba(0,255,102,0.15)' : '0 0 30px rgba(255,59,48,0.15)',
+              background: isFullSuccess
+                ? 'rgba(0,255,102,0.1)'
+                : isPartialSuccess
+                ? 'rgba(245,158,11,0.1)'
+                : 'rgba(255,59,48,0.1)',
+              border: `2px solid ${titleColor}`,
+              boxShadow: `0 0 30px ${titleColor}40`,
             }}
           >
-            {isSuccess
-              ? <CheckCircle size={36} style={{ color: '#00ff66' }} />
-              : <XCircle size={36} style={{ color: '#ff3b30' }} />}
+            {isDefenderWin ? (
+              <Shield size={36} color={titleColor} />
+            ) : (
+              <AlertTriangle size={36} color={titleColor} />
+            )}
           </motion.div>
 
-          {/* Classification stamp */}
-          <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.15em', marginBottom: '10px' }}>
-            OPERATION COBRA — FINAL OUTCOME REPORT
-          </div>
-
-          {/* Main result */}
-          <motion.h1
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            style={{
-              fontFamily: 'monospace', fontWeight: 900,
-              fontSize: '28px',
-              letterSpacing: '0.06em',
-              color: isSuccess ? '#00ff66' : '#ff3b30',
-              textShadow: isSuccess ? '0 0 30px rgba(0,255,102,0.35)' : '0 0 30px rgba(255,59,48,0.35)',
-              marginBottom: '10px',
-            }}
           >
-            {isSuccess ? '✦ MISSION SUCCESS' : '✖ OPERATION COMPROMISED'}
-          </motion.h1>
+            <div style={{
+              fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.2em',
+              color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '6px',
+            }}>
+              OPERATION DEBRIEF — {session?.scenarioId?.replace(/_/g, ' ') || 'COVERT OPS'}
+            </div>
+            <h1 style={{
+              fontFamily: 'monospace', fontWeight: 900,
+              fontSize: '24px',
+              letterSpacing: '0.06em',
+              color: titleColor,
+              textShadow: `0 0 30px ${titleColor}40`,
+              marginBottom: '10px',
+            }}>
+              {titleText}
+            </h1>
+          </motion.div>
 
           <motion.p
             initial={{ opacity: 0 }}
@@ -374,9 +262,7 @@ export default function GameOverModal({ session, replayPlan, onConfirm, onViewRe
             transition={{ delay: 0.4 }}
             style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '28px' }}
           >
-            {isSuccess
-              ? `Threat neutralized. The target cell has been dismantled and the attack vector closed. Outstanding field work, Director. The nation's security has been preserved.`
-              : `The attack has been executed. Intelligence gaps and operational delays allowed the cell to complete their mission. Debrief will follow.`}
+            {subtitleText}
           </motion.p>
 
           {/* Attacker team status list */}
@@ -388,22 +274,22 @@ export default function GameOverModal({ session, replayPlan, onConfirm, onViewRe
               borderRadius: '8px',
               background: 'rgba(255,255,255,0.02)',
               border: '1px solid rgba(255,255,255,0.06)',
-              textAlign: 'left',
             }}>
-              <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
-                THREAT AGENTS DEBRIEF:
+              <div style={{ fontSize: '9.5px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                HOSTILE CELL STATUS
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {session.aiAttackers.map(a => (
-                  <div key={a.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '11px', fontFamily: 'monospace' }}>
-                    <span style={{ color: a.eliminated ? '#888' : 'var(--text-primary)', textDecoration: a.eliminated ? 'line-through' : 'none' }}>
-                      👤 {a.name}
-                    </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {session.aiAttackers.map((att, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    fontSize: '11px', fontFamily: 'monospace',
+                  }}>
+                    <span style={{ color: 'var(--text-primary)' }}>{att.name}</span>
                     <span style={{
+                      color: att.eliminated ? '#00ff66' : '#ff3b30',
                       fontWeight: 700,
-                      color: a.eliminated ? '#ff3b30' : '#00ff66',
                     }}>
-                      {a.eliminated ? 'NEUTRALIZED' : `ACTIVE - ${a.state?.toUpperCase() || 'INFILTRATING'} (${a.currentLocation?.toUpperCase() || 'UNKNOWN'})`}
+                      {att.eliminated ? 'NEUTRALIZED' : 'ACTIVE / ESCAPED'}
                     </span>
                   </div>
                 ))}
@@ -411,90 +297,27 @@ export default function GameOverModal({ session, replayPlan, onConfirm, onViewRe
             </div>
           )}
 
-          {/* Stats row */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            style={{
-              display: 'flex', gap: '1px',
-              background: 'rgba(255,255,255,0.06)',
-              borderRadius: '6px', overflow: 'hidden',
-              marginBottom: '28px',
-            }}
-          >
-            {[
-              { label: 'TURNS ELAPSED', value: session?.currentTurn - 1, color: '#ffcc00' },
-              { label: 'HEAT LEVEL', value: `${session?.heatPercentage}%`, color: session?.heatPercentage > 75 ? '#ff3b30' : '#00f0ff' },
-              { label: 'INTEL GATHERED', value: session?.discoveredClues?.length || 0, color: '#00f0ff' },
-              { label: 'BUDGET REMAINING', value: `$${(session?.budget || 0).toLocaleString()}`, color: '#00ff66' },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ flex: 1, padding: '12px 8px', background: 'rgba(255,255,255,0.02)', textAlign: 'center' }}>
-                <div style={{ fontSize: '18px', fontFamily: 'monospace', fontWeight: 700, color, marginBottom: '4px' }}>{value}</div>
-                <div style={{ fontSize: '8px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.06em' }}>{label}</div>
-              </div>
-            ))}
-          </motion.div>
-
           {/* Action buttons */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.5 }}
             style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
           >
-            {replayPlan && (
-              <button
-                onClick={startReplay}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                  padding: '13px 24px', borderRadius: '6px', cursor: 'pointer',
-                  border: '1px solid rgba(189,0,255,0.5)',
-                  background: 'rgba(189,0,255,0.1)',
-                  color: '#d480ff',
-                  fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em',
-                  transition: 'all 0.2s',
-                  width: '100%',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(189,0,255,0.18)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(189,0,255,0.1)'}
-              >
-                <Eye size={16} />
-                VIEW GOD MODE REPLAY
-                <span style={{ fontSize: '9px', color: 'rgba(212,128,255,0.6)', fontWeight: 400 }}>animated timeline</span>
-              </button>
-            )}
-
-            {onViewReplay && (
-              <button
-                onClick={onViewReplay}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                  padding: '12px 24px', borderRadius: '6px', cursor: 'pointer',
-                  border: '1px solid rgba(0,240,255,0.35)',
-                  background: 'rgba(0,240,255,0.06)',
-                  color: 'var(--cyan)',
-                  fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em',
-                  transition: 'all 0.2s',
-                  width: '100%',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,240,255,0.15)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,240,255,0.06)'}
-              >
-                <Eye size={14} />
-                REVIEW MAP IN GOD MODE
-              </button>
-            )}
-
             <button
               onClick={onConfirm}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                padding: '12px 24px', borderRadius: '6px', cursor: 'pointer',
-                border: `1px solid ${isSuccess ? 'rgba(0,255,102,0.4)' : 'rgba(0,240,255,0.3)'}`,
-                background: isSuccess ? 'rgba(0,255,102,0.08)' : 'rgba(0,240,255,0.06)',
-                color: isSuccess ? '#00ff66' : 'var(--cyan)',
-                fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em',
+                padding: '14px 24px', borderRadius: '6px', cursor: 'pointer',
+                border: 'none',
+                background: isDefenderWin
+                  ? 'linear-gradient(135deg, #00f0ff, #7000ff)'
+                  : 'linear-gradient(135deg, #ff3b30, #b00020)',
+                color: '#fff',
+                fontFamily: 'monospace', fontSize: '13px', fontWeight: 900, letterSpacing: '0.08em',
+                boxShadow: isDefenderWin
+                  ? '0 0 20px rgba(0,240,255,0.3)'
+                  : '0 0 20px rgba(255,59,48,0.3)',
                 transition: 'all 0.2s',
                 width: '100%',
               }}
@@ -505,8 +328,8 @@ export default function GameOverModal({ session, replayPlan, onConfirm, onViewRe
               RETURN TO SCENARIO SELECT
             </button>
           </motion.div>
-        </motion.div>
+        </div>
       </motion.div>
-    </AnimatePresence>
+    </div>
   );
 }

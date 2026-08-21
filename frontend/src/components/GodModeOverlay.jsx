@@ -34,29 +34,8 @@ export const GodModeRoutes = ({ replayPlan, replayTurn, nodeCoordinates }) => {
   );
 };
 
-export const GodModePanel = ({ replayPlan, replayTurn, setReplayTurn }) => {
-  if (!replayPlan || !replayPlan.primaryPlan) return null;
-  const maxTurns = replayPlan.primaryPlan.length;
-
-  return (
-    <div className="god-mode-panel">
-      <div className="god-mode-header">
-        <Sliders size={20} />
-        <h3>GOD MODE REPLAY ACTIVE</h3>
-      </div>
-      <p>Analyze suspect movement through the timeline</p>
-      <div className="god-mode-controls">
-        <input 
-          type="range" 
-          min="1" 
-          max={maxTurns} 
-          value={replayTurn} 
-          onChange={(e) => setReplayTurn(parseInt(e.target.value, 10))} 
-        />
-        <span>TURN {replayTurn} / {maxTurns}</span>
-      </div>
-    </div>
-  );
+export const GodModePanel = () => {
+  return null;
 };
 
 export default GodModePanel;

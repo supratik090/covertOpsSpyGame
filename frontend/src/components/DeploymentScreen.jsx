@@ -16,7 +16,7 @@ const territoryLabel = (t) =>
 
 export default function DeploymentScreen({ session, activeScenario, onDeploymentComplete, addToast }) {
   const nodes = activeScenario?.nodes || [];
-  const safehouseCount = Math.floor(nodes.length / 2);
+  const safehouseCount = activeScenario?.startingDefenderSafehouses?.length || 3;
 
   const [phase, setPhase] = useState(1);
   const [safehouseCities, setSafehouseCities] = useState(new Set());
@@ -38,40 +38,60 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
 
   const agents = session.agents || [];
   const teams  = session.tacticalTeams || [];
-  const unplacedAgents = agents.filter(a => agentPlacements[a.id] === undefined);
-  const unplacedTeams  = teams.filter(t  => teamPlacements[t.id]  === undefined);
-  const remainingSafehouses = safehouseCount - safehouseCities.size;
+  const unplacedAgents = agents.filter(a => !agentPlacements[a.id] && !agentPlacements[String(a.id)]);
+  const unplacedTeams  = teams.filter(t => !teamPlacements[t.id] && !teamPlacements[String(t.id)]);
+  const remainingSafehouses = Math.max(0, safehouseCount - safehouseCities.size);
   const phase1Done = safehouseCities.size >= safehouseCount;
-  const phase2Done = phase1Done && unplacedAgents.length === 0;
-  const phase3Done = phase2Done && unplacedTeams.length === 0;
-  const phase4Done = phase3Done && droneBaseCity !== null;
-  const allDone    = phase4Done;
+  const phase2Done = unplacedAgents.length === 0;
+  const phase3Done = unplacedTeams.length === 0;
+  const phase4Done = droneBaseCity !== null;
+  const allDone    = phase1Done && phase2Done && phase3Done;
 
   const handleCityDrop = useCallback((cityId) => {
     if (!dragging && !selected) return;
     const active = dragging || selected;
+    let placedSuccess = false;
+
     if (phase === 1 && active.type === 'safehouse') {
       if (safehouseCities.has(cityId)) {
         setSafehouseCities(prev => { const s = new Set(prev); s.delete(cityId); return s; });
       } else if (safehouseCities.size < safehouseCount) {
         setSafehouseCities(prev => new Set([...prev, cityId]));
+        placedSuccess = true;
       }
     } else if (phase === 2 && active.type === 'agent') {
       if (!safehouseCities.has(cityId)) return;
       setAgentPlacements(prev => ({ ...prev, [active.id]: cityId }));
+      placedSuccess = true;
     } else if (phase === 3 && active.type === 'team') {
       if (!safehouseCities.has(cityId)) return;
       setTeamPlacements(prev => ({ ...prev, [active.id]: cityId }));
+      placedSuccess = true;
     } else if (phase === 4 && (active.type === 'drone_base' || active.type === 'drone')) {
       const node = nodes.find(n => n.id === cityId);
       if (node && node.territory === 'HOME_TERRITORY') {
         setDroneBaseCity(cityId);
+        placedSuccess = true;
+        addToast?.(`Drone Base established at ${node.name || cityId.toUpperCase()} (Drones Alpha & Theta assigned).`, 'success');
       } else {
         addToast?.('Drone Base can only be established in friendly home territory.', 'warning');
       }
     }
     setDragging(null); setSelected(null); setDragOver(null);
-  }, [dragging, selected, phase, safehouseCities, safehouseCount, nodes, addToast]);
+
+    // Auto-switch tabs after placement for seamless workflow
+    if (placedSuccess && isMobile) {
+      if (phase === 1 && safehouseCities.size + 1 < safehouseCount) {
+        setMobilePanel('assets');
+      } else if (phase === 2 && unplacedAgents.length > 1) {
+        setMobilePanel('assets');
+      } else if (phase === 3 && unplacedTeams.length > 1) {
+        setMobilePanel('assets');
+      } else {
+        setMobilePanel('summary');
+      }
+    }
+  }, [dragging, selected, phase, safehouseCities, safehouseCount, unplacedAgents, unplacedTeams, nodes, isMobile, addToast]);
 
   const removeSafehouse = (id) => setSafehouseCities(prev => { const s = new Set(prev); s.delete(id); return s; });
   const removeAgent = (id) => setAgentPlacements(prev => { const n = { ...prev }; delete n[id]; return n; });
@@ -79,7 +99,7 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
   const removeDroneBase = () => setDroneBaseCity(null);
 
   const handleConfirm = async () => {
-    if (!allDone || submitting) return;
+    if (submitting) return;
     setSubmitting(true);
     try {
       const payload = {
@@ -129,13 +149,57 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
   });
 
   const handleAssetTap = (type, id, label) => {
-    if (selected?.type === type && selected?.id === id) { setSelected(null); }
-    else { setSelected({ type, id, label }); if (isMobile) setMobilePanel('cities'); }
+    if (selected?.type === type && selected?.id === id) {
+      setSelected(null);
+    } else {
+      setSelected({ type, id, label });
+      if (isMobile) setMobilePanel('cities'); // Auto-switch to CITIES tab when asset selected
+    }
   };
   const handleCityTap = (cityId) => { if (selected) handleCityDrop(cityId); };
 
   const currentPhase = PHASES[phase - 1];
   const PhaseIcon = currentPhase.icon;
+
+  const renderPhaseNav = () => {
+    if (phase === 4 || allDone) {
+      return (
+        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+          <button onClick={handleConfirm} disabled={submitting}
+            className="flash-proceed"
+            style={{ flex: 1, padding: '10px', border: '1px solid #10b981', borderRadius: 4, background: 'rgba(16,185,129,0.15)', color: '#10b981', fontSize: 10, letterSpacing: '0.1em', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', fontFamily: "'Share Tech Mono','Courier New',monospace", '--flash-color': '#10b981', '--flash-bg-high': 'rgba(16,185,129,0.32)', '--flash-bg-low': 'rgba(16,185,129,0.06)' }}>
+            {submitting ? 'DEPLOYING…' : '⚡ CONFIRM DEPLOYMENT'}
+          </button>
+        </div>
+      );
+    }
+
+    const isCurrentPhaseDone =
+      (phase === 1 && phase1Done) ||
+      (phase === 2 && phase2Done) ||
+      (phase === 3 && phase3Done);
+
+    return (
+      <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+        <button onClick={() => {
+          if (phase === 1) {
+            if (phase1Done) setPhase(2);
+            else addToast?.(`Place all ${safehouseCount} safehouses first.`, 'warning');
+          } else if (phase === 2) {
+            if (phase2Done) setPhase(3);
+            else addToast?.(`Place all field agents first.`, 'warning');
+          } else if (phase === 3) {
+            if (phase3Done) setPhase(4);
+            else addToast?.(`Place all tactical teams first.`, 'warning');
+          }
+        }}
+          className={isCurrentPhaseDone ? 'flash-proceed' : ''}
+          style={{ flex: 1, padding: '10px', border: `1px solid ${currentPhase.color}`, borderRadius: 4, background: `${currentPhase.color}18`, color: currentPhase.color, fontSize: 10, letterSpacing: '0.1em', cursor: isCurrentPhaseDone ? 'pointer' : 'not-allowed', fontFamily: "'Share Tech Mono','Courier New',monospace", opacity: isCurrentPhaseDone ? 1 : 0.35, transition: 'all 0.2s', '--flash-color': currentPhase.color, '--flash-bg-high': `${currentPhase.color}3a`, '--flash-bg-low': `${currentPhase.color}0e` }}>
+          NEXT PHASE →
+        </button>
+      </div>
+    );
+  };
 
   const renderCities = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 8 }}>
@@ -145,9 +209,19 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
         const isValidDrop =
           phase === 1 ? (!hasSH && safehouseCities.size < safehouseCount) :
           phase === 2 ? (hasSH && (dragging?.type === 'agent' || selected?.type === 'agent')) :
-          phase === 3 ? (hasSH && (dragging?.type === 'team'  || selected?.type === 'team')) : false;
-        const isDimmed = (phase === 2 || phase === 3) && !hasSH;
+          phase === 3 ? (hasSH && (dragging?.type === 'team'  || selected?.type === 'team')) :
+          phase === 4 ? (node.territory === 'HOME_TERRITORY') : false;
+        const isDimmed =
+          (phase === 2 || phase === 3) ? !hasSH :
+          (phase === 4 && droneBaseCity) ? (node.id !== droneBaseCity) :
+          (phase === 4) ? (node.territory !== 'HOME_TERRITORY') : false;
         const isHovered = dragOver === node.id && isValidDrop;
+
+        if (phase === 4 && droneBaseCity && node.id !== droneBaseCity) {
+          // In phase 4 when drone base is allocated, only show the base city
+          return null;
+        }
+
         return (
           <div key={node.id}
             onDragOver={e => { e.preventDefault(); setDragOver(node.id); }}
@@ -155,11 +229,11 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
             onDrop={() => handleCityDrop(node.id)}
             onClick={() => handleCityTap(node.id)}
             style={{ padding: '10px 12px', borderRadius: 6, position: 'relative', transition: 'all 0.15s',
-              border: `1px solid ${isHovered ? currentPhase.color : hasSH ? '#00f0ff40' : isDimmed ? '#ffffff08' : '#ffffff14'}`,
-              background: isHovered ? `${currentPhase.color}18` : hasSH ? 'rgba(0,240,255,0.05)' : isDimmed ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${isHovered ? currentPhase.color : droneBaseCity === node.id ? '#00f0ff' : hasSH ? '#00f0ff40' : isDimmed ? '#ffffff08' : '#ffffff14'}`,
+              background: isHovered ? `${currentPhase.color}18` : droneBaseCity === node.id ? 'rgba(0,240,255,0.12)' : hasSH ? 'rgba(0,240,255,0.05)' : isDimmed ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.02)',
               opacity: isDimmed ? 0.4 : 1,
-              cursor: isValidDrop || (selected && hasSH) ? 'pointer' : 'default',
-              boxShadow: isHovered ? `0 0 12px ${currentPhase.color}40` : hasSH ? '0 0 8px rgba(0,240,255,0.12)' : 'none',
+              cursor: isValidDrop || (selected && (hasSH || phase === 4)) ? 'pointer' : 'default',
+              boxShadow: isHovered ? `0 0 12px ${currentPhase.color}40` : droneBaseCity === node.id ? '0 0 16px rgba(0,240,255,0.3)' : hasSH ? '0 0 8px rgba(0,240,255,0.12)' : 'none',
             }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 5 }}>
               <span style={{ fontSize: 7, color: tColor, letterSpacing: '0.12em', padding: '1px 4px', border: `1px solid ${tColor}40`, borderRadius: 2, background: `${tColor}12` }}>
@@ -177,7 +251,7 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
                 </div>
               )}
             </div>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 3, color: hasSH ? '#e0f8ff' : isDimmed ? '#333' : '#888' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', marginBottom: 3, color: hasSH || droneBaseCity === node.id ? '#e0f8ff' : isDimmed ? '#333' : '#888' }}>
               {(node.name || node.id).replace(/_/g, ' ').toUpperCase()}
             </div>
             {myAgents.length > 0 && (
@@ -203,8 +277,8 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
             {droneBaseCity === node.id && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 3 }}>
                 <span onClick={e => { e.stopPropagation(); removeDroneBase(); }}
-                  style={{ fontSize: 7, color: '#00f0ff', background: 'rgba(0,240,255,0.1)', border: '1px solid rgba(0,240,255,0.3)', borderRadius: 3, padding: '1px 4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}>
-                  🏭 DRONE BASE (2 🚁)
+                  style={{ fontSize: 8, fontWeight: 'bold', color: '#00f0ff', background: 'rgba(0,240,255,0.15)', border: '1px solid rgba(0,240,255,0.4)', borderRadius: 3, padding: '2px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  🏭 DRONE BASE (2 🚁: ALPHA & THETA)
                 </span>
               </div>
             )}
@@ -393,29 +467,7 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
     </div>
   );
 
-  const renderPhaseNav = () => (
-    <div style={{ display: 'flex', gap: 8 }}>
-      {phase < 4 && (
-        <button onClick={() => {
-          if (phase === 1 && phase1Done) setPhase(2);
-          else if (phase === 2 && phase2Done) setPhase(3);
-          else if (phase === 3 && phase3Done) setPhase(4);
-          else addToast?.(`Complete ${currentPhase.label.toLowerCase()} first.`, 'warning');
-        }}
-          className={((phase === 1 && phase1Done) || (phase === 2 && phase2Done) || (phase === 3 && phase3Done)) ? 'flash-proceed' : ''}
-          style={{ flex: 1, padding: '10px', border: `1px solid ${currentPhase.color}`, borderRadius: 4, background: `${currentPhase.color}18`, color: currentPhase.color, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', fontFamily: "'Share Tech Mono','Courier New',monospace", opacity: ((phase === 1 && phase1Done) || (phase === 2 && phase2Done) || (phase === 3 && phase3Done)) ? 1 : 0.35, transition: 'all 0.2s', '--flash-color': currentPhase.color, '--flash-bg-high': `${currentPhase.color}3a`, '--flash-bg-low': `${currentPhase.color}0e` }}>
-          NEXT PHASE →
-        </button>
-      )}
-      {phase === 4 && (
-        <button onClick={handleConfirm} disabled={!allDone || submitting}
-          className={allDone ? 'flash-proceed' : ''}
-          style={{ flex: 1, padding: '10px', border: `1px solid ${allDone ? '#10b981' : '#333'}`, borderRadius: 4, background: allDone ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.02)', color: allDone ? '#10b981' : '#444', fontSize: 10, letterSpacing: '0.1em', fontWeight: 700, cursor: allDone ? 'pointer' : 'not-allowed', transition: 'all 0.2s', fontFamily: "'Share Tech Mono','Courier New',monospace", '--flash-color': '#10b981', '--flash-bg-high': 'rgba(16,185,129,0.32)', '--flash-bg-low': 'rgba(16,185,129,0.06)' }}>
-          {submitting ? 'DEPLOYING…' : '⚡ CONFIRM DEPLOYMENT'}
-        </button>
-      )}
-    </div>
-  );
+
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,4,12,0.95)', backdropFilter: 'blur(3px)', display: 'flex', flexDirection: 'column', fontFamily: "'Share Tech Mono','Courier New',monospace", overflow: 'hidden' }}>
@@ -439,12 +491,13 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8 }}>
             {PHASES.map((p, i) => {
               const done = (p.id === 1 && phase1Done) || (p.id === 2 && phase2Done) || (p.id === 3 && phase3Done) || (p.id === 4 && phase4Done);
+              const isUnlocked = p.id === 1 || (p.id === 2 && phase1Done) || (p.id === 3 && phase1Done && phase2Done) || (p.id === 4 && phase1Done && phase2Done && phase3Done);
               const active = p.id === phase;
               return (
                 <React.Fragment key={p.id}>
-                  <div onClick={() => { if (p.id === 1) setPhase(1); if (p.id === 2 && phase1Done) setPhase(2); if (p.id === 3 && phase2Done) setPhase(3); if (p.id === 4 && phase3Done) setPhase(4); }}
+                  <div onClick={() => { if (isUnlocked) setPhase(p.id); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 4, padding: isMobile ? '5px 8px' : '6px 14px', borderRadius: 4, transition: 'all 0.2s',
-                      cursor: (p.id === 1 || (p.id === 2 && phase1Done) || (p.id === 3 && phase2Done)) ? 'pointer' : 'not-allowed',
+                      cursor: isUnlocked ? 'pointer' : 'not-allowed',
                       border: `1px solid ${active ? p.color : done ? '#ffffff30' : '#ffffff18'}`,
                       background: active ? `${p.color}18` : done ? '#ffffff08' : 'transparent',
                       opacity: !done && !active && p.id > phase ? 0.35 : 1,

@@ -1,5 +1,5 @@
-const MAX_RETRIES = 10;
-const RETRY_DELAY = 2000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 300;
 
 export async function fetchWithRetry(input, init = {}, onRetry = null) {
   let lastError;
@@ -27,9 +27,21 @@ export async function fetchWithRetry(input, init = {}, onRetry = null) {
         throw err;
       }
 
+      // Fast-fail 4xx client errors (400, 403, 404, 409, etc.) without 20s retry loop
+      if (res.status >= 400 && res.status < 500) {
+        let errText = `HTTP ${res.status}: ${res.statusText}`;
+        try {
+          const body = await res.json();
+          if (body && body.message) errText = body.message;
+        } catch (e) {}
+        const err = new Error(errText);
+        err.status = res.status;
+        throw err;
+      }
+
       lastError = new Error(`HTTP ${res.status}: ${res.statusText}`);
     } catch (err) {
-      if (err.status === 401) {
+      if (err.status && err.status >= 400 && err.status < 500) {
         throw err;
       }
       lastError = err;

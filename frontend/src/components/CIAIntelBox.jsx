@@ -36,7 +36,8 @@ export default function CIAIntelBox({
   localDroneDeployments = {},
   onDeployDrone,
   localDroneOperations = [],
-  onToggleDroneOperation
+  onToggleDroneOperation,
+  onBuyDrone
 }) {
   if (!cityId || !session) return null;
 
@@ -168,11 +169,57 @@ export default function CIAIntelBox({
   const friendlySafehouses = safehouseList.filter(s => s.ownerFaction === 'DEFENDER');
   const hostileSafehouses = safehouseList.filter(s => s.ownerFaction === 'HOSTILE' && s.uncovered);
 
-  // Build allConnections dynamically from scenario nodesData
-  const allConnections = nodesData.map(node => ({
-    from: node.id,
-    to: node.connections || []
-  }));
+  // Build allConnections dynamically from scenario nodesData (bi-directional graph)
+  const allConnections = React.useMemo(() => {
+    const adjMap = {};
+    (nodesData || []).forEach(node => {
+      if (!adjMap[node.id]) adjMap[node.id] = new Set();
+      (node.connections || []).forEach(connId => {
+        adjMap[node.id].add(connId);
+        if (!adjMap[connId]) adjMap[connId] = new Set();
+        adjMap[connId].add(node.id);
+      });
+    });
+    return Object.keys(adjMap).map(id => ({
+      from: id,
+      to: Array.from(adjMap[id])
+    }));
+  }, [nodesData]);
+
+  // Helper to determine drone range: Drone 1 (Alpha) = 1 hop, Drone 2 (Theta) = 2 hops
+  const getDroneRange = (droneId) => {
+    if (droneId === 1) return 1;
+    if (droneId === 2) return 2;
+    return droneId > 1 ? 2 : 1;
+  };
+
+  // Helper to get reachable nodes for a drone based on its range (1 hop vs 2 hops)
+  const getTargetNodesForDrone = (droneId, baseCityId) => {
+    if (!baseCityId) return [];
+    const range = getDroneRange(droneId);
+    const baseObj = { id: baseCityId, hops: 0 };
+    const hop1Ids = allConnections.find(c => c.from === baseCityId)?.to || [];
+
+    if (range === 1) {
+      return [baseObj, ...hop1Ids.map(id => ({ id, hops: 1 }))];
+    }
+
+    // Range 2: Base City (0 hops) + 1-hop AND 2-hop targets
+    const hop2Set = new Set();
+    hop1Ids.forEach(h1Id => {
+      const h1Conns = allConnections.find(c => c.from === h1Id)?.to || [];
+      h1Conns.forEach(h2Id => {
+        if (h2Id !== baseCityId && !hop1Ids.includes(h2Id)) {
+          hop2Set.add(h2Id);
+        }
+      });
+    });
+
+    const hop1List = hop1Ids.map(id => ({ id, hops: 1 }));
+    const hop2List = Array.from(hop2Set).map(id => ({ id, hops: 2 }));
+
+    return [baseObj, ...hop1List, ...hop2List];
+  };
 
   const currentConnections = allConnections.find(c => c.from === cityId)?.to || [];
   // hasHostileConnection: any adjacent city that is HOSTILE_TERRITORY per scenario
@@ -644,6 +691,9 @@ export default function CIAIntelBox({
                             >
                               <span className="value text-cyber flex items-center gap-1.5" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <DroneIcon size={12} color="var(--cyan)" className="drone-rotor-spin" /> DRONE: {droneName.toUpperCase()}
+                                <span className="text-[8px] font-mono px-1 py-0.5 rounded" style={{ background: 'rgba(0, 240, 255, 0.1)', color: 'var(--cyan)', border: '1px solid rgba(0, 240, 255, 0.2)', marginLeft: '4px' }}>
+                                  RNG: {getDroneRange(drone.id)} {getDroneRange(drone.id) === 1 ? 'HOP' : 'HOPS'}
+                                </span>
                               </span>
                               <span className="label font-mono text-[9px]">
                                 {plannedOp ? `${plannedOp.actionType} -> ${plannedOp.targetCity.toUpperCase()}` : (drone.status === 'ACTIVE' ? 'READY' : drone.status)}
@@ -665,60 +715,75 @@ export default function CIAIntelBox({
                                     </button>
                                   </div>
                                 ) : (
-                                  <div>
+                                  <div style={{ margin: '8px 0' }}>
                                     {/* Operation Mode Selector Buttons */}
-                                    <div>
-                                      <span className="cia-controls-label">OPERATION MODE</span>
-                                      <div className="cia-task-button-grid">
-                                        <button
-                                          onClick={() => setSelectedDroneMode(prev => ({ ...prev, [drone.id]: 'RECON' }))}
-                                          className={`cia-task-btn font-mono ${currentMode === 'RECON' ? 'active' : ''}`}
-                                        >
-                                          🔍 RECON ($50K)
-                                        </button>
-                                        <button
-                                          onClick={() => setSelectedDroneMode(prev => ({ ...prev, [drone.id]: 'ATTACK' }))}
-                                          className={`cia-task-btn font-mono ${currentMode === 'ATTACK' ? 'active' : ''}`}
-                                          style={currentMode === 'ATTACK' ? { background: 'rgba(255, 59, 48, 0.15)', borderColor: 'var(--red)', color: 'var(--red)' } : {}}
-                                        >
-                                          🚀 ATTACK ($100K)
-                                        </button>
-                                      </div>
-                                    </div>
+                                    <div style={{ margin: '8px 0' }}>
+                                       <span className="cia-controls-label" style={{ display: 'block', marginBottom: '6px' }}>OPERATION MODE</span>
+                                       <div className="cia-task-button-grid" style={{ display: 'flex', gap: '8px', margin: '4px 0 8px 0' }}>
+                                         <button
+                                           onClick={() => setSelectedDroneMode(prev => ({ ...prev, [drone.id]: 'RECON' }))}
+                                           className={`cia-task-btn font-mono ${currentMode === 'RECON' ? 'active' : ''}`}
+                                           style={{ flex: 1, padding: '8px 12px', margin: '2px 0' }}
+                                         >
+                                           🔍 RECON ($50K)
+                                         </button>
+                                         <button
+                                           onClick={() => setSelectedDroneMode(prev => ({ ...prev, [drone.id]: 'ATTACK' }))}
+                                           className={`cia-task-btn font-mono ${currentMode === 'ATTACK' ? 'active' : ''}`}
+                                           style={{ flex: 1, padding: '8px 12px', margin: '2px 0', ...(currentMode === 'ATTACK' ? { background: 'rgba(255, 59, 48, 0.15)', borderColor: 'var(--red)', color: 'var(--red)' } : {}) }}
+                                         >
+                                           🚀 ATTACK ($100K)
+                                         </button>
+                                       </div>
+                                     </div>
 
-                                    {/* Target Region Dispatch List */}
-                                    <div className="mt-3">
-                                      <span className="cia-controls-label">DISPATCH TO CONNECTING REGION</span>
-                                      <div className="cia-dispatch-list">
-                                        {currentConnections.length === 0 ? (
-                                          <span className="text-[8px] text-dim font-mono">NO CONNECTED NODES</span>
-                                        ) : (
-                                          currentConnections.map(connId => {
-                                            const connNode = nodesData.find(n => n.id === connId);
-                                            const isConnHostile = connNode ? connNode.territory === 'HOSTILE_TERRITORY' : false;
-                                            const riskText = isConnHostile ? ' (10% RISK)' : '';
-                                            const costText = currentMode === 'ATTACK' ? '$100K' : '$50K';
+                                     {/* Target Region Dispatch List */}
+                                     <div style={{ margin: '12px 0 8px 0' }}>
+                                       <span className="cia-controls-label" style={{ display: 'block', marginBottom: '6px' }}>
+                                         DISPATCH TO REGION (RANGE: {getDroneRange(drone.id)} {getDroneRange(drone.id) === 1 ? 'HOP' : 'HOPS'})
+                                       </span>
+                                       <div className="cia-dispatch-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                                         {(() => {
+                                           const targets = getTargetNodesForDrone(drone.id, cityId);
+                                           if (targets.length === 0) {
+                                             return <span className="text-[8px] text-dim font-mono" style={{ margin: '6px 0', display: 'block' }}>NO REGIONS IN RANGE</span>;
+                                           }
+                                           return targets.map(({ id: targetId, hops }) => {
+                                             const connNode = nodesData.find(n => n.id === targetId);
+                                             const isConnHostile = connNode ? connNode.territory === 'HOSTILE_TERRITORY' : false;
+                                             const riskText = isConnHostile ? ' (10% RISK)' : '';
+                                             const costText = currentMode === 'ATTACK' ? '$100K' : '$50K';
+                                             const hopTag = hops === 0 ? ' (BASE CITY)' : drone.id === 2 ? ` (${hops} ${hops === 1 ? 'HOP' : 'HOPS'})` : '';
 
-                                            return (
-                                              <button
-                                                key={connId}
-                                                onClick={() => {
-                                                  onToggleDroneOperation?.(drone.id, currentMode, connId);
-                                                  setActiveDroneId(null);
-                                                }}
-                                                className="cia-dispatch-btn font-mono"
-                                                style={currentMode === 'ATTACK' ? { borderColor: 'rgba(255, 59, 48, 0.3)', color: '#ff3b30' } : {}}
-                                              >
-                                                <span>{connId.toUpperCase()}{riskText}</span>
-                                                <span className="text-amber text-[9px] font-bold" style={{ marginLeft: '8px' }}>
-                                                  {costText}
-                                                </span>
-                                              </button>
-                                            );
-                                          })
-                                        )}
-                                      </div>
-                                    </div>
+                                             return (
+                                               <button
+                                                 key={targetId}
+                                                 onClick={() => {
+                                                   onToggleDroneOperation?.(drone.id, currentMode, targetId);
+                                                   setActiveDroneId(null);
+                                                 }}
+                                                 className="cia-dispatch-btn font-mono"
+                                                 style={{
+                                                   padding: '8px 12px',
+                                                   margin: '3px 0',
+                                                   display: 'flex',
+                                                   justifyContent: 'space-between',
+                                                   alignItems: 'center',
+                                                   ...(currentMode === 'ATTACK' ? { borderColor: 'rgba(255, 59, 48, 0.35)', color: '#ff3b30', background: 'rgba(255, 59, 48, 0.06)' } : {})
+                                                 }}
+                                               >
+                                                 <span style={{ fontWeight: 600, letterSpacing: '0.05em' }}>
+                                                   {targetId.replace('_', ' ').toUpperCase()}{hopTag}{riskText}
+                                                 </span>
+                                                 <span className="text-amber text-[10px] font-bold" style={{ marginLeft: '8px', padding: '2px 6px', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '3px', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                                                   {costText}
+                                                 </span>
+                                               </button>
+                                             );
+                                           });
+                                         })()}
+                                       </div>
+                                     </div>
 
                                     {/* Option to relocate drone to another city with an operational drone base */}
                                     {(() => {
@@ -771,6 +836,56 @@ export default function CIAIntelBox({
                           </div>
                         </div>
                       )}
+
+                      {/* Buy New Drone Section (Max 2 Drones per Base limit) */}
+                      <div className="mt-3 pt-2 border-t border-[rgba(0,240,255,0.15)]">
+                        <div className="flex justify-between items-center text-[9px] font-mono mb-1.5">
+                          <span className="text-dim font-bold">DRONE BASE CAPACITY:</span>
+                          <span className="font-bold" style={{ color: localDrones.length >= 2 ? '#ff3b30' : '#00ff66' }}>
+                            {localDrones.length} / 2 DRONES {localDrones.length >= 2 ? '(FULL)' : ''}
+                          </span>
+                        </div>
+
+                        {localDrones.length < 2 ? (
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              onClick={() => onBuyDrone?.(cityId, '1-HOP')}
+                              disabled={session.budget < 500000}
+                              className="flex-1 p-1.5 rounded border font-mono text-[9px] font-bold transition-all flex flex-col items-center justify-center"
+                              style={{
+                                border: '1px solid rgba(0, 240, 255, 0.35)',
+                                background: 'rgba(0, 240, 255, 0.08)',
+                                color: 'var(--cyan)',
+                                opacity: session.budget >= 500000 ? 1 : 0.45,
+                                cursor: session.budget >= 500000 ? 'pointer' : 'not-allowed'
+                              }}
+                            >
+                              <span>+ 1-HOP DRONE</span>
+                              <span style={{ fontSize: '8px', color: '#00ff66', marginTop: '1px' }}>$500K</span>
+                            </button>
+
+                            <button
+                              onClick={() => onBuyDrone?.(cityId, '2-HOP')}
+                              disabled={session.budget < 1000000}
+                              className="flex-1 p-1.5 rounded border font-mono text-[9px] font-bold transition-all flex flex-col items-center justify-center"
+                              style={{
+                                border: '1px solid rgba(168, 85, 247, 0.4)',
+                                background: 'rgba(168, 85, 247, 0.1)',
+                                color: '#c084fc',
+                                opacity: session.budget >= 1000000 ? 1 : 0.45,
+                                cursor: session.budget >= 1000000 ? 'pointer' : 'not-allowed'
+                              }}
+                            >
+                              <span>+ 2-HOP DRONE</span>
+                              <span style={{ fontSize: '8px', color: '#00ff66', marginTop: '1px' }}>$1.0M</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-[8.5px] font-mono text-red-400 mt-1 italic text-center">
+                            Base capacity reached. Relocate or decommission drones to free space.
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}

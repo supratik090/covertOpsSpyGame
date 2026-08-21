@@ -159,6 +159,18 @@ public class GameSessionController {
         return sessionService.processEndTurn(id, request, username);
     }
 
+    // POST /api/game/{id}/defender/buy-drone?cityNode=amritsar&type=1-HOP
+    @PostMapping("/{id}/defender/buy-drone")
+    public GameSession buyDrone(
+            @PathVariable UUID id,
+            @RequestParam String cityNode,
+            @RequestParam(required = false, defaultValue = "1-HOP") String type) throws Exception {
+        GameSession session = sessionService.getSession(id);
+        ScenarioConfig config = loadConfig(session.getScenarioId());
+        session = defenderService.buyDrone(session, cityNode, type, config);
+        return sessionService.saveSession(session);
+    }
+
     // GET /api/game/{id}/hints
     @GetMapping("/{id}/hints")
     public List<HintGenerationService.Hint> getHints(@PathVariable UUID id) {

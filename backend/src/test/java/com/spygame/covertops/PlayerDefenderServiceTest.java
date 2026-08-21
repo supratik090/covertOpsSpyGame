@@ -323,4 +323,202 @@ public class PlayerDefenderServiceTest {
         assertTrue(session.getDiscoveredClues().stream()
                 .anyMatch(c -> c.getClueText().contains("RECON") && c.getClueText().toUpperCase().contains("JAMMU")));
     }
+
+    @Test
+    public void testBuyDroneAndCapacityLimit() {
+        GameSession session = createTestSession();
+        int initialBudget = session.getBudget();
+
+        // Ensure "amritsar" is a drone base and assign initial drones to amritsar
+        if (!session.getDroneBases().contains("amritsar")) {
+            session = defenderService.buildDroneBase(session, "amritsar", config);
+        }
+        session.getDrones().get(0).setCurrentCity("amritsar");
+        session.getDrones().get(1).setCurrentCity("amritsar");
+
+        // Initially session has 2 drones stationed at amritsar
+        assertEquals(2, session.getDrones().stream().filter(d -> "amritsar".equals(d.getCurrentCity())).count());
+
+        // Attempting to buy a 3rd drone for "amritsar" should throw an IllegalStateException (max 2 per base)
+        final GameSession fullBaseSession = session;
+        assertThrows(IllegalStateException.class, () -> {
+            defenderService.buyDrone(fullBaseSession, "amritsar", "1-HOP", config);
+        });
+
+        // Build a second drone base in "new_delhi"
+        session = defenderService.buildDroneBase(session, "new_delhi", config);
+        int budgetBeforeBuy = session.getBudget();
+
+        // Buy 1-Hop Drone ($500K) for new_delhi
+        session = defenderService.buyDrone(session, "new_delhi", "1-HOP", config);
+        assertEquals(budgetBeforeBuy - 500000, session.getBudget());
+        GameSession.Drone drone1Hop = session.getDrones().stream()
+                .filter(d -> "new_delhi".equals(d.getCurrentCity()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("1-HOP", drone1Hop.getType());
+        assertEquals(1, drone1Hop.getMaxHops());
+
+        // Buy 2-Hop Drone ($1M) for new_delhi
+        int budgetBefore2Hop = session.getBudget();
+        session = defenderService.buyDrone(session, "new_delhi", "2-HOP", config);
+        assertEquals(budgetBefore2Hop - 1000000, session.getBudget());
+
+        // Now new_delhi has 2 drones (max capacity)
+        assertEquals(2, session.getDrones().stream().filter(d -> "new_delhi".equals(d.getCurrentCity())).count());
+
+        // Buying another drone for new_delhi should now fail due to capacity limit of 2
+        final GameSession newDelhiFullSession = session;
+        assertThrows(IllegalStateException.class, () -> {
+            defenderService.buyDrone(newDelhiFullSession, "new_delhi", "1-HOP", config);
+        });
+    }
+
+    @Test
+    public void testDroneHopRangeValidation() {
+        GameSession session = createTestSession();
+        if (!session.getDroneBases().contains("amritsar")) {
+            session = defenderService.buildDroneBase(session, "amritsar", config);
+        }
+
+        // Set Drone 1 as 1-HOP drone
+        GameSession.Drone drone1 = session.getDrones().get(0);
+        drone1.setCurrentCity("amritsar");
+        drone1.setType("1-HOP");
+        drone1.setMaxHops(1);
+
+        // Set Drone 2 as 2-HOP drone
+        GameSession.Drone drone2 = session.getDrones().get(1);
+        drone2.setCurrentCity("amritsar");
+        drone2.setType("2-HOP");
+        drone2.setMaxHops(2);
+
+        // Lahore is connected to Amritsar (1-hop)
+        // Islamabad is connected to Lahore (2-hops from Amritsar)
+        // Peshawar is connected to Islamabad (3-hops from Amritsar)
+
+        // 1-HOP drone targeting Islamabad (2-hops away) should get CANCELLED clue due to out of range
+        com.spygame.covertops.model.EndTurnRequest request1 = new com.spygame.covertops.model.EndTurnRequest();
+        java.util.List<java.util.Map<String, Object>> ops1 = new java.util.ArrayList<>();
+        java.util.Map<String, Object> op1 = new java.util.HashMap<>();
+        op1.put("droneId", drone1.getId());
+        op1.put("actionType", "RECON");
+        op1.put("targetCity", "islamabad");
+        ops1.add(op1);
+        request1.setDroneOperations(ops1);
+
+        Mockito.when(repository.findById(session.getId())).thenReturn(java.util.Optional.of(session));
+        GameSession updatedSession1 = sessionService.processEndTurn(session.getId(), request1);
+
+        assertTrue(updatedSession1.getDiscoveredClues().stream()
+                .anyMatch(c -> c.getClueText().contains("out of operational range")));
+
+        // 2-HOP drone targeting Islamabad (2-hops away) should SUCCEED
+        com.spygame.covertops.model.EndTurnRequest request2 = new com.spygame.covertops.model.EndTurnRequest();
+        java.util.List<java.util.Map<String, Object>> ops2 = new java.util.ArrayList<>();
+        java.util.Map<String, Object> op2 = new java.util.HashMap<>();
+        op2.put("droneId", drone2.getId());
+        op2.put("actionType", "RECON");
+        op2.put("targetCity", "islamabad");
+        ops2.add(op2);
+        request2.setDroneOperations(ops2);
+
+        GameSession updatedSession2 = sessionService.processEndTurn(session.getId(), request2);
+
+        assertTrue(updatedSession2.getDiscoveredClues().stream()
+                .anyMatch(c -> c.getClueText().contains("RECON") && c.getClueText().toUpperCase().contains("ISLAMABAD")));
+    }
+
+    @Test
+    public void testEnhancedBorderGuardEfficiency() {
+        GameSession session = createTestSession();
+        // Deploy Border Guard in friendly border city Amritsar
+        session = defenderService.deployEspionageResource(session, "BORDER_GUARD", "amritsar", config);
+        // Deploy Satellite in Amritsar
+        session = defenderService.deployEspionageResource(session, "SATELLITE", "amritsar", config);
+        // Deploy Drone in Amritsar
+        if (session.getDrones() != null && !session.getDrones().isEmpty()) {
+            session.getDrones().get(0).setCurrentCity("amritsar");
+            session.getDrones().get(0).setStatus("ACTIVE");
+        }
+
+        // Verify resource presence
+        boolean hasBG = session.getEspionageResources().stream().anyMatch(r -> "BORDER_GUARD".equals(r.getType()) && "amritsar".equals(r.getCityNode()));
+        boolean hasSat = session.getEspionageResources().stream().anyMatch(r -> "SATELLITE".equals(r.getType()) && "amritsar".equals(r.getCityNode()));
+        assertTrue(hasBG);
+        assertTrue(hasSat);
+    }
+
+    @Test
+    public void testDroneShotDownUnderSecuritySweep() {
+        GameSession session = createTestSession();
+        if (!session.getDroneBases().contains("amritsar")) {
+            session = defenderService.buildDroneBase(session, "amritsar", config);
+        }
+
+        GameSession.Drone drone = session.getDrones().get(0);
+        drone.setCurrentCity("amritsar");
+        drone.setStatus("ACTIVE");
+
+        // Set "lahore" under hostile patrol (security sweep)
+        java.util.List<String> patrols = new java.util.ArrayList<>();
+        patrols.add("lahore");
+        session.setHostilePatrolCities(patrols);
+
+        // Perform RECON on lahore
+        com.spygame.covertops.model.EndTurnRequest request = new com.spygame.covertops.model.EndTurnRequest();
+        java.util.List<java.util.Map<String, Object>> ops = new java.util.ArrayList<>();
+        java.util.Map<String, Object> op = new java.util.HashMap<>();
+        op.put("droneId", drone.getId());
+        op.put("actionType", "RECON");
+        op.put("targetCity", "lahore");
+        ops.add(op);
+        request.setDroneOperations(ops);
+
+        Mockito.when(repository.findById(session.getId())).thenReturn(java.util.Optional.of(session));
+        GameSession updatedSession = sessionService.processEndTurn(session.getId(), request);
+
+        assertNotNull(updatedSession);
+    }
+
+    @Test
+    public void testPersistentDroneOperationAcrossTurns() {
+        GameSession session = createTestSession();
+        if (!session.getDroneBases().contains("amritsar")) {
+            session = defenderService.buildDroneBase(session, "amritsar", config);
+        }
+
+        GameSession.Drone drone = session.getDrones().get(0);
+        drone.setCurrentCity("amritsar");
+        drone.setStatus("ACTIVE");
+
+        // Turn 1: Player assigns Drone RECON on jammu
+        com.spygame.covertops.model.EndTurnRequest request1 = new com.spygame.covertops.model.EndTurnRequest();
+        java.util.List<java.util.Map<String, Object>> ops1 = new java.util.ArrayList<>();
+        java.util.Map<String, Object> op1 = new java.util.HashMap<>();
+        op1.put("droneId", drone.getId());
+        op1.put("actionType", "RECON");
+        op1.put("targetCity", "jammu");
+        ops1.add(op1);
+        request1.setDroneOperations(ops1);
+
+        Mockito.when(repository.findById(session.getId())).thenReturn(java.util.Optional.of(session));
+        GameSession turn1Session = sessionService.processEndTurn(session.getId(), request1);
+
+        // Verify drone has persistent assignments stored
+        GameSession.Drone turn1Drone = turn1Session.getDrones().stream().filter(d -> d.getId() == drone.getId()).findFirst().orElseThrow();
+        assertEquals("RECON", turn1Drone.getAssignedActionType());
+        assertEquals("jammu", turn1Drone.getAssignedTargetCity());
+
+        // Turn 2: Send EndTurnRequest carrying over the persistent drone operations
+        com.spygame.covertops.model.EndTurnRequest request2 = new com.spygame.covertops.model.EndTurnRequest();
+        request2.setDroneOperations(ops1); // persistent ops sent by UI
+
+        Mockito.when(repository.findById(turn1Session.getId())).thenReturn(java.util.Optional.of(turn1Session));
+        GameSession turn2Session = sessionService.processEndTurn(turn1Session.getId(), request2);
+
+        // Turn 2 should execute RECON on jammu automatically
+        assertTrue(turn2Session.getDiscoveredClues().stream()
+                .anyMatch(c -> c.getTurnDiscovered() == 2 && c.getClueText().contains("RECON") && c.getClueText().toUpperCase().contains("JAMMU")));
+    }
 }

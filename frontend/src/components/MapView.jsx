@@ -6,7 +6,7 @@ import CIAIntelBox from './CIAIntelBox';
 import AttackerIntelBox from './AttackerIntelBox';
 import GodModeOverlay, { GodModePanel } from './GodModeOverlay';
 import { Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
-import { safehouseIconHtml, safehouseAnimSvgGroup, SafehouseIcon, droneBaseIconHtml, droneIconHtml, DroneBaseIcon, DroneIcon } from './GameSymbols';
+import { safehouseIconHtml, safehouseAnimSvgGroup, SafehouseIcon, agentIconHtml, agentAnimSvgGroup, AgentIcon, combatTeamIconHtml, combatTeamAnimSvgGroup, CombatTeamIcon, droneBaseIconHtml, droneIconHtml, DroneBaseIcon, DroneIcon } from './GameSymbols';
 
 export default function MapView({
   session,
@@ -58,6 +58,7 @@ export default function MapView({
   setLocalDroneDeployments,
   localDroneOperations = [],
   setLocalDroneOperations,
+  onBuyDrone,
   onAnimationComplete
 }) {
   const mapContainerRef = useRef(null);
@@ -81,9 +82,9 @@ export default function MapView({
       });
 
       // Relaxation pass to ensure no nodes overlap or are too close
-      const minDistance = 1.2; // degrees threshold
+      const minDistance = 2.4; // Increased to 2.4 degrees threshold for spacious Leaflet layout
       const keys = Object.keys(coords);
-      for (let iter = 0; iter < 12; iter++) {
+      for (let iter = 0; iter < 25; iter++) {
         let shifted = false;
         for (let i = 0; i < keys.length; i++) {
           for (let j = i + 1; j < keys.length; j++) {
@@ -96,8 +97,8 @@ export default function MapView({
             const dist = Math.sqrt(dLat * dLat + dLng * dLng);
             if (dist < minDistance && dist > 0.0001) {
               const diff = minDistance - dist;
-              const forceX = (dLng / dist) * (diff / 2);
-              const forceY = (dLat / dist) * (diff / 2);
+              const forceX = (dLng / dist) * (diff * 0.45);
+              const forceY = (dLat / dist) * (diff * 0.65);
               coords[idA] = [latA + forceY, lngA + forceX];
               coords[idB] = [latB - forceY, lngB - forceX];
               shifted = true;
@@ -125,8 +126,10 @@ export default function MapView({
 
   const struckCities = React.useMemo(() => {
     if (!session || !session.discoveredClues) return [];
+    // Only show strike effects for the MOST RECENT TURN — clears after each turn
+    const lastTurn = session.currentTurn - 1;
     return session.discoveredClues
-      .filter(c => (c.source === 'STRIKE_EXECUTED' || c.source === 'SAFEHOUSE_ATTACK') && c.cityName)
+      .filter(c => (c.source === 'STRIKE_EXECUTED' || c.source === 'SAFEHOUSE_ATTACK') && c.cityName && c.turnDiscovered === lastTurn)
       .map(c => c.cityName.toLowerCase());
   }, [session]);
 
@@ -155,7 +158,7 @@ export default function MapView({
     return conns;
   }, [activeScenario]);
 
-  // Normalize node coordinate points for Tactical View
+  // Normalize node coordinate points for Tactical View with strong repulsion spacing
   const scaledCoords = React.useMemo(() => {
     if (!activeScenario || !activeScenario.nodes) return {};
     const xCoords = activeScenario.nodes.map(n => n.coordinates?.x || 50);
@@ -170,18 +173,19 @@ export default function MapView({
     const coords = {};
     activeScenario.nodes.forEach(node => {
       if (node.coordinates) {
-        const scaledX = 12 + ((node.coordinates.x - minX) / xRange) * 76;
-        const scaledY = 12 + ((node.coordinates.y - minY) / yRange) * 76;
+        // Expand bounds from 10% to 90% for maximum canvas utilization
+        const scaledX = 10 + ((node.coordinates.x - minX) / xRange) * 80;
+        const scaledY = 10 + ((node.coordinates.y - minY) / yRange) * 80;
         coords[node.id] = { x: scaledX, y: scaledY };
       } else {
         coords[node.id] = { x: 50, y: 50 };
       }
     });
 
-    // Avoid overlaps: push nodes that are too close to each other apart
+    // Force-directed repulsion pass: push nodes that are too close to each other apart
     const keys = Object.keys(coords);
-    const minDistance = 7.0; // Minimum distance in % space to prevent overlapping labels
-    for (let iter = 0; iter < 15; iter++) {
+    const minDistance = 14.5; // Increased to 14.5% space to ensure clear breathing room around city nodes & badges
+    for (let iter = 0; iter < 30; iter++) {
       let moved = false;
       for (let i = 0; i < keys.length; i++) {
         for (let j = i + 1; j < keys.length; j++) {
@@ -192,22 +196,22 @@ export default function MapView({
           const dx = c2.x - c1.x;
           const dy = c2.y - c1.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < minDistance) {
+          if (dist < minDistance && dist > 0.0001) {
             moved = true;
             const overlap = minDistance - dist;
-            const pushX = (dist === 0 ? 1 : dx / dist) * (overlap / 2);
-            const pushY = (dist === 0 ? 0 : dy / dist) * (overlap / 2);
+            const pushX = (dx / dist) * (overlap * 0.45);
+            const pushY = (dy / dist) * (overlap * 0.65); // Stronger vertical push for stacked labels
             
             c1.x -= pushX;
             c1.y -= pushY;
             c2.x += pushX;
             c2.y += pushY;
             
-            // Keep nodes within bounds [5, 95]
-            c1.x = Math.max(5, Math.min(95, c1.x));
-            c1.y = Math.max(5, Math.min(95, c1.y));
-            c2.x = Math.max(5, Math.min(95, c2.x));
-            c2.y = Math.max(5, Math.min(95, c2.y));
+            // Keep nodes within safe view bounds [6, 94]
+            c1.x = Math.max(6, Math.min(94, c1.x));
+            c1.y = Math.max(6, Math.min(94, c1.y));
+            c2.x = Math.max(6, Math.min(94, c2.x));
+            c2.y = Math.max(6, Math.min(94, c2.y));
           }
         }
       }
@@ -263,6 +267,27 @@ export default function MapView({
   const handleMouseUp = () => {
     setIsDragging(false);
   };
+
+  const handleTouchStart = (e) => {
+    if (!isTacticalView || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    if (e.target.closest('.city-marker-wrapper') || e.target.closest('.tab-content') || e.target.closest('.map-toolbar')) return;
+    setIsDragging(true);
+    setDragStart({ x: touch.clientX - panOffset.x, y: touch.clientY - panOffset.y });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isTacticalView || !isDragging || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setPanOffset({
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y
+    });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
   const markersRef = useRef({});
   const polylinesRef = useRef([]);
   const godRouteRef = useRef(null);
@@ -271,6 +296,7 @@ export default function MapView({
   // Transition Animation States
   const prevSessionRef = useRef(session);
   const [movingUnits, setMovingUnits] = useState([]);
+  const [droneAnimUnits, setDroneAnimUnits] = useState([]);
   const [buildingSafehouses, setBuildingSafehouses] = useState([]);
   const [exposingSafehouses, setExposingSafehouses] = useState([]);
   const [combatAlerts, setCombatAlerts] = useState([]);
@@ -285,6 +311,11 @@ export default function MapView({
   const [isShaking, setIsShaking] = useState(false);
   const [mapVersion, setMapVersion] = useState(0);
   const onAnimCompleteRef = useRef(onAnimationComplete);
+
+  const isAnimating = movingUnits.length > 0 || droneAnimUnits.length > 0 || buildingSafehouses.length > 0 ||
+    exposingSafehouses.length > 0 || combatAlerts.length > 0 || newSafehouses.length > 0 ||
+    uncoveredSafehouses.length > 0 || newTechDeploys.length > 0 || destroyedFriendlyCities.length > 0 ||
+    destroyedEnemyCities.length > 0;
 
   // Force re-render overlay coordinates when Leaflet map moves/zooms
   useEffect(() => {
@@ -529,14 +560,14 @@ export default function MapView({
            ${destroyedFriendlyCities.includes(cityId) ? '<div class="safehouse-alert-badge compromised">🚨 SAFEHOUSE COMPROMISED</div>' : ''}
            ${destroyedEnemyCities.includes(cityId) ? '<div class="safehouse-alert-badge neutralized">🎯 ENEMY SAFEHOUSE NEUTRALIZED</div>' : ''}
            ${isStruck ? '<div class="smoke-fumes-container"><div class="fume-particle" style="--wind: -3px; --wind-far: -8px"></div><div class="fume-particle" style="--wind: 4px; --wind-far: 9px"></div><div class="fume-particle" style="--wind: -1px; --wind-far: -3px"></div></div><div class="fire-flame">🔥</div>' : ''}
-           <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''} ${isStruck ? 'struck' : ''}"></div>
+           <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''}"></div>
            <div class="city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}"></div>
            ${showSafehouseIconHtml ? `<div class="city-marker-safehouse" style="display: flex; align-items: center; justify-content: center;">${showSafehouseIconHtml}</div>` : ''}
            ${showExposedNormalIcon ? `<div class="city-marker-exposed-hostile">${safehouseIconHtml({ size: 11, color: '#f59e0b' })}👁️</div>` : ''}
            ${showExposedSecureIcon ? `<div class="city-marker-exposed-secure">${safehouseIconHtml({ size: 11, color: '#ffcc00', secure: true })}🛡️</div>` : ''}
            ${isSuspectHere ? `<div class="city-marker-badge suspect pulse-badge" style="background: #ff3b30; box-shadow: 0 0 15px #ff3b30; color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 2px solid white; border-radius: 50%; width: 22px; height: 22px; transform: translate(12px, -24px); z-index: 1000;">🎯</div>` : ''}
-           ${agentsCount > 0 ? `<div class="city-marker-badge agents">${agentsCount}</div>` : ''}
-           ${teamsCount > 0 ? `<div class="city-marker-badge teams">${teamsCount}</div>` : ''}
+           ${agentsCount > 0 ? `<div class="city-marker-badge agents-icon">${agentIconHtml({ size: 11, color: '#00f0ff' })}${agentsCount > 1 ? '<span class="badge-count">' + agentsCount + '</span>' : ''}</div>` : ''}
+           ${teamsCount > 0 ? `<div class="city-marker-badge teams-icon">${combatTeamIconHtml({ size: 11, color: '#ff3b30' })}${teamsCount > 1 ? '<span class="badge-count">' + teamsCount + '</span>' : ''}</div>` : ''}
            ${techMarkersHtml}
            ${droneBaseHtml}
            ${droneHtml}
@@ -661,9 +692,11 @@ export default function MapView({
     if (session.currentTurn === prevSession.currentTurn) return;
 
     handleFit();
+    setSelectedCityNode(null);
 
     // ── Collect all deltas ──────────────────────────────────────
     const newMoving = [];
+    const newDroneAnims = [];
     session.agents.forEach(agent => {
       const prevAgent = prevSession.agents.find(a => a.id === agent.id);
       if (prevAgent && prevAgent.currentCity !== agent.currentCity) {
@@ -677,10 +710,15 @@ export default function MapView({
       }
     });
 
+    const isAttackerRole = session?.playerRole === 'ATTACKER';
+
     const newBuilds = [];
     session.safehouses.forEach(sh => {
-      const wasPresent = prevSession.safehouses.some(psh => psh.cityNode === sh.cityNode && psh.ownerFaction === sh.ownerFaction);
-      if (!wasPresent) newBuilds.push({ cityId: sh.cityNode, ownerFaction: sh.ownerFaction, progress: 0 });
+      const isMySafehouse = isAttackerRole ? (sh.ownerFaction === 'HOSTILE') : (sh.ownerFaction === 'DEFENDER');
+      if (isMySafehouse) {
+        const wasPresent = prevSession.safehouses.some(psh => psh.cityNode === sh.cityNode && psh.ownerFaction === sh.ownerFaction);
+        if (!wasPresent) newBuilds.push({ cityId: sh.cityNode, ownerFaction: sh.ownerFaction, progress: 0 });
+      }
     });
 
     const newExposes = [];
@@ -699,6 +737,7 @@ export default function MapView({
       if (step?.suspectLocation) newCombat.push({ cityId: step.suspectLocation, progress: 0 });
     }
 
+    // ── Drone animations: multi-phase RECON / ATTACK / MOVE / DESTROYED ─────
     lastTurnClues.forEach(c => {
       if (c.source === 'DRONE_RECON' || c.source === 'DRONE_ATTACK') {
         const droneMatch = c.clueText?.match(/Drone (\d+)/i);
@@ -709,9 +748,40 @@ export default function MapView({
             const toCity = targetNode.id;
             const prevDrone = prevSession.drones?.find(d => d.id === droneId);
             const fromCity = prevDrone ? prevDrone.currentCity : null;
-            if (fromCity && fromCity !== toCity) newMoving.push({ type: 'drone', fromCity, toCity, progress: 0, color: '#10b981' });
-            if (c.clueText?.includes('SHOT DOWN') || c.clueText?.includes('DRONE DOWN')) newCombat.push({ cityId: toCity, progress: 0 });
+            const isDestroyed = !!(c.clueText?.includes('SHOT DOWN') || c.clueText?.includes('DRONE DOWN'));
+            const droneAction = c.source === 'DRONE_RECON' ? 'RECON' : 'ATTACK';
+            if (fromCity) {
+              newDroneAnims.push({
+                fromCity,
+                toCity,
+                baseCity: fromCity, // ATTACK drones return here
+                droneAction,
+                isDestroyed,
+                phase: 0,
+                progress: 0,
+                color: '#10b981'
+              });
+            }
           }
+        }
+      }
+    });
+    // Detect drone relocations (MOVE action — city changed without a clue)
+    (session.drones || []).forEach(drone => {
+      const prevDrone = prevSession.drones?.find(d => d.id === drone.id);
+      if (prevDrone && prevDrone.currentCity !== drone.currentCity) {
+        const alreadyAnimated = newDroneAnims.some(d => d.fromCity === prevDrone.currentCity && d.toCity === drone.currentCity);
+        if (!alreadyAnimated) {
+          newDroneAnims.push({
+            fromCity: prevDrone.currentCity,
+            toCity: drone.currentCity,
+            baseCity: drone.currentCity,
+            droneAction: 'MOVE',
+            isDestroyed: false,
+            phase: 0,
+            progress: 0,
+            color: '#10b981'
+          });
         }
       }
     });
@@ -725,7 +795,6 @@ export default function MapView({
       if (!session.espionageResources.some(r => r.id === res.id)) expiredTechList.push({ cityId: res.cityNode, type: res.type });
     });
 
-    const isAttackerRole = session?.playerRole === 'ATTACKER';
     const friendlyLostSafehouses = [];
     const enemyLostSafehouses = [];
     prevSession.safehouses.forEach(psh => {
@@ -734,7 +803,10 @@ export default function MapView({
         if (isFriendly) {
           friendlyLostSafehouses.push(psh.cityNode);
         } else {
-          enemyLostSafehouses.push(psh.cityNode);
+          // Only animate enemy safehouse destruction if it was exposed/uncovered
+          if (psh.uncovered || isAttackerRole) {
+            enemyLostSafehouses.push(psh.cityNode);
+          }
         }
       }
     });
@@ -756,7 +828,7 @@ export default function MapView({
       cancelAnimationFrame(rafId);
       setBuildingSafehouses([]); setExposingSafehouses([]); setCombatAlerts([]);
       setNewSafehouses([]); setUncoveredSafehouses([]); setNewTechDeploys([]);
-      setExpiredTechScans([]); setMovingUnits([]); setLostCities([]);
+      setExpiredTechScans([]); setMovingUnits([]); setDroneAnimUnits([]); setLostCities([]);
       setDestroyedFriendlyCities([]); setDestroyedEnemyCities([]); setConfettiCities([]);
       setIsShaking(false);
       setTimeout(() => { onAnimCompleteRef.current?.(); }, 300);
@@ -766,13 +838,21 @@ export default function MapView({
       const friendlyCount = loss?.friendly?.length || 0;
       const enemyCount = loss?.enemy?.length || 0;
       if (friendlyCount === 0 && enemyCount === 0) { finishAll(); return; }
-      if (friendlyCount > 0) setDestroyedFriendlyCities(loss.friendly);
-      if (enemyCount > 0) setDestroyedEnemyCities(loss.enemy);
-      setTimeout(() => {
-        setDestroyedFriendlyCities([]);
-        setDestroyedEnemyCities([]);
-        finishAll();
-      }, 2600);
+      // Use progress-driven animation instead of a static timeout
+      if (friendlyCount > 0) setDestroyedFriendlyCities(loss.friendly.map(c => ({ cityId: c, progress: 0 })));
+      if (enemyCount > 0) setDestroyedEnemyCities(loss.enemy.map(c => ({ cityId: c, progress: 0 })));
+      const start = performance.now(); const dur = 2200;
+      const loop = (t) => {
+        const p = Math.min((t - start) / dur, 1.0);
+        setDestroyedFriendlyCities(prev => prev.map(c => ({ ...c, progress: p })));
+        setDestroyedEnemyCities(prev => prev.map(c => ({ ...c, progress: p })));
+        if (p < 1.0) { rafId = requestAnimationFrame(loop); }
+        else {
+          setDestroyedFriendlyCities([]); setDestroyedEnemyCities([]);
+          finishAll();
+        }
+      };
+      rafId = requestAnimationFrame(loop);
     };
 
     const runTechPhase = (deploys, expireds, lost) => {
@@ -838,6 +918,7 @@ export default function MapView({
       buildNext();
     };
 
+    // Regular move phase — agents and combat teams only
     const runMovePhase = (moves, builds, exposes, combat, tech, expired, lost) => {
       if (moves.length === 0) { runBuildPhase(builds, exposes, combat, tech, expired, lost); return; }
       setMovingUnits(moves);
@@ -851,12 +932,85 @@ export default function MapView({
       rafId = requestAnimationFrame(loop);
     };
 
-    const hasAnything = newMoving.length > 0 || newBuilds.length > 0 || newExposes.length > 0 ||
+    // Multi-phase drone animation: TRAVEL → ACTION → RETURN → DESTROYED
+    const runDroneAnimPhase = (droneAnims, moves, builds, exposes, combat, tech, expired, lost) => {
+      if (droneAnims.length === 0) { runMovePhase(moves, builds, exposes, combat, tech, expired, lost); return; }
+
+      const TRAVEL_DUR = 1300;
+      const RECON_DUR  = 950;
+      const ATTACK_DUR = 1100;
+      const RETURN_DUR = 1050;
+      const DESTROY_DUR = 750;
+
+      const afterDrones = () => {
+        setDroneAnimUnits([]);
+        setTimeout(() => runMovePhase(moves, builds, exposes, combat, tech, expired, lost), 300);
+      };
+
+      // Phase 3: Destroyed
+      const runDestroyPhase = () => {
+        const destroyed = droneAnims.filter(d => d.isDestroyed);
+        if (destroyed.length === 0) { afterDrones(); return; }
+        setDroneAnimUnits(destroyed.map(d => ({ ...d, phase: 3, progress: 0 })));
+        const start = performance.now();
+        const loop = (t) => {
+          const p = Math.min((t - start) / DESTROY_DUR, 1.0);
+          setDroneAnimUnits(prev => prev.map(d => ({ ...d, progress: p })));
+          if (p < 1.0) { rafId = requestAnimationFrame(loop); }
+          else { afterDrones(); }
+        };
+        rafId = requestAnimationFrame(loop);
+      };
+
+      // Phase 2: Return to base (ATTACK drones that are NOT destroyed)
+      const runReturnPhase = () => {
+        const returning = droneAnims.filter(d => d.droneAction === 'ATTACK' && !d.isDestroyed);
+        if (returning.length === 0) { runDestroyPhase(); return; }
+        setDroneAnimUnits(returning.map(d => ({ ...d, phase: 2, progress: 0 })));
+        const start = performance.now();
+        const loop = (t) => {
+          const p = Math.min((t - start) / RETURN_DUR, 1.0);
+          setDroneAnimUnits(prev => prev.map(d => ({ ...d, progress: p })));
+          if (p < 1.0) { rafId = requestAnimationFrame(loop); }
+          else { setTimeout(runDestroyPhase, 150); }
+        };
+        rafId = requestAnimationFrame(loop);
+      };
+
+      // Phase 1: Action at target city
+      const runActionPhase = () => {
+        const actionAnims = droneAnims.filter(d => d.droneAction !== 'MOVE');
+        if (actionAnims.length === 0) { runReturnPhase(); return; }
+        setDroneAnimUnits(actionAnims.map(d => ({ ...d, phase: 1, progress: 0 })));
+        const maxDur = actionAnims.some(d => d.droneAction === 'ATTACK') ? ATTACK_DUR : RECON_DUR;
+        const start = performance.now();
+        const loop = (t) => {
+          const p = Math.min((t - start) / maxDur, 1.0);
+          setDroneAnimUnits(prev => prev.map(d => ({ ...d, progress: Math.min((t - start) / (d.droneAction === 'ATTACK' ? ATTACK_DUR : RECON_DUR), 1.0) })));
+          if (p < 1.0) { rafId = requestAnimationFrame(loop); }
+          else { setTimeout(runReturnPhase, 150); }
+        };
+        rafId = requestAnimationFrame(loop);
+      };
+
+      // Phase 0: Travel to target
+      setDroneAnimUnits(droneAnims.map(d => ({ ...d, phase: 0, progress: 0 })));
+      const start = performance.now();
+      const loop = (t) => {
+        const p = Math.min((t - start) / TRAVEL_DUR, 1.0);
+        setDroneAnimUnits(prev => prev.map(d => ({ ...d, progress: p })));
+        if (p < 1.0) { rafId = requestAnimationFrame(loop); }
+        else { setTimeout(runActionPhase, 100); }
+      };
+      rafId = requestAnimationFrame(loop);
+    };
+
+    const hasAnything = newMoving.length > 0 || newDroneAnims.length > 0 || newBuilds.length > 0 || newExposes.length > 0 ||
       newCombat.length > 0 || newTechDeploysList.length > 0 || expiredTechList.length > 0 ||
       lossData.friendly.length > 0 || lossData.enemy.length > 0;
 
     if (hasAnything) {
-      runMovePhase(newMoving, newBuilds, newExposes, newCombat, newTechDeploysList, expiredTechList, lossData);
+      runDroneAnimPhase(newDroneAnims, newMoving, newBuilds, newExposes, newCombat, newTechDeploysList, expiredTechList, lossData);
     } else {
       setTimeout(() => { onAnimCompleteRef.current?.(); }, 200);
     }
@@ -926,58 +1080,172 @@ export default function MapView({
       viewBox={isTacticalView ? "0 0 100 100" : undefined}
       preserveAspectRatio={isTacticalView ? "none" : undefined}
     >
+      {/* Regular unit travel (agents and combat teams) */}
       {movingUnits.map((m, idx) => {
         const start = getPixelCoords(m.fromCity);
         const end = getPixelCoords(m.toCity);
         if (start.x === 0 || end.x === 0) return null;
         const currentX = start.x + (end.x - start.x) * m.progress;
         const currentY = start.y + (end.y - start.y) * m.progress;
-        if (m.type === 'drone') {
-          const droneScale = isTacticalView ? 0.3 : 1;
-          const iconSize = isTacticalView ? 3 : 16;
+        const sc = isTacticalView ? 0.45 : 1;
+        const iconSize = isTacticalView ? 4 : 16;
+
+        if (m.type === 'agent') {
           return (
-            <g key={`move-${idx}`} className="drone-flight-path">
-              <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={m.color} strokeWidth={1.5 * droneScale} strokeDasharray="3,3" opacity="0.4" />
-              <line x1={start.x} y1={start.y} x2={currentX} y2={currentY} stroke={m.color} strokeWidth={2.5 * droneScale} opacity="0.75" />
+            <g key={`move-${idx}`}>
+              <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={m.color} strokeWidth={1.5 * sc} strokeDasharray="5,5" opacity="0.28" />
+              <line x1={start.x} y1={start.y} x2={currentX} y2={currentY} stroke={m.color} strokeWidth={2.5 * sc} strokeLinecap="round" opacity="0.75" />
+              <circle cx={currentX} cy={currentY} r={9 * sc} fill={m.color} opacity="0.12" />
               <g transform={`translate(${currentX - iconSize / 2}, ${currentY - iconSize / 2})`}>
-                <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#10b981' }) }} />
+                <g dangerouslySetInnerHTML={{ __html: agentIconHtml({ size: iconSize, color: m.color }) }} />
+              </g>
+              <circle cx={currentX} cy={currentY} r={13 * sc} fill="none" stroke={m.color} strokeWidth={sc} opacity={0.6 * (1 - m.progress)} className="animate-ping" />
+            </g>
+          );
+        }
+
+        if (m.type === 'team') {
+          return (
+            <g key={`move-${idx}`}>
+              <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={m.color} strokeWidth={1.5 * sc} strokeDasharray="4,4" opacity="0.28" />
+              <line x1={start.x} y1={start.y} x2={currentX} y2={currentY} stroke={m.color} strokeWidth={2.5 * sc} strokeLinecap="round" opacity="0.75" />
+              <circle cx={currentX} cy={currentY} r={9 * sc} fill={m.color} opacity="0.12" />
+              <g transform={`translate(${currentX - iconSize / 2}, ${currentY - iconSize / 2})`}>
+                <g dangerouslySetInnerHTML={{ __html: combatTeamIconHtml({ size: iconSize, color: m.color }) }} />
+              </g>
+              <circle cx={currentX} cy={currentY} r={13 * sc} fill="none" stroke={m.color} strokeWidth={sc} opacity={0.6 * (1 - m.progress)} className="animate-ping" />
+            </g>
+          );
+        }
+
+        return null;
+      })}
+
+      {/* Multi-phase drone animations: TRAVEL → ACTION → RETURN → DESTROYED */}
+      {droneAnimUnits.map((m, idx) => {
+        const baseCoords = getPixelCoords(m.fromCity);
+        const targetCoords = getPixelCoords(m.toCity);
+        if (baseCoords.x === 0 || targetCoords.x === 0) return null;
+        const sc = isTacticalView ? 0.35 : 1;
+        const iconSize = isTacticalView ? 4 : 18;
+        const halfIcon = iconSize / 2;
+
+        // Phase 0: Travel from base to target
+        if (m.phase === 0) {
+          const cx = baseCoords.x + (targetCoords.x - baseCoords.x) * m.progress;
+          const cy = baseCoords.y + (targetCoords.y - baseCoords.y) * m.progress;
+          // Angle of travel for rotation
+          const angle = Math.atan2(targetCoords.y - baseCoords.y, targetCoords.x - baseCoords.x) * 180 / Math.PI + 90;
+          return (
+            <g key={`drone-${idx}`}>
+              <line x1={baseCoords.x} y1={baseCoords.y} x2={targetCoords.x} y2={targetCoords.y} stroke={m.color} strokeWidth={1.5 * sc} strokeDasharray="3,4" opacity="0.35" />
+              <line x1={baseCoords.x} y1={baseCoords.y} x2={cx} y2={cy} stroke={m.color} strokeWidth={2 * sc} opacity="0.7" />
+              <g transform={`translate(${cx}, ${cy}) rotate(${angle}) translate(${-halfIcon}, ${-halfIcon})`}>
+                <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: m.color }) }} />
+              </g>
+              <circle cx={cx} cy={cy} r={5 * sc} fill="none" stroke={m.color} strokeWidth={sc} opacity={0.5} />
+            </g>
+          );
+        }
+
+        // Phase 1: Action at target (RECON = hover circle, ATTACK = bounce)
+        if (m.phase === 1) {
+          const actionAnim = m.droneAction === 'RECON' ? 'drone-recon-hover 0.9s ease-in-out infinite' : 'drone-attack-bounce 1.1s cubic-bezier(0.36,0.07,0.19,0.97) infinite';
+          const orbitR = isTacticalView ? 3.5 : 18;
+          return (
+            <g key={`drone-${idx}`}>
+              {/* Orbit ring at target for RECON */}
+              {m.droneAction === 'RECON' && (
+                <circle cx={targetCoords.x} cy={targetCoords.y} r={orbitR} fill="none" stroke={m.color} strokeWidth={isTacticalView ? 0.3 : 1.2} strokeDasharray={isTacticalView ? '0.6,0.6' : '3,3'} opacity="0.55" />
+              )}
+              {/* Impact rings for ATTACK */}
+              {m.droneAction === 'ATTACK' && [
+                <circle key="r1" cx={targetCoords.x} cy={targetCoords.y} r={orbitR * m.progress} fill="none" stroke="#ff3b30" strokeWidth={isTacticalView ? 0.4 : 1.5} opacity={1 - m.progress} />,
+                <circle key="r2" cx={targetCoords.x} cy={targetCoords.y} r={orbitR * m.progress * 0.6} fill="none" stroke="#ff6600" strokeWidth={isTacticalView ? 0.3 : 1} opacity={(1 - m.progress) * 0.7} />
+              ]}
+              <g
+                transform={`translate(${targetCoords.x - halfIcon}, ${targetCoords.y - halfIcon})`}
+                style={{ animation: actionAnim }}
+              >
+                <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: m.droneAction === 'ATTACK' ? '#ff9800' : m.color }) }} />
               </g>
             </g>
           );
         }
 
-        return (
-          <g key={`move-${idx}`}>
-            <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke={m.color} strokeWidth="2" strokeDasharray="5,5" opacity="0.3" />
-            <line x1={start.x} y1={start.y} x2={currentX} y2={currentY} stroke={m.color} strokeWidth="3.5" strokeLinecap="round" opacity="0.8" />
-            <circle cx={currentX} cy={currentY} r="7" fill={m.color} filter="drop-shadow(0 0 6px rgba(255,255,255,0.8))" />
-            <circle cx={currentX} cy={currentY} r="14" fill="none" stroke={m.color} strokeWidth="1.5" opacity={1 - m.progress} className="animate-ping" />
-          </g>
-        );
+        // Phase 2: Return to base (attack drones flying back)
+        if (m.phase === 2) {
+          const cx = targetCoords.x + (baseCoords.x - targetCoords.x) * m.progress;
+          const cy = targetCoords.y + (baseCoords.y - targetCoords.y) * m.progress;
+          const angle = Math.atan2(baseCoords.y - targetCoords.y, baseCoords.x - targetCoords.x) * 180 / Math.PI + 90;
+          return (
+            <g key={`drone-${idx}`}>
+              <line x1={targetCoords.x} y1={targetCoords.y} x2={cx} y2={cy} stroke={m.color} strokeWidth={1.5 * sc} opacity="0.5" strokeDasharray="3,3" />
+              <g transform={`translate(${cx}, ${cy}) rotate(${angle}) translate(${-halfIcon}, ${-halfIcon})`}>
+                <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: m.color }) }} />
+              </g>
+            </g>
+          );
+        }
+
+        // Phase 3: Drone destroyed — spin out explosion at target
+        if (m.phase === 3) {
+          const explodeR = (isTacticalView ? 6 : 28) * m.progress;
+          return (
+            <g key={`drone-${idx}`}>
+              <circle cx={targetCoords.x} cy={targetCoords.y} r={explodeR} fill="none" stroke="#ff3b30" strokeWidth={isTacticalView ? 0.5 : 2.5} opacity={1 - m.progress} />
+              <circle cx={targetCoords.x} cy={targetCoords.y} r={explodeR * 0.55} fill="rgba(255,59,48,0.15)" stroke="#ff6600" strokeWidth={isTacticalView ? 0.3 : 1.5} opacity={(1 - m.progress) * 0.8} />
+              <g
+                transform={`translate(${targetCoords.x - halfIcon}, ${targetCoords.y - halfIcon})`}
+                style={{ animation: 'drone-destroyed-spin 0.75s ease-out forwards', transformOrigin: halfIcon + 'px ' + halfIcon + 'px' }}
+              >
+                <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#ff3b30' }) }} />
+              </g>
+              <text x={targetCoords.x} y={targetCoords.y - (isTacticalView ? 5 : 26)} textAnchor="middle"
+                fill="#ff3b30" fontSize={isTacticalView ? '1.8' : '9'} fontFamily="monospace" fontWeight="bold"
+                opacity={1 - m.progress}>DRONE DOWN</text>
+            </g>
+          );
+        }
+
+        return null;
       })}
       {buildingSafehouses.map((b, idx) => {
         const center = getPixelCoords(b.cityId);
         if (center.x === 0) return null;
         const color = (b.ownerFaction === 'HOSTILE') ? '#ff3b30' : '#00f0ff';
-        // Scale ring size based on view type
-        const baseR = isTacticalView ? 2 : 10;
-        const maxR = isTacticalView ? 10 : 55;
-        const r1 = baseR + (maxR - baseR) * b.progress;
-        const r2 = r1 * 0.68;
-        const r3 = r1 * 0.38;
-        const opacity = 1.0 - b.progress;
+        const sc = isTacticalView ? 0.2 : 1;
+        // Rings CONTRACT inward (large to small) as safehouse materializes
+        const maxR = isTacticalView ? 9 : 42;
+        const r1 = maxR * (1 - b.progress * 0.75);
+        const r2 = r1 * 0.62;
+        const ringOpacity = Math.max(0, 1 - b.progress * 1.1);
+        const glowR = (isTacticalView ? 1.5 : 6) * b.progress;
         const iconSize = isTacticalView ? 2.5 : 11;
-        const iconOpacity = b.progress > 0.35 ? Math.min((b.progress - 0.35) / 0.65, 1.0) : 0;
+        const iconOpacity = b.progress > 0.4 ? Math.min((b.progress - 0.4) / 0.6, 1.0) : 0;
+        // Corner L-brackets instead of crosshairs
+        const bkt = r1 * 0.42;
+        const bktW = isTacticalView ? 0.3 : 1.2;
         return (
           <g key={`build-${idx}`}>
-            {/* Three expanding rings */}
-            <circle cx={center.x} cy={center.y} r={r1} fill="none" stroke={color} strokeWidth={isTacticalView ? '0.5' : '2'} strokeDasharray="4,4" opacity={opacity} />
-            <circle cx={center.x} cy={center.y} r={r2} fill="none" stroke={color} strokeWidth={isTacticalView ? '0.35' : '1.4'} strokeDasharray="3,3" opacity={opacity * 0.75} />
-            <circle cx={center.x} cy={center.y} r={r3} fill="none" stroke={color} strokeWidth={isTacticalView ? '0.2' : '0.8'} opacity={opacity * 0.5} />
-            {/* Crosshair lines */}
-            <line x1={center.x - r1 - (isTacticalView ? 1 : 6)} y1={center.y} x2={center.x + r1 + (isTacticalView ? 1 : 6)} y2={center.y} stroke={color} strokeWidth={isTacticalView ? '0.25' : '1'} opacity={opacity * 0.65} />
-            <line x1={center.x} y1={center.y - r1 - (isTacticalView ? 1 : 6)} x2={center.x} y2={center.y + r1 + (isTacticalView ? 1 : 6)} stroke={color} strokeWidth={isTacticalView ? '0.25' : '1'} opacity={opacity * 0.65} />
-            {/* Safehouse icon materializing as rings fade */}
+            <circle cx={center.x} cy={center.y} r={r1} fill="none" stroke={color}
+              strokeWidth={isTacticalView ? 0.4 : 1.6} strokeDasharray={`${3 * sc},${3 * sc}`} opacity={ringOpacity} />
+            <circle cx={center.x} cy={center.y} r={r2} fill="none" stroke={color}
+              strokeWidth={isTacticalView ? 0.25 : 1} strokeDasharray={`${2 * sc},${2 * sc}`} opacity={ringOpacity * 0.55} />
+            {[[-1,-1],[1,-1],[1,1],[-1,1]].map(([sx, sy], i) => (
+              <g key={i}>
+                <line x1={center.x + sx * r1} y1={center.y + sy * r1}
+                      x2={center.x + sx * (r1 - bkt)} y2={center.y + sy * r1}
+                      stroke={color} strokeWidth={bktW} strokeLinecap="round" opacity={ringOpacity * 0.85} />
+                <line x1={center.x + sx * r1} y1={center.y + sy * r1}
+                      x2={center.x + sx * r1} y2={center.y + sy * (r1 - bkt)}
+                      stroke={color} strokeWidth={bktW} strokeLinecap="round" opacity={ringOpacity * 0.85} />
+              </g>
+            ))}
+            <circle cx={center.x} cy={center.y} r={glowR} fill={color} opacity={b.progress * 0.3} />
+            <text x={center.x} y={center.y - r1 - (isTacticalView ? 1.5 : 7)} textAnchor="middle"
+              fill={color} fontSize={isTacticalView ? 1.3 : 7} fontFamily="monospace" fontWeight="bold"
+              opacity={ringOpacity * 0.8} letterSpacing="0.1em">BUILD</text>
             {iconOpacity > 0 && (
               <g opacity={iconOpacity} dangerouslySetInnerHTML={{ __html: safehouseAnimSvgGroup(center.x, center.y, color, iconSize) }} />
             )}
@@ -988,53 +1256,110 @@ export default function MapView({
       {exposingSafehouses.map((e, idx) => {
         const center = getPixelCoords(e.cityId);
         if (center.x === 0) return null;
-        const radius = 8 + e.progress * 50;
+        const sc = isTacticalView ? 0.18 : 1;
+        const r1 = (isTacticalView ? 2 : 8) + e.progress * (isTacticalView ? 10 : 44);
+        const r2 = r1 * 0.60;
+        const r3 = r1 * 0.3;
         const opacity = 1.0 - e.progress;
         return (
           <g key={`expose-${idx}`}>
-            <circle cx={center.x} cy={center.y} r={radius} fill="none" stroke="#ffcc00" strokeWidth="2.5" strokeDasharray="6,3" opacity={opacity} />
-            <circle cx={center.x} cy={center.y} r={radius * 0.5} fill="none" stroke="#ffcc00" strokeWidth="1.5" opacity={opacity * 0.6} />
-            <line x1={center.x - radius - 8} y1={center.y} x2={center.x + radius + 8} y2={center.y} stroke="#ffcc00" strokeWidth="1.2" opacity={opacity} />
-            <line x1={center.x} y1={center.y - radius - 8} x2={center.x} y2={center.y + radius + 8} stroke="#ffcc00" strokeWidth="1.2" opacity={opacity} />
-            <text x={center.x} y={center.y - radius - 14} textAnchor="middle" fill="#ffcc00" fontSize="10" opacity={opacity} fontFamily="monospace" fontWeight="bold">EXPOSED</text>
+            <circle cx={center.x} cy={center.y} r={r1} fill="none" stroke="#ffcc00"
+              strokeWidth={isTacticalView ? 0.45 : 2} strokeDasharray={`${4 * sc},${3 * sc}`} opacity={opacity} />
+            <circle cx={center.x} cy={center.y} r={r2} fill="rgba(255,204,0,0.06)" stroke="#ffcc00"
+              strokeWidth={isTacticalView ? 0.3 : 1.2} opacity={opacity * 0.7} />
+            <circle cx={center.x} cy={center.y} r={r3} fill="rgba(255,204,0,0.12)"
+              stroke="#ffcc00" strokeWidth={isTacticalView ? 0.2 : 0.8} opacity={opacity * 0.5} />
+            <circle cx={center.x} cy={center.y} r={isTacticalView ? 0.8 : 3.5}
+              fill="#ffcc00" opacity={0.3 + (1 - e.progress) * 0.5} />
+            <text x={center.x} y={center.y - r1 - (isTacticalView ? 1.5 : 10)} textAnchor="middle"
+              fill="#ffcc00" fontSize={isTacticalView ? 1.4 : 8} fontFamily="monospace" fontWeight="bold"
+              opacity={opacity * 0.9} letterSpacing="0.08em">EXPOSED</text>
           </g>
         );
       })}
       {combatAlerts.map((c, idx) => {
         const center = getPixelCoords(c.cityId);
         if (center.x === 0) return null;
-        const opacity = Math.sin(c.progress * Math.PI * 4.5) * 0.4 + 0.6;
-        const scale = isTacticalView ? 0.25 : 1;
+        // Pulsing flash: 3 expanding diamond rings fading out — no crosshair, no huge circles
+        const pulse = Math.sin(c.progress * Math.PI * 5) * 0.5 + 0.5; // oscillate 0–1
+        const sc = isTacticalView ? 0.22 : 1;
+        const r1 = (8 + c.progress * 20) * sc;
+        const r2 = (4 + c.progress * 12) * sc;
+        const opacity1 = (1 - c.progress) * 0.9;
+        const opacity2 = (1 - c.progress) * 0.65;
+        // Diamond shape via rotated square
+        const d = r1;
+        const dmPoints = `${center.x},${center.y - d} ${center.x + d},${center.y} ${center.x},${center.y + d} ${center.x - d},${center.y}`;
+        const d2 = r2;
+        const dmPoints2 = `${center.x},${center.y - d2} ${center.x + d2},${center.y} ${center.x},${center.y + d2} ${center.x - d2},${center.y}`;
         return (
           <g key={`combat-${idx}`}>
-            <circle cx={center.x} cy={center.y} r={24 * scale} fill="rgba(255, 59, 48, 0.08)" stroke="#ff3b30" strokeWidth="2.5" opacity={opacity} />
-            <circle cx={center.x} cy={center.y} r={36 * scale} fill="none" stroke="#ff3b30" strokeWidth="1.2" strokeDasharray="6,3" opacity={opacity} />
-            <line x1={center.x - 48 * scale} y1={center.y} x2={center.x + 48 * scale} y2={center.y} stroke="#ff3b30" strokeWidth="1.5" opacity={opacity} />
-            <line x1={center.x} y1={center.y - 48 * scale} x2={center.x} y2={center.y + 48 * scale} stroke="#ff3b30" strokeWidth="1.5" opacity={opacity} />
+            {/* Outer flash ring */}
+            <polygon points={dmPoints} fill="rgba(255,59,48,0.06)" stroke="#ff3b30" strokeWidth={1.8 * sc} opacity={opacity1} />
+            {/* Inner compact ring */}
+            <polygon points={dmPoints2} fill="rgba(255,100,50,0.1)" stroke="#ff6600" strokeWidth={1.2 * sc} opacity={opacity2} />
+            {/* Center strike flash dot */}
+            <circle cx={center.x} cy={center.y} r={3.5 * sc} fill="#ff3b30" opacity={0.5 + pulse * 0.5} />
+            {/* STRIKE label — small, compact, no crosshair */}
+            <text x={center.x} y={center.y - (10 + c.progress * 18) * sc} textAnchor="middle"
+              fill="#ff3b30" fontSize={isTacticalView ? 1.6 : 8} fontFamily="monospace" fontWeight="bold"
+              opacity={opacity1} letterSpacing="0.08em">STRIKE</text>
           </g>
         );
       })}
-      {destroyedFriendlyCities.map((cityId, idx) => {
-        const center = getPixelCoords(cityId);
+      {destroyedFriendlyCities.map((item, idx) => {
+        const center = getPixelCoords(item.cityId);
         if (center.x === 0) return null;
-        const scale = isTacticalView ? 0.3 : 1;
+        const p = item.progress;
+        const sc = isTacticalView ? 0.2 : 1;
+        // Phase 1 (0→0.4): compact red shockwave ring expands then fades
+        // Phase 2 (0.4→1): small SAFEHOUSE LOST pill fades in then drifts up and fades out
+        const ringR = (isTacticalView ? 3 : 14) * Math.min(p / 0.4, 1.0);
+        const ringOp = p < 0.4 ? (1 - p / 0.4) * 0.85 : 0;
+        const textOp = p > 0.35 ? Math.min((p - 0.35) / 0.25, 1) * (1 - Math.max(0, (p - 0.75) / 0.25)) : 0;
+        const textY = center.y - (isTacticalView ? 3 : 14) - (p > 0.35 ? (p - 0.35) * (isTacticalView ? 4 : 18) : 0);
+        const dotPulse = Math.sin(p * Math.PI * 6) * 0.3 + 0.7;
         return (
           <g key={`friendly-destroy-${idx}`}>
-            <circle cx={center.x} cy={center.y} r={32 * scale} fill="rgba(255, 59, 48, 0.15)" stroke="#ff3b30" strokeWidth="2.5" strokeDasharray="4,4" className="animate-pulse" />
-            <line x1={center.x - 20 * scale} y1={center.y - 20 * scale} x2={center.x + 20 * scale} y2={center.y + 20 * scale} stroke="#ff3b30" strokeWidth="3" />
-            <line x1={center.x + 20 * scale} y1={center.y - 20 * scale} x2={center.x - 20 * scale} y2={center.y + 20 * scale} stroke="#ff3b30" strokeWidth="3" />
+            {/* Compact shockwave ring */}
+            <circle cx={center.x} cy={center.y} r={ringR} fill="rgba(255,59,48,0.08)"
+              stroke="#ff3b30" strokeWidth={isTacticalView ? 0.5 : 2} opacity={ringOp} />
+            <circle cx={center.x} cy={center.y} r={ringR * 0.5} fill="none"
+              stroke="#ff6600" strokeWidth={isTacticalView ? 0.3 : 1.2} opacity={ringOp * 0.7} />
+            {/* Small pulsing center dot — replaces giant X */}
+            <circle cx={center.x} cy={center.y} r={isTacticalView ? 1 : 4}
+              fill="#ff3b30" opacity={dotPulse * Math.min(p * 3, 1) * (1 - Math.max(0,(p-0.8)/0.2))} />
+            {/* Elegant floating label */}
+            <text x={center.x} y={textY} textAnchor="middle"
+              fill="#ff3b30" fontSize={isTacticalView ? 1.4 : 7.5} fontFamily="monospace" fontWeight="bold"
+              opacity={textOp} letterSpacing="0.06em">SAFEHOUSE LOST</text>
           </g>
         );
       })}
-      {destroyedEnemyCities.map((cityId, idx) => {
-        const center = getPixelCoords(cityId);
+      {destroyedEnemyCities.map((item, idx) => {
+        const center = getPixelCoords(item.cityId);
         if (center.x === 0) return null;
-        const scale = isTacticalView ? 0.3 : 1;
+        const p = item.progress;
+        const sc = isTacticalView ? 0.2 : 1;
+        const ringR = (isTacticalView ? 3 : 14) * Math.min(p / 0.4, 1.0);
+        const ringOp = p < 0.4 ? (1 - p / 0.4) * 0.8 : 0;
+        const textOp = p > 0.35 ? Math.min((p - 0.35) / 0.25, 1) * (1 - Math.max(0, (p - 0.75) / 0.25)) : 0;
+        const textY = center.y - (isTacticalView ? 3 : 14) - (p > 0.35 ? (p - 0.35) * (isTacticalView ? 4 : 18) : 0);
+        const dotPulse = Math.sin(p * Math.PI * 6) * 0.3 + 0.7;
         return (
           <g key={`enemy-destroy-${idx}`}>
-            <circle cx={center.x} cy={center.y} r={36 * scale} fill="rgba(16, 185, 129, 0.15)" stroke="#10b981" strokeWidth="2.5" strokeDasharray="6,3" className="animate-ping" />
-            <circle cx={center.x} cy={center.y} r={18 * scale} fill="none" stroke="#ffee00" strokeWidth="2" />
-            <polygon points={`${center.x},${center.y - 22 * scale} ${center.x + 18 * scale},${center.y + 12 * scale} ${center.x - 18 * scale},${center.y + 12 * scale}`} fill="none" stroke="#10b981" strokeWidth="1.5" />
+            {/* Compact green shockwave ring */}
+            <circle cx={center.x} cy={center.y} r={ringR} fill="rgba(16,185,129,0.08)"
+              stroke="#10b981" strokeWidth={isTacticalView ? 0.5 : 2} opacity={ringOp} />
+            <circle cx={center.x} cy={center.y} r={ringR * 0.5} fill="none"
+              stroke="#00ff66" strokeWidth={isTacticalView ? 0.3 : 1.2} opacity={ringOp * 0.7} />
+            {/* Small pulsing center dot */}
+            <circle cx={center.x} cy={center.y} r={isTacticalView ? 1 : 4}
+              fill="#10b981" opacity={dotPulse * Math.min(p * 3, 1) * (1 - Math.max(0,(p-0.8)/0.2))} />
+            {/* Elegant floating label */}
+            <text x={center.x} y={textY} textAnchor="middle"
+              fill="#10b981" fontSize={isTacticalView ? 1.4 : 7.5} fontFamily="monospace" fontWeight="bold"
+              opacity={textOp} letterSpacing="0.06em">ENEMY NEUTRALIZED</text>
           </g>
         );
       })}
@@ -1490,6 +1815,9 @@ export default function MapView({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           style={{ 
             position: 'absolute', 
             inset: 0, 
@@ -1671,7 +1999,7 @@ export default function MapView({
             </svg>
 
             {/* Absolute Positioned City Node Markers */}
-            {Object.entries(scaledCoords).map(([cityId, coords]) => {
+            {Object.entries(scaledCoords).map(([cityId, coords], nodeIdx) => {
               const nodeData = activeScenario?.nodes?.find(n => n.id === cityId);
               const isFriendlyRaw = nodeData ? nodeData.territory === 'HOME_TERRITORY' : ['srinagar', 'jammu', 'amritsar', 'chandigarh', 'new_delhi'].includes(cityId);
               const isFriendly = isAttacker ? !isFriendlyRaw : isFriendlyRaw;
@@ -1813,117 +2141,21 @@ export default function MapView({
                         <span className="danger-text">HEAT {Math.max(cityHeat, session.heatPercentage)}%</span>
                       </div>
                     )}
-                    {destroyedFriendlyCities.includes(cityId) && (
-                      <div className="loss-container">
-                        <div className="safehouse-alert-badge compromised animate-bounce">
-                          🚨 SAFEHOUSE COMPROMISED
-                        </div>
-                        {Array.from({ length: 25 }).map((_, i) => {
-                          const angle = Math.random() * Math.PI * 2;
-                          const distance = 15 + Math.random() * 35;
-                          const tx = Math.cos(angle) * distance;
-                          const ty = Math.sin(angle) * distance;
-                          const fallX = tx + (Math.random() * 20 - 10);
-                          const fallY = ty + 40 + Math.random() * 20;
-                          const size = 10 + Math.random() * 6;
-                          const delay = Math.random() * 0.2;
-                          const char = ['🚨', '☣️', '🔒', '💀', '💥', '❌'][Math.floor(Math.random() * 6)];
-                          return (
-                            <div 
-                              key={i} 
-                              className="friendly-loss-particle" 
-                              style={{
-                                '--tx': `${tx}px`,
-                                '--ty': `${ty}px`,
-                                '--fall-x': `${fallX}px`,
-                                '--fall-y': `${fallY}px`,
-                                '--size': `${size}px`,
-                                '--delay': `${delay}s`
-                              }}
-                            >
-                              {char}
-                            </div>
-                          );
-                        })}
-                      </div>
+                    {destroyedFriendlyCities.some(c => c.cityId === cityId) && (
+                      <div className="loss-pill loss-pill--friendly">SAFEHOUSE LOST</div>
                     )}
-                    {destroyedEnemyCities.includes(cityId) && (
-                      <div className="loss-container">
-                        <div className="safehouse-alert-badge neutralized animate-bounce">
-                          🎯 ENEMY SAFEHOUSE NEUTRALIZED
-                        </div>
-                        {Array.from({ length: 25 }).map((_, i) => {
-                          const angle = Math.random() * Math.PI * 2;
-                          const distance = 15 + Math.random() * 35;
-                          const tx = Math.cos(angle) * distance;
-                          const ty = Math.sin(angle) * distance;
-                          const fallX = tx + (Math.random() * 30 - 15);
-                          const fallY = ty + 40 + Math.random() * 20;
-                          const size = 10 + Math.random() * 6;
-                          const delay = Math.random() * 0.2;
-                          const char = ['🎯', '⚔️', '💥', '⚡', '🛡️', '🔥'][Math.floor(Math.random() * 6)];
-                          return (
-                            <div 
-                              key={i} 
-                              className="enemy-loss-particle" 
-                              style={{
-                                '--tx': `${tx}px`,
-                                '--ty': `${ty}px`,
-                                '--fall-x': `${fallX}px`,
-                                '--fall-y': `${fallY}px`,
-                                '--size': `${size}px`,
-                                '--delay': `${delay}s`
-                              }}
-                            >
-                              {char}
-                            </div>
-                          );
-                        })}
-                      </div>
+                    {destroyedEnemyCities.some(c => c.cityId === cityId) && (
+                      <div className="loss-pill loss-pill--enemy">ENEMY NEUTRALIZED</div>
                     )}
                     {confettiCities.includes(cityId) && (
-                      <div className="confetti-container">
-                        {Array.from({ length: 35 }).map((_, i) => {
-                          const angle = Math.random() * Math.PI * 2;
-                          const distance = 25 + Math.random() * 45;
-                          const tx = Math.cos(angle) * distance;
-                          const ty = Math.sin(angle) * distance;
-                          const fallX = tx + (Math.random() * 30 - 15);
-                          const fallY = ty + 60 + Math.random() * 40;
-                          const size = 3 + Math.random() * 5;
-                          const delay = Math.random() * 0.3;
-                          const color = ['#ff007f', '#00f0ff', '#ffee00', '#7f00ff', '#ff3b30', '#39ff14'][Math.floor(Math.random() * 6)];
-                          return (
-                            <div 
-                              key={i} 
-                              className="confetti-particle" 
-                              style={{
-                                '--tx': `${tx}px`,
-                                '--ty': `${ty}px`,
-                                '--fall-x': `${fallX}px`,
-                                '--fall-y': `${fallY}px`,
-                                '--size': `${size}px`,
-                                '--delay': `${delay}s`,
-                                '--color': color
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
+                      <div className="expose-glow expose-glow--tactical" />
                     )}
                     {isSweptZone && <div className="city-marker-sweep-ring"></div>}
                     {isSuspectHere && <div className="suspect-radar-ring"></div>}
                     {struckCities.includes(cityId.toLowerCase()) && (
-                      <>
-                        <div className="smoke-fumes-container">
-                          <div className="fume-particle" style={{ '--wind': '-3px', '--wind-far': '-8px' }}></div>
-                          <div className="fume-particle" style={{ '--wind': '4px', '--wind-far': '9px' }}></div>
-                          <div className="fume-particle" style={{ '--wind': '-1px', '--wind-far': '-3px' }}></div>
-                        </div>
-                        <div className="fire-flame">🔥</div>
-                      </>
+                      <div className="struck-glow struck-glow--tactical" />
                     )}
-                    <div className={`city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''} ${struckCities.includes(cityId.toLowerCase()) ? 'struck' : ''}`}></div>
+                    <div className={`city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''}`}></div>
                     <div className={`city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}`}></div>
                     {showSafehouseIcon && (
                       <div 
@@ -1951,8 +2183,18 @@ export default function MapView({
                       </div>
                     )}
                     {isSuspectHere && <div className="city-marker-badge suspect pulse-badge" style={{ background: '#ff3b30', boxShadow: '0 0 15px #ff3b30', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', border: '2px solid white', borderRadius: '50%', width: '22px', height: '22px', transform: 'translate(12px, -24px)', zIndex: 1000 }}>🎯</div>}
-                    {agentsCount > 0 && <div className="city-marker-badge agents">{agentsCount}</div>}
-                    {teamsCount > 0 && <div className="city-marker-badge teams">{teamsCount}</div>}
+                    {agentsCount > 0 && (
+                      <div className="city-marker-badge agents-icon">
+                        <AgentIcon size={11} color="#00f0ff" />
+                        {agentsCount > 1 && <span className="badge-count">{agentsCount}</span>}
+                      </div>
+                    )}
+                    {teamsCount > 0 && (
+                      <div className="city-marker-badge teams-icon">
+                        <CombatTeamIcon size={11} color="#ff3b30" />
+                        {teamsCount > 1 && <span className="badge-count">{teamsCount}</span>}
+                      </div>
+                    )}
                     {combinedTech.length > 0 && (
                       <div className="city-marker-tech" style={{ display: 'flex', gap: '2px' }}>
                         {combinedTech}
@@ -2007,7 +2249,7 @@ export default function MapView({
                      )}
                     {hasIdleAgent && <div className="city-marker-idle">⚠</div>}
                     {isSweptZone && <div className="city-marker-sweep-label">⚠ SWEEP</div>}
-                    <div className={`city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}`}>{cityId.replace('_', ' ').toUpperCase()}</div>
+                    <div className={`city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''} ${nodeIdx % 2 === 0 ? 'label-top' : 'label-bottom'}`}>{cityId.replace('_', ' ').toUpperCase()}</div>
                   </div>
                 </div>
               );
@@ -2051,7 +2293,7 @@ export default function MapView({
       {!isTacticalView && renderAnimationsSVG()}
 
       {/* City Intel Overlay (Left side) */}
-      {selectedCityNode && (
+      {selectedCityNode && !isAnimating && (
         session.playerRole === 'ATTACKER' ? (
           <AttackerIntelBox
             cityId={selectedCityNode}
@@ -2131,6 +2373,7 @@ export default function MapView({
                 }
               });
             }}
+            onBuyDrone={onBuyDrone}
           />
         )
       )}

@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 @Service
 public class DefenderActionService {
@@ -37,6 +39,21 @@ public class DefenderActionService {
             }
         }
 
+        // 1.55. Apply drone purchases
+        if (request.getDronesToBuy() != null) {
+            for (Map<String, Object> buyReq : request.getDronesToBuy()) {
+                try {
+                    String cityNode = (String) buyReq.get("cityNode");
+                    String type = (String) buyReq.get("type");
+                    if (cityNode != null) {
+                        session = defenderService.buyDrone(session, cityNode, type, config);
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed drone purchase: " + e.getMessage());
+                }
+            }
+        }
+
         // 1.6. Apply drone deployments
         if (request.getDroneDeployments() != null) {
             for (Map.Entry<Integer, String> entry : request.getDroneDeployments().entrySet()) {
@@ -49,9 +66,19 @@ public class DefenderActionService {
                             .orElse(null);
                     if (drone != null) {
                         if (session.getDroneBases() != null && session.getDroneBases().contains(targetBase)) {
-                            drone.setCurrentCity(targetBase);
-                            if ("RESERVE".equals(drone.getStatus())) {
-                                drone.setStatus("ACTIVE");
+                            // Check capacity limit of 2 drones per base
+                            long dronesAtTarget = session.getDrones().stream()
+                                    .filter(d -> d.getId() != droneId && targetBase.equalsIgnoreCase(d.getCurrentCity()) && !"SHOT_DOWN".equalsIgnoreCase(d.getStatus()))
+                                    .count();
+                            if (dronesAtTarget < 2) {
+                                drone.setCurrentCity(targetBase);
+                                if ("RESERVE".equals(drone.getStatus())) {
+                                    drone.setStatus("ACTIVE");
+                                }
+                                drone.setAssignedActionType(null);
+                                drone.setAssignedTargetCity(null);
+                            } else {
+                                System.err.println("Cannot deploy drone " + droneId + " to " + targetBase + ": Maximum capacity of 2 drones reached.");
                             }
                         } else {
                             System.err.println("Cannot deploy drone " + droneId + " to " + targetBase + ": No drone base exists.");
@@ -59,6 +86,40 @@ public class DefenderActionService {
                     }
                 } catch (Exception e) {
                     System.err.println("Failed drone deployment: " + e.getMessage());
+                }
+            }
+        }
+
+        // 1.7. Apply persistent drone operations
+        if (request.getDroneOperations() != null) {
+            Set<Integer> specifiedDroneIds = new HashSet<>();
+            for (Map<String, Object> op : request.getDroneOperations()) {
+                try {
+                    Integer droneIdObj = (Integer) op.get("droneId");
+                    if (droneIdObj != null) {
+                        specifiedDroneIds.add(droneIdObj);
+                        String actionType = (String) op.get("actionType");
+                        String targetCity = (String) op.get("targetCity");
+                        GameSession.Drone drone = session.getDrones().stream()
+                                .filter(d -> d.getId() == droneIdObj)
+                                .findFirst()
+                                .orElse(null);
+                        if (drone != null && "ACTIVE".equals(drone.getStatus())) {
+                            drone.setAssignedActionType(actionType);
+                            drone.setAssignedTargetCity(targetCity);
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Failed drone operation setting: " + e.getMessage());
+                }
+            }
+            // Clear assigned ops for active drones explicitly omitted by player in UI
+            if (session.getDrones() != null) {
+                for (GameSession.Drone drone : session.getDrones()) {
+                    if ("ACTIVE".equals(drone.getStatus()) && !specifiedDroneIds.contains(drone.getId())) {
+                        drone.setAssignedActionType(null);
+                        drone.setAssignedTargetCity(null);
+                    }
                 }
             }
         }

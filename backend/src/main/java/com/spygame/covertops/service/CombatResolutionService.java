@@ -170,7 +170,7 @@ public class CombatResolutionService {
                     // Check game over
                     boolean allEliminated = session.getAiAttackers().stream().allMatch(GameSession.AIAttacker::isEliminated);
                     if (allEliminated) {
-                        session.setStatus("SUCCESS");
+                        GameSession.applyDefenderVictoryStatus(session);
                     }
 
                     // Log outcomes

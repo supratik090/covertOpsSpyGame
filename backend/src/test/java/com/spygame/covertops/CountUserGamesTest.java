@@ -8,7 +8,9 @@ import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
+import org.junit.jupiter.api.Disabled;
 
+@Disabled("Scratch script for database queries")
 public class CountUserGamesTest {
     @Test
     public void testCount() throws Exception {

@@ -134,6 +134,9 @@ public class GameSessionService {
         return processEndTurn(sessionId, request, null);
     }
 
+    private static final ObjectMapper BACKUP_MAPPER = new ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+
     public GameSession processEndTurn(UUID sessionId, com.spygame.covertops.model.EndTurnRequest request, String username) {
         long overallStart = System.currentTimeMillis();
         log.info("[TIMING] processEndTurn started for session: {}", sessionId);
@@ -147,19 +150,18 @@ public class GameSessionService {
         final ScenarioConfig config = scenarioConfigRepository.findById(scenarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Scenario configuration not found in database: " + scenarioId));
 
-        // Save turn history backup before applying actions
+        // Save turn history backup before applying actions (capped to 3 turns to prevent DB bloat)
         long backupStart = System.currentTimeMillis();
         try {
-            ObjectMapper jsonMapper = new ObjectMapper();
-            jsonMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-            
-            // Temporary clear history from clone to prevent exponential serialization bloat!
             List<String> tempHistory = session.getTurnHistory();
             session.setTurnHistory(new ArrayList<>());
-            String sessionBackup = jsonMapper.writeValueAsString(session);
+            String sessionBackup = BACKUP_MAPPER.writeValueAsString(session);
             session.setTurnHistory(tempHistory);
             
             session.getTurnHistory().add(sessionBackup);
+            while (session.getTurnHistory().size() > 3) {
+                session.getTurnHistory().remove(0);
+            }
         } catch (Exception e) {
             log.error("Failed to serialize session backup", e);
         }
@@ -224,15 +226,15 @@ public class GameSessionService {
                 session = aiDefenderService.executeTurn(session, config);
                 log.info("[TIMING] aiDefenderService.executeTurn took: {} ms", System.currentTimeMillis() - aiStart);
             } else {
-                // Apply Human Defender actions
-                long defActionsStart = System.currentTimeMillis();
-                session = defenderActionService.applyDefenderActions(session, request, config);
-                log.info("[TIMING] applyDefenderActions took: {} ms", System.currentTimeMillis() - defActionsStart);
-
-                // Execute AI Attacker turn
+                // Execute AI Attacker turn (Attacker Phase & Movements) FIRST
                 long aiStart = System.currentTimeMillis();
                 session = aiService.executeTurn(session, config);
                 log.info("[TIMING] aiService.executeTurn took: {} ms", System.currentTimeMillis() - aiStart);
+
+                // Apply Human Defender actions (Drone Attacks, Tactical Raids, Scanners) SECOND
+                long defActionsStart = System.currentTimeMillis();
+                session = defenderActionService.applyDefenderActions(session, request, config);
+                log.info("[TIMING] applyDefenderActions took: {} ms", System.currentTimeMillis() - defActionsStart);
             }
         } else {
             // Multiplayer Mode: Only apply Defender actions here since Attacker actions 
@@ -285,30 +287,42 @@ public class GameSessionService {
         log.info("[TIMING] resolveCovertActions took: {} ms", System.currentTimeMillis() - combatStart);
 
         // 3.5. Resolve Drone Operations
-        List<Map<String, Object>> droneOps = request.getDroneOperations();
-        if (droneOps != null && !droneOps.isEmpty()) {
+        if (session.getDrones() != null && !session.getDrones().isEmpty()) {
             Random rand = new Random();
-            for (Map<String, Object> op : droneOps) {
+            for (GameSession.Drone drone : session.getDrones()) {
+                if (drone == null || !"ACTIVE".equals(drone.getStatus())) continue;
+                String actionType = drone.getAssignedActionType();
+                String targetCity = drone.getAssignedTargetCity();
+                if (actionType == null || targetCity == null) continue;
+
+                int droneId = drone.getId();
                 try {
-                    Integer droneIdObj = (Integer) op.get("droneId");
-                    if (droneIdObj == null) continue;
-                    int droneId = droneIdObj;
-                    String actionType = (String) op.get("actionType");
-                    String targetCity = (String) op.get("targetCity");
+                    // 1. Check if housing Drone Base is damaged / inactive
+                    String baseCity = drone.getCurrentCity();
+                    if (baseCity != null && session.getDroneBaseCooldowns() != null) {
+                        int cooldown = session.getDroneBaseCooldowns().getOrDefault(baseCity.toLowerCase(), 0);
+                        if (cooldown > 0) {
+                            session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
+                                    "Drone #" + droneId + " operation " + actionType + " in " + targetCity.toUpperCase() +
+                                    " CANCELLED: Drone Base in " + baseCity.toUpperCase() + " is damaged and offline (" + cooldown + " turn(s) remaining)."));
+                            continue;
+                        }
+                    }
 
-                    GameSession.Drone drone = session.getDrones().stream()
-                            .filter(d -> d.getId() == droneId)
-                            .findFirst()
-                            .orElse(null);
-
-                    if (drone == null || !"ACTIVE".equals(drone.getStatus())) {
+                    // 1.5. Hop range validation
+                    int requiredHops = calculateHops(baseCity, targetCity, config);
+                    int maxAllowedHops = drone.getMaxHops() > 0 ? drone.getMaxHops() : 1;
+                    if (requiredHops > maxAllowedHops) {
+                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
+                                "Drone #" + droneId + " (" + (drone.getType() != null ? drone.getType() : "1-HOP") + ") operation in " + targetCity.toUpperCase() +
+                                " CANCELLED: Target is out of operational range (" + requiredHops + " hop(s) required from " + baseCity.toUpperCase() + ", max " + maxAllowedHops + " hop(s) allowed)."));
                         continue;
                     }
 
                     int opCost = "RECON".equals(actionType) ? 50000 : 100000;
                     if (session.getBudget() < opCost) {
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
-                                "Drone " + droneId + " operation " + actionType + " in " + targetCity + " cancelled: Insufficient budget."));
+                                "Drone #" + droneId + " operation " + actionType + " in " + targetCity + " cancelled: Insufficient budget."));
                         continue;
                     }
                     session.setBudget(session.getBudget() - opCost);
@@ -318,36 +332,67 @@ public class GameSessionService {
                             .findFirst()
                             .orElse(null);
                     boolean isEnemyNode = (targetNode != null) && "HOSTILE_TERRITORY".equals(targetNode.getTerritory());
-                    boolean shotDown = isEnemyNode && (rand.nextInt(100) < 10);
+
+                    boolean isCityUnderSweep = (session.getHostilePatrolCities() != null && session.getHostilePatrolCities().stream().anyMatch(c -> c.equalsIgnoreCase(targetCity)))
+                            || (session.getSurprisePatrolCities() != null && session.getSurprisePatrolCities().stream().anyMatch(c -> c.equalsIgnoreCase(targetCity)));
+
+                    int shotDownChance = isCityUnderSweep ? 30 : (isEnemyNode ? 10 : 0);
+                    boolean shotDown = rand.nextInt(100) < shotDownChance;
 
                     if (shotDown) {
                         drone.setStatus("SHOT_DOWN");
                         drone.setCurrentCity(targetCity);
+                        drone.setAssignedActionType(null);
+                        drone.setAssignedTargetCity(null);
+                        String defenseType = isCityUnderSweep ? "heightened security sweep air defenses" : "hostile air defenses";
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
-                                "DRONE DOWN: Drone " + droneId + " was SHOT DOWN by air defenses during " + actionType + " sweep in " + targetCity.toUpperCase() + "!"));
+                                "DRONE DOWN: Drone #" + droneId + " was SHOT DOWN by " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + shotDownChance + "% interdiction risk)"));
                         continue;
                     }
 
+                    boolean hasSatelliteView = session.getEspionageResources() != null && session.getEspionageResources().stream()
+                            .anyMatch(r -> "SATELLITE".equalsIgnoreCase(r.getType()) && targetCity.equalsIgnoreCase(r.getCityNode()));
+
+                    boolean hasAgentInCity = session.getAgents() != null && session.getAgents().stream()
+                            .anyMatch(a -> targetCity.equalsIgnoreCase(a.getCurrentCity()));
+
+                    boolean isEnhancedRecon = hasSatelliteView || hasAgentInCity;
+
                     if ("RECON".equals(actionType)) {
+                        // Standard Drone Recon cannot uncover Secure safehouses.
+                        // However, if Satellite View or a Ground Agent is present in the target city, Drone Recon CAN uncover Secure safehouses!
                         List<GameSession.Safehouse> targetSHs = session.getSafehouses().stream()
                                 .filter(s -> s.getCityNode().equalsIgnoreCase(targetCity) && "HOSTILE".equals(s.getOwnerFaction()) && !s.isUncovered())
+                                .filter(s -> isEnhancedRecon || !s.isSecure())
                                 .collect(Collectors.toList());
 
-                        int countToUncover = Math.min(targetSHs.size(), rand.nextInt(4));
+                        // Enhanced Recon increases efficiency (guarantees uncovering at least 2 safehouses or all)
+                        int countToUncover = isEnhancedRecon
+                                ? Math.min(targetSHs.size(), 2 + rand.nextInt(3))
+                                : Math.min(targetSHs.size(), rand.nextInt(4));
+
                         Collections.shuffle(targetSHs, rand);
                         List<String> uncoveredCodes = new ArrayList<>();
                         for (int i = 0; i < countToUncover; i++) {
                             GameSession.Safehouse sh = targetSHs.get(i);
                             sh.setUncovered(true);
-                            uncoveredCodes.add("#" + sh.getSafehouseCode());
+                            uncoveredCodes.add("#" + sh.getSafehouseCode() + (sh.isSecure() ? " [SECURE]" : ""));
                         }
 
                         if (uncoveredCodes.isEmpty()) {
                             session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
                                     "Drone " + droneId + " completed RECON in " + targetCity.toUpperCase() + ": No new hostile safehouses discovered."));
                         } else {
+                            String reconTag = "RECON SUCCESS: ";
+                            if (hasSatelliteView && hasAgentInCity) {
+                                reconTag = "RECON SUCCESS (SATELLITE & GROUND AGENT ENHANCED): ";
+                            } else if (hasSatelliteView) {
+                                reconTag = "RECON SUCCESS (SATELLITE ENHANCED): ";
+                            } else if (hasAgentInCity) {
+                                reconTag = "RECON SUCCESS (GROUND AGENT ENHANCED): ";
+                            }
                             session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
-                                    "RECON SUCCESS: Drone " + droneId + " uncovered " + uncoveredCodes.size() + " hostile safehouse(s) in " + targetCity.toUpperCase() + ": " + String.join(", ", uncoveredCodes)));
+                                    reconTag + "Drone " + droneId + " uncovered " + uncoveredCodes.size() + " hostile safehouse(s) in " + targetCity.toUpperCase() + ": " + String.join(", ", uncoveredCodes)));
                         }
                     } else if ("ATTACK".equals(actionType)) {
                         List<GameSession.Safehouse> exposedSHs = session.getSafehouses().stream()
@@ -371,7 +416,10 @@ public class GameSessionService {
 
                                 if (!activeAttackersInSH.isEmpty()) {
                                     boolean success = false;
-                                    if (sh.isSecure()) {
+                                    if (isEnhancedRecon) {
+                                        // Satellite View or Ground Agent guidance boosts strike accuracy to 90%
+                                        success = rand.nextInt(100) < 90;
+                                    } else if (sh.isSecure()) {
                                         success = rand.nextInt(100) < 50;
                                     } else {
                                         success = (rand.nextInt(100) < 50) || session.isSuspectEscapedBefore();
@@ -399,8 +447,17 @@ public class GameSessionService {
                                 combatLog = " Operatives escaped.";
                             }
 
+                            String strikeTag = "DRONE STRIKE: ";
+                            if (hasSatelliteView && hasAgentInCity) {
+                                strikeTag = "DRONE STRIKE (SATELLITE & AGENT GUIDED): ";
+                            } else if (hasSatelliteView) {
+                                strikeTag = "DRONE STRIKE (SATELLITE GUIDED): ";
+                            } else if (hasAgentInCity) {
+                                strikeTag = "DRONE STRIKE (GROUND AGENT GUIDED): ";
+                            }
+
                             session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_ATTACK",
-                                    "DRONE STRIKE: Drone " + droneId + " attacked and destroyed hostile safehouses (" + String.join(", ", attackedCodes) + ") in " + targetCity.toUpperCase() + "!" + combatLog));
+                                    strikeTag + "Drone " + droneId + " attacked and destroyed hostile safehouses (" + String.join(", ", attackedCodes) + ") in " + targetCity.toUpperCase() + "!" + combatLog));
                         }
                     }
 
@@ -529,5 +586,37 @@ public class GameSessionService {
                 }
             }
         }
+    }
+
+    private int calculateHops(String baseCity, String targetCity, ScenarioConfig config) {
+        if (baseCity == null || targetCity == null) return 999;
+        if (baseCity.equalsIgnoreCase(targetCity)) return 0;
+
+        Node baseNode = config.getNodes().stream()
+                .filter(n -> n.getId().equalsIgnoreCase(baseCity))
+                .findFirst()
+                .orElse(null);
+
+        if (baseNode == null || baseNode.getConnections() == null) return 999;
+
+        // Check 1-hop distance
+        for (String conn1 : baseNode.getConnections()) {
+            if (conn1.equalsIgnoreCase(targetCity)) return 1;
+        }
+
+        // Check 2-hop distance
+        for (String conn1 : baseNode.getConnections()) {
+            Node node1 = config.getNodes().stream()
+                    .filter(n -> n.getId().equalsIgnoreCase(conn1))
+                    .findFirst()
+                    .orElse(null);
+            if (node1 != null && node1.getConnections() != null) {
+                for (String conn2 : node1.getConnections()) {
+                    if (conn2.equalsIgnoreCase(targetCity)) return 2;
+                }
+            }
+        }
+
+        return 3; // > 2 hops
     }
 }

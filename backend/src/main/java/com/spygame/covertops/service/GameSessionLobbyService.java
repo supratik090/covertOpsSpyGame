@@ -23,23 +23,29 @@ public class GameSessionLobbyService {
     private ScenarioConfigRepository scenarioConfigRepository;
 
     public List<GameSession> listSessions() {
-        return repository.findAll();
+        return repository.findAll().stream()
+                .filter(s -> !"INACTIVE".equals(s.getStatus()))
+                .collect(Collectors.toList());
     }
 
     public List<GameSession> listSessions(String username) {
+        List<GameSession> activeList = repository.findAll().stream()
+                .filter(s -> !"INACTIVE".equals(s.getStatus()))
+                .collect(Collectors.toList());
         if (username == null) {
-            return repository.findAll();
+            return activeList;
         }
-        return repository.findAll().stream()
+        return activeList.stream()
                 .filter(s -> username.equals(s.getOwnerUsername()) || username.equals(s.getPlayerB()) || (s.getOwnerUsername() == null && s.getPlayerB() == null))
                 .collect(Collectors.toList());
     }
 
     public void deleteSession(UUID sessionId) {
-        if (!repository.existsById(sessionId)) {
-            throw new IllegalArgumentException("Session not found with ID: " + sessionId);
+        GameSession session = repository.findById(sessionId).orElse(null);
+        if (session != null) {
+            session.setStatus("INACTIVE");
+            repository.save(session);
         }
-        repository.deleteById(sessionId);
     }
 
     public GameSession createSession(String scenarioId) {
@@ -143,7 +149,7 @@ public class GameSessionLobbyService {
                     agent.setCodename((String) aMap.get("codename"));
                     // DEFENDER players choose starting city during deployment screen
                     agent.setCurrentCity(isDefender ? null : (String) aMap.get("startingCity"));
-                    agent.setActiveTask("FIND_SUSPECT");
+                    agent.setActiveTask("UNCOVER_SAFEHOUSE");
                     agent.setSkills((Map<String, Integer>) aMap.get("skills"));
                     agent.setCooldownRemaining(0);
                     return agent;
@@ -309,7 +315,7 @@ public class GameSessionLobbyService {
                     agent.setName((String) aMap.get("name"));
                     agent.setCodename((String) aMap.get("codename"));
                     agent.setCurrentCity(isDefenderMP ? null : (String) aMap.get("startingCity"));
-                    agent.setActiveTask("FIND_SUSPECT");
+                    agent.setActiveTask("UNCOVER_SAFEHOUSE");
                     agent.setSkills((Map<String, Integer>) aMap.get("skills"));
                     agent.setCooldownRemaining(0);
                     return agent;

@@ -95,6 +95,16 @@ public class HintGenerationService {
         int budget   = session.getBudget();
         int turnsLeft = maxTurns - turn;
 
+        // 0. Early Game Tactical Advisory (Turn 1-5)
+        if (turn <= 5) {
+            hints.add(new Hint("EARLY GAME", "STATION FIELD AGENTS FOR INTEL",
+                "Ensure Field Agents are stationed at safehouse cities with task FIND_SUSPECT to gather intelligence clues every turn.",
+                turn, P_HIGH));
+            hints.add(new Hint("EARLY GAME", "TACTICAL COMBAT COVER",
+                "Position Tactical Teams at friendly safehouses to repel AI Attacker raids with AMBUSH efficiency.",
+                turn, P_HIGH));
+        }
+
         List<Node> allNodes     = config != null && config.getNodes() != null ? config.getNodes() : Collections.emptyList();
         List<Node> hostileNodes = allNodes.stream().filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory())).collect(Collectors.toList());
         List<Node> homeNodes    = allNodes.stream().filter(n -> "HOME_TERRITORY".equals(n.getTerritory())).collect(Collectors.toList());
@@ -133,9 +143,9 @@ public class HintGenerationService {
         List<GameSession.TacticalTeam> readyTeams = session.getTacticalTeams().stream()
                 .filter(t -> t.getCooldownRemaining() <= 0).collect(Collectors.toList());
         List<GameSession.TacticalTeam> teamsInHostile = readyTeams.stream()
-                .filter(t -> "HOSTILE_TERRITORY".equals(getTerritory(t.getCurrentCity(), config))).collect(Collectors.toList());
+                .filter(t -> t.getCurrentCity() != null && "HOSTILE_TERRITORY".equals(getTerritory(t.getCurrentCity(), config))).collect(Collectors.toList());
         List<GameSession.TacticalTeam> teamsInHome = readyTeams.stream()
-                .filter(t -> "HOME_TERRITORY".equals(getTerritory(t.getCurrentCity(), config))).collect(Collectors.toList());
+                .filter(t -> t.getCurrentCity() != null && "HOME_TERRITORY".equals(getTerritory(t.getCurrentCity(), config))).collect(Collectors.toList());
         List<GameSession.TacticalTeam> cooldownTeams = session.getTacticalTeams().stream()
                 .filter(t -> t.getCooldownRemaining() > 0).collect(Collectors.toList());
 
@@ -192,7 +202,7 @@ public class HintGenerationService {
         if (!surpriseCities.isEmpty()) {
             String cities = surpriseCities.stream().map(String::toUpperCase).collect(Collectors.joining(", "));
             hints.add(new Hint("WARNING", "SURPRISE SWEEP RISK",
-                "33% capture chance for each asset in: " + cities + ". Consider relocating valuable agents and teams.",
+                "Surprise sweep risk (50% agent/team capture, 70% safehouse destruction) in: " + cities + ". Consider relocating assets.",
                 turn, P_HIGH));
         }
 
@@ -355,7 +365,7 @@ public class HintGenerationService {
                 String cityName = getNodeName(cityId, config);
                 List<GameSession.Safehouse> shList = entry.getValue();
                 boolean suspectHere = attackerLocations.contains(cityId);
-                long teamsHere = readyTeams.stream().filter(t -> t.getCurrentCity().equals(cityId)).count();
+                long teamsHere = readyTeams.stream().filter(t -> cityId.equals(t.getCurrentCity())).count();
                 if (shList.size() >= 2 && teamsHere >= 2) {
                     StringBuilder codeList = new StringBuilder();
                     for (GameSession.Safehouse sh : shList) {
@@ -402,13 +412,25 @@ public class HintGenerationService {
         if (!deployedTypes.contains("BORDER_GUARD") && !attackerInHome && turn >= 3) {
             String borderList = borderCities.stream().map(Node::getName).collect(Collectors.joining(", "));
             hints.add(new Hint("SURVEILLANCE", "DEPLOY BORDER GUARD",
-                "No BORDER_GUARD deployed. Border cities unprotected: " + borderList + ". A BORDER_GUARD (USD70K) gives 50% interdiction on suspect crossing. Deploy before clearance is issued.",
+                "No BORDER_GUARD deployed. Border cities unprotected: " + borderList + ". A BORDER_GUARD (USD70K) gives 40% base interdiction on suspect crossing, boosted to 50% with Satellite View and 60% with Drone Air Support!",
                 turn, P_HIGH));
         }
         if (!deployedTypes.contains("SATELLITE") && turn >= 5) {
             hints.add(new Hint("SURVEILLANCE", "DEPLOY SATELLITE COVERAGE",
-                "Satellite (USD80K) provides wide-area detection of suspect movement. Always-truthful position clues.",
+                "Satellite (USD80K) provides wide-area suspect tracking AND boosts Border Guard interdiction to 50%, Drone Recon & Drone Attacks in covered cities.",
                 turn, P_MEDIUM));
+        }
+        if (session.getDroneBases() != null && !session.getDroneBases().isEmpty()) {
+            hints.add(new Hint("AIR DEFENSE & RECON", "DRONE AIR SUPPORT & SAFEHOUSE COVER",
+                "Deploy Drones for RECON ($50K) or ATTACK ($100K). Drones active or operating over any city provide 100% safehouse defense cover against enemy attacks with a 10% chance to neutralize hostile operatives!",
+                turn, P_HIGH));
+            hints.add(new Hint("AIR SUPPORT", "DRONE RANGE & SYNERGY",
+                "Drone Alpha has 1-hop reach; Drone Theta has 2-hop reach. Pair Drones with Satellite View or Field Agents in target cities to uncover SECURE safehouses during Recon!",
+                turn, P_MEDIUM));
+        } else {
+            hints.add(new Hint("AIR SUPPORT", "CONSTRUCT DRONE BASE",
+                "Construct a Drone Base ($200K) to unlock aerial drone reconnaissance, precision strikes, and 100% safehouse air defense cover.",
+                turn, P_HIGH));
         }
         if (!deployedTypes.contains("WIRE_TAP") && turn >= 4) {
             hints.add(new Hint("SURVEILLANCE", "WIRE TAP FOR COMMUNICATIONS",

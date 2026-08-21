@@ -54,6 +54,7 @@ export default function App() {
   const [localDroneBaseBuilds, setLocalDroneBaseBuilds] = useState([]); // [cityNode, ...]
   const [localDroneDeployments, setLocalDroneDeployments] = useState({}); // droneId -> target base city
   const [localDroneOperations, setLocalDroneOperations] = useState([]); // [{droneId, actionType, targetCity}, ...]
+  const [localDronesToBuy, setLocalDronesToBuy] = useState([]); // [{cityNode, type}, ...]
 
   // Attacker-specific buffered turn actions
   const [localSuspectMove, setLocalSuspectMove] = useState('');
@@ -176,6 +177,20 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, [session]);
+
+  // Sync persistent drone operations from session.drones on turn load
+  useEffect(() => {
+    if (session && session.drones) {
+      const persistentDroneOps = session.drones
+        .filter(d => d.status === 'ACTIVE' && d.assignedActionType && d.assignedTargetCity)
+        .map(d => ({
+          droneId: d.id,
+          actionType: d.assignedActionType,
+          targetCity: d.assignedTargetCity
+        }));
+      setLocalDroneOperations(persistentDroneOps);
+    }
+  }, [session?.currentTurn, session?.id]);
 
   useEffect(() => {
     if (!session || !session.turnDeadline) {
@@ -441,6 +456,33 @@ export default function App() {
     addToast(`${agent.codename} directive queued: ${task.replace(/_/g, ' ')}`, "success");
   };
 
+  // Buy a new drone for a drone base city
+  const handleBuyDrone = async (cityNode, type) => {
+    if (checkWaiting()) {
+      addToast("It is not your turn.", "warning");
+      return;
+    }
+    if (!session) return;
+    setLoading(true);
+    try {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/${session.id}/defender/buy-drone?cityNode=${encodeURIComponent(cityNode)}&type=${encodeURIComponent(type)}`, {
+        method: 'POST'
+      }, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || 'Failed to purchase drone.');
+      }
+      const updated = await res.json();
+      setSession(updated);
+      addToast(`Purchased ${type} Drone for base in ${cityNode.toUpperCase()}`, "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Local states to buffer agent and team relocation choices during the turn
   const [localAgentMoves, setLocalAgentMoves] = useState({}); // maps agentId -> targetCity
   const [localTeamMoves, setLocalTeamMoves] = useState({});   // maps teamId -> targetCity
@@ -687,6 +729,7 @@ export default function App() {
         droneBasesToBuild: localDroneBaseBuilds,
         droneDeployments: localDroneDeployments,
         droneOperations: localDroneOperations,
+        dronesToBuy: localDronesToBuy,
         
         // Attacker specific fields
         suspectMoveTarget: localSuspectMove,
@@ -737,14 +780,27 @@ export default function App() {
       const combatOpClues = newClues.filter(c =>
         c.source === 'TACTICAL_FORCE' || c.source === 'BORDER_INCIDENT' || c.source === 'BORDER_GUARD' || c.source === 'BORDER_CROSSING_FOOTPRINT' || c.source === 'COMMAND_CENTER' || c.source === 'SAFEHOUSE_ATTACK' || c.source === 'DRONE_RECON' || c.source === 'DRONE_ATTACK'
       );
-      // Permission related clues (border permission, attack request/approval)
+      // Permission & Major Progression events (handover complete, border crossing permission, border crossed, attack permission)
       const permissionClues = newClues.filter(c =>
-        c.source === 'BORDER_PERMISSION' || c.source === 'ATTACK_REQUESTED' || c.source === 'ATTACK_APPROVED'
+        c.source === 'BORDER_PERMISSION' ||
+        c.source === 'BORDER_CROSSING' ||
+        c.source === 'ATTACK_REQUESTED' ||
+        c.source === 'ATTACK_APPROVED' ||
+        c.source === 'HANDOVER_UNLOCKED' ||
+        c.source === 'HANDOVER_COMPLETED' ||
+        (c.clueText && (
+          c.clueText.toLowerCase().includes('handover') ||
+          c.clueText.toLowerCase().includes('border crossing') ||
+          c.clueText.toLowerCase().includes('border breach') ||
+          c.clueText.toLowerCase().includes('border crossed') ||
+          c.clueText.toLowerCase().includes('permission') ||
+          c.clueText.toLowerCase().includes('engage')
+        ))
       );
-      const handoverClues = newClues.filter(c => c.source === 'HANDOVER_UNLOCKED');
+      const handoverClues = newClues.filter(c => c.source === 'HANDOVER_UNLOCKED' || c.source === 'HANDOVER_COMPLETED');
       const strikeClues = newClues.filter(c => c.source === 'STRIKE_EXECUTED');
 
-      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0 || handoverClues.length > 0 || strikeClues.length > 0) {
+      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0 || permissionClues.length > 0 || handoverClues.length > 0 || strikeClues.length > 0) {
         setPendingEndTurnReport({
           newFinance,
           newLogistics,
@@ -772,7 +828,15 @@ export default function App() {
       setLocalTechDeploys([]);
       setLocalDroneBaseBuilds([]);
       setLocalDroneDeployments({});
-      setLocalDroneOperations([]);
+      
+      const persistentDroneOps = (updated.drones || [])
+        .filter(d => d.status === 'ACTIVE' && d.assignedActionType && d.assignedTargetCity)
+        .map(d => ({
+          droneId: d.id,
+          actionType: d.assignedActionType,
+          targetCity: d.assignedTargetCity
+        }));
+      setLocalDroneOperations(persistentDroneOps);
 
       // Reset Attacker states
       setLocalSuspectMove('');
@@ -1004,6 +1068,7 @@ export default function App() {
                 setLocalDroneDeployments={setLocalDroneDeployments}
                 localDroneOperations={localDroneOperations}
                 setLocalDroneOperations={setLocalDroneOperations}
+                onBuyDrone={handleBuyDrone}
                 addToast={addToast}
                 isWaiting={isWaiting}
                 localSuspectMove={localSuspectMove}

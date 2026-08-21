@@ -57,6 +57,24 @@ public class AttackerPathfinder {
         return bestOption != null ? bestOption : currentLoc;
     }
 
+    public List<String> findFullRoute(GameSession.AIAttacker attacker, GameSession session, String currentLoc, String targetDest, ScenarioConfig config, int turnsRemaining) {
+        List<String> route = new ArrayList<>();
+        String curr = currentLoc;
+        Set<String> visited = new HashSet<>();
+        visited.add(curr);
+
+        while (curr != null && !curr.equalsIgnoreCase(targetDest) && visited.size() < config.getNodes().size()) {
+            String next = findOptimalPathNode(attacker, session, curr, targetDest, config, turnsRemaining);
+            if (next == null || next.equalsIgnoreCase(curr) || visited.contains(next)) {
+                break;
+            }
+            route.add(next);
+            visited.add(next);
+            curr = next;
+        }
+        return route;
+    }
+
     public double calculateSurvivalChance(GameSession.AIAttacker attacker, GameSession session, String city, ScenarioConfig config, int turnsRemaining) {
         double survivalChance = 1.0;
 

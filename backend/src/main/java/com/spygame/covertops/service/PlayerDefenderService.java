@@ -130,6 +130,49 @@ public class PlayerDefenderService {
         return session;
     }
 
+    // Buys a new drone for a drone base.
+    // 1-Hop Drone: $500,000 (500K)
+    // 2-Hop Drone: $1,000,000 (1M)
+    // Maximum limit of 2 drones per drone base.
+    public GameSession buyDrone(GameSession session, String cityNode, String type, ScenarioConfig config) {
+        if (session.getDroneBases() == null || !session.getDroneBases().contains(cityNode)) {
+            throw new IllegalArgumentException("Cannot buy drone for " + cityNode + ": No drone base exists in this city.");
+        }
+
+        // Capacity check: Max 2 non-shot-down drones per base
+        long dronesAtBase = session.getDrones().stream()
+                .filter(d -> cityNode.equalsIgnoreCase(d.getCurrentCity()) && !"SHOT_DOWN".equalsIgnoreCase(d.getStatus()))
+                .count();
+
+        if (dronesAtBase >= 2) {
+            throw new IllegalStateException("Drone Base in " + cityNode.toUpperCase() + " has reached max capacity of 2 drones.");
+        }
+
+        String droneType = ("2-HOP".equalsIgnoreCase(type) || "2_HOP".equalsIgnoreCase(type) || "2".equals(type)) ? "2-HOP" : "1-HOP";
+        int maxHops = "2-HOP".equals(droneType) ? 2 : 1;
+        int cost = "2-HOP".equals(droneType) ? 1000000 : 500000;
+
+        if (session.getBudget() < cost) {
+            throw new IllegalStateException("Insufficient budget ($" + String.format("%,d", cost) + " required) to purchase " + droneType + " Drone.");
+        }
+
+        session.setBudget(session.getBudget() - cost);
+
+        int nextId = session.getDrones().stream().mapToInt(GameSession.Drone::getId).max().orElse(0) + 1;
+        GameSession.Drone newDrone = new GameSession.Drone(nextId, cityNode, "ACTIVE", droneType, maxHops);
+        session.getDrones().add(newDrone);
+
+        if (session.getDiscoveredClues() != null) {
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    session.getCurrentTurn(),
+                    "DEFENDER_ACTION",
+                    "NEW ASSET PURCHASED: " + droneType + " Drone #" + nextId + " acquired and stationed at Drone Base in " + cityNode.toUpperCase() + " for $" + String.format("%,d", cost) + "."
+            ));
+        }
+
+        return session;
+    }
+
     // Spends budget dynamically based on config to purchase and deploy a tech asset to a node.
     public GameSession deployEspionageResource(GameSession session, String type, String cityNode, ScenarioConfig config) {
         if ("BORDER_GUARD".equals(type) && !isFriendlyBorderCity(cityNode, config)) {

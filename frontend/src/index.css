@@ -973,26 +973,34 @@ body {
 /* Text Labels */
 .city-marker-label {
   position: absolute;
-  bottom: -24px;
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 700;
   color: #ffffff;
   text-shadow: 0 1px 4px rgba(0,0,0,1), 0 0 8px rgba(0,0,0,0.9);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   white-space: nowrap;
   pointer-events: none;
   transition: all var(--fast);
-  background: rgba(5, 8, 17, 0.75);
-  padding: 2px 6px;
+  background: rgba(5, 8, 17, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 1.5px 5px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  z-index: 5;
+}
+.city-marker-label.label-bottom {
+  bottom: -22px;
+}
+.city-marker-label.label-top {
+  top: -22px;
 }
 .city-marker-label.active {
   color: var(--cyan);
   border-color: var(--cyan);
   text-shadow: 0 0 6px rgba(0,240,255,0.4);
-  background: rgba(0, 240, 255, 0.1);
+  background: rgba(0, 240, 255, 0.15);
 }
 
 /* Idle Agent Warning Indicator */
@@ -1408,22 +1416,35 @@ body {
   gap: 6px;
 }
 
+.cia-dispatch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
 .cia-dispatch-btn {
   background: rgba(0, 240, 255, 0.05);
   border: 1px solid rgba(0, 240, 255, 0.2);
   color: var(--cyan);
   font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 300;
-  padding: 5px 10px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 8px 12px;
+  margin: 3px 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--fast);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 .cia-dispatch-btn:hover {
-  background: var(--cyan);
-  color: var(--bg-primary);
-  box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+  background: rgba(0, 240, 255, 0.18);
+  border-color: #00f0ff;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
 }
 
 /* Relocation Line & Transit lock styles */
@@ -2100,7 +2121,7 @@ body {
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
-    max-height: 95% !important;
+    max-height: 55vh !important;
     overflow-y: auto !important;
     border-radius: var(--radius-md) var(--radius-md) 0 0 !important;
     border-left: none !important;
@@ -2290,4 +2311,81 @@ body {
 .drone-rotor-spin {
   animation: drone-rotor-spin 2.5s linear infinite;
   display: inline-block;
+}
+
+/* =============================================================================
+   DRONE ACTION ANIMATIONS — RECON hover, ATTACK bounce, DESTROYED explosion
+   ============================================================================= */
+
+@keyframes drone-recon-hover {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  25%  { transform: translate(3px, -4px) rotate(8deg); }
+  50%  { transform: translate(-3px, -6px) rotate(-5deg); }
+  75%  { transform: translate(2px, -2px) rotate(4deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+@keyframes drone-attack-bounce {
+  0%   { transform: translateY(0); }
+  18%  { transform: translateY(-14px) scaleX(0.85); }
+  35%  { transform: translateY(4px) scaleX(1.1); }
+  50%  { transform: translateY(-10px) scaleX(0.9); }
+  65%  { transform: translateY(3px) scaleX(1.05); }
+  80%  { transform: translateY(-5px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes drone-destroyed-spin {
+  0%   { transform: scale(1) rotate(0deg); opacity: 1; filter: drop-shadow(0 0 4px #ff3b30); }
+  30%  { transform: scale(1.5) rotate(130deg); opacity: 0.9; filter: drop-shadow(0 0 14px #ff3b30); }
+  70%  { transform: scale(0.6) rotate(290deg); opacity: 0.5; filter: drop-shadow(0 0 8px #ff6600); }
+  100% { transform: scale(0) rotate(360deg); opacity: 0; }
+}
+
+/* =============================================================================
+   UNIT BADGE ICONS — Agent (fedora spy) & Combat Team (shield) replace circles
+   ============================================================================= */
+
+.city-marker-badge.agents-icon {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: rgba(0, 240, 255, 0.18);
+  border: 1px solid var(--cyan);
+  border-radius: 3px;
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.city-marker-badge.teams-icon {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: rgba(255, 59, 48, 0.18);
+  border: 1px solid var(--red);
+  border-radius: 3px;
+  box-shadow: 0 0 6px rgba(255, 59, 48, 0.4);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.badge-count {
+  font-family: var(--font-mono);
+  font-size: 6px;
+  font-weight: bold;
+  color: var(--text-primary);
+  line-height: 1;
 }

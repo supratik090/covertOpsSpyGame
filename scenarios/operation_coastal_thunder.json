@@ -164,28 +164,28 @@
       "name": "Ghost Patrol",
       "operatingCountry": "HOSTILE_TERRITORY",
       "startingCity": "peshawar",
-      "skills": {"combat": 90, "stealth": 95, "mobility": 60}
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
     },
     {
       "id": 2,
       "name": "Apex Strike",
       "operatingCountry": "HOSTILE_TERRITORY",
       "startingCity": "karachi",
-      "skills": {"combat": 95, "stealth": 60, "mobility": 80}
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
     },
     {
       "id": 3,
       "name": "Vanguard Unit",
       "operatingCountry": "HOME_TERRITORY",
       "startingCity": "new_delhi",
-      "skills": {"combat": 85, "stealth": 70, "mobility": 70}
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
     },
     {
       "id": 4,
       "name": "Delta Team",
       "operatingCountry": "HOME_TERRITORY",
       "startingCity": "mumbai",
-      "skills": {"combat": 90, "stealth": 50, "mobility": 95}
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
     }
   ],
   "defensiveAssetCosts": {
