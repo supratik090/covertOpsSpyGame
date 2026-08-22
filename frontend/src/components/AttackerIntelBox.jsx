@@ -617,6 +617,11 @@ export default function AttackerIntelBox({
 
   return (
     <div className="cia-intel-box cyber-panel animate-fade-in" style={{ borderColor: '#ff3b30' }}>
+      {/* Mobile Bottom Sheet Pull Bar */}
+      <div className="mobile-bottom-sheet-handle">
+        <div className="mobile-handle-bar" style={{ background: 'rgba(255, 59, 48, 0.4)', boxShadow: '0 0 8px rgba(255, 59, 48, 0.3)' }}></div>
+      </div>
+
       {/* Header */}
       <div className="cia-box-header" style={{ borderBottomColor: 'rgba(255, 59, 48, 0.3)' }}>
         <div className="cia-glow-indicator animate-ping" style={{ backgroundColor: '#ff3b30', boxShadow: '0 0 8px #ff3b30' }}></div>
@@ -659,7 +664,7 @@ export default function AttackerIntelBox({
                 ) : (
                   citySafehouses.map((s, idx) => (
                     <span key={idx} className={`cia-tag font-mono ${isSecureSafehouse ? 'cyan' : 'red'}`}>
-                      {isSecureSafehouse ? '🛡️' : '🏠'} $#{s.safehouseCode} {isSecureSafehouse ? '(SECURE)' : ''}
+                      {isSecureSafehouse ? '🛡️' : '🏠'} #${s.safehouseCode}${s.subLocality ? ` - ${s.subLocality}` : ''} {isSecureSafehouse ? '(SECURE)' : ''}
                     </span>
                   ))
                 )}
@@ -677,7 +682,7 @@ export default function AttackerIntelBox({
                         onClick={() => {
                           if (isWaiting) return;
                           setLocalTargetSafehouseCode(s.safehouseCode);
-                          addToast(`Target safehouse set to $#${s.safehouseCode}`, "success");
+                          addToast(`Target safehouse set to #${s.safehouseCode}${s.subLocality ? ` - ${s.subLocality}` : ''}`, "success");
                         }}
                         className={`cia-dispatch-btn font-mono ${isSelected ? 'active-select' : ''}`}
                         style={{
@@ -689,7 +694,7 @@ export default function AttackerIntelBox({
                         }}
                         disabled={isWaiting}
                       >
-                        $#{s.safehouseCode}
+                        #{s.safehouseCode}{s.subLocality ? ` - ${s.subLocality}` : ''}
                       </button>
                     );
                   })}
@@ -800,7 +805,7 @@ export default function AttackerIntelBox({
                                   }}
                                 >
                                   <span>Move to {s.cityNode.replace(/_/g, ' ').toUpperCase()}</span>
-                                  <span style={{ marginLeft: '8px' }}>$#{s.safehouseCode}</span>
+                                  <span style={{ marginLeft: '8px' }}>#{s.safehouseCode}{s.subLocality ? ` - ${s.subLocality}` : ''}</span>
                                 </button>
                               );
                             });

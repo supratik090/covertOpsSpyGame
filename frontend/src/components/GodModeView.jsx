@@ -283,7 +283,7 @@ export default function GodModeView({
                                     alignSelf: 'flex-start'
                                   }}
                                 >
-                                  {isDefender ? '🏠 Friendly' : '🚨 Hostile'} {sh.secure ? '(Secure)' : '(Standard)'} [Code: #{sh.safehouseCode}] 
+                                  {isDefender ? '🏠 Friendly' : '🚨 Hostile'} {sh.secure ? '(Secure)' : '(Standard)'} [Code: #{sh.safehouseCode}${sh.subLocality ? ` - ${sh.subLocality}` : ''}] 
                                   <span style={{ opacity: 0.6, fontSize: '8.5px' }}>
                                     ({sh.uncovered ? 'EXPOSED' : 'HIDDEN'})
                                   </span>

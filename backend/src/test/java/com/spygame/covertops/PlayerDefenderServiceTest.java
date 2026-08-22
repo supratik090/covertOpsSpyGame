@@ -349,9 +349,9 @@ public class PlayerDefenderServiceTest {
         session = defenderService.buildDroneBase(session, "new_delhi", config);
         int budgetBeforeBuy = session.getBudget();
 
-        // Buy 1-Hop Drone ($500K) for new_delhi
+        // Buy 1-Hop Drone ($200K) for new_delhi
         session = defenderService.buyDrone(session, "new_delhi", "1-HOP", config);
-        assertEquals(budgetBeforeBuy - 500000, session.getBudget());
+        assertEquals(budgetBeforeBuy - 200000, session.getBudget());
         GameSession.Drone drone1Hop = session.getDrones().stream()
                 .filter(d -> "new_delhi".equals(d.getCurrentCity()))
                 .findFirst()
@@ -359,10 +359,10 @@ public class PlayerDefenderServiceTest {
         assertEquals("1-HOP", drone1Hop.getType());
         assertEquals(1, drone1Hop.getMaxHops());
 
-        // Buy 2-Hop Drone ($1M) for new_delhi
+        // Buy 2-Hop Drone ($400K) for new_delhi
         int budgetBefore2Hop = session.getBudget();
         session = defenderService.buyDrone(session, "new_delhi", "2-HOP", config);
-        assertEquals(budgetBefore2Hop - 1000000, session.getBudget());
+        assertEquals(budgetBefore2Hop - 400000, session.getBudget());
 
         // Now new_delhi has 2 drones (max capacity)
         assertEquals(2, session.getDrones().stream().filter(d -> "new_delhi".equals(d.getCurrentCity())).count());
@@ -482,7 +482,7 @@ public class PlayerDefenderServiceTest {
     }
 
     @Test
-    public void testPersistentDroneOperationAcrossTurns() {
+    public void testSingleTurnDroneOperation() {
         GameSession session = createTestSession();
         if (!session.getDroneBases().contains("amritsar")) {
             session = defenderService.buildDroneBase(session, "amritsar", config);
@@ -492,7 +492,6 @@ public class PlayerDefenderServiceTest {
         drone.setCurrentCity("amritsar");
         drone.setStatus("ACTIVE");
 
-        // Turn 1: Player assigns Drone RECON on jammu
         com.spygame.covertops.model.EndTurnRequest request1 = new com.spygame.covertops.model.EndTurnRequest();
         java.util.List<java.util.Map<String, Object>> ops1 = new java.util.ArrayList<>();
         java.util.Map<String, Object> op1 = new java.util.HashMap<>();
@@ -505,20 +504,35 @@ public class PlayerDefenderServiceTest {
         Mockito.when(repository.findById(session.getId())).thenReturn(java.util.Optional.of(session));
         GameSession turn1Session = sessionService.processEndTurn(session.getId(), request1);
 
-        // Verify drone has persistent assignments stored
+        // Verify drone action directive is cleared after turn execution (single-turn)
         GameSession.Drone turn1Drone = turn1Session.getDrones().stream().filter(d -> d.getId() == drone.getId()).findFirst().orElseThrow();
-        assertEquals("RECON", turn1Drone.getAssignedActionType());
-        assertEquals("jammu", turn1Drone.getAssignedTargetCity());
+        assertNull(turn1Drone.getAssignedActionType());
+        assertNull(turn1Drone.getAssignedTargetCity());
+    }
 
-        // Turn 2: Send EndTurnRequest carrying over the persistent drone operations
-        com.spygame.covertops.model.EndTurnRequest request2 = new com.spygame.covertops.model.EndTurnRequest();
-        request2.setDroneOperations(ops1); // persistent ops sent by UI
+    @Test
+    public void testBuyDroneAtLaterTurnForExistingBase() {
+        GameSession session = createTestSession();
+        // Clear any initial drones from srinagar for clean capacity test
+        session.getDrones().forEach(d -> d.setCurrentCity("amritsar"));
 
-        Mockito.when(repository.findById(turn1Session.getId())).thenReturn(java.util.Optional.of(turn1Session));
-        GameSession turn2Session = sessionService.processEndTurn(turn1Session.getId(), request2);
+        if (!session.getDroneBases().contains("srinagar")) {
+            session.getDroneBases().add("srinagar");
+        }
+        session.setBudget(2000000); // $2M budget
 
-        // Turn 2 should execute RECON on jammu automatically
-        assertTrue(turn2Session.getDiscoveredClues().stream()
-                .anyMatch(c -> c.getTurnDiscovered() == 2 && c.getClueText().contains("RECON") && c.getClueText().toUpperCase().contains("JAMMU")));
+        // Buy 1-HOP drone for srinagar ($200K)
+        GameSession updated1 = defenderService.buyDrone(session, "srinagar", "1-HOP", config);
+        assertNotNull(updated1);
+        assertEquals(1800000, updated1.getBudget());
+
+        // Buy 2-HOP drone for srinagar ($400K, reaches max capacity 2)
+        GameSession updated2 = defenderService.buyDrone(updated1, "srinagar", "2-HOP", config);
+        assertNotNull(updated2);
+        assertEquals(1400000, updated2.getBudget());
+
+        // Verify srinagar now has 2 drones assigned
+        long count = updated2.getDrones().stream().filter(d -> "srinagar".equalsIgnoreCase(d.getCurrentCity())).count();
+        assertEquals(2, count);
     }
 }

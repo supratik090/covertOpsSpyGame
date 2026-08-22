@@ -44,6 +44,7 @@ public class GameSession {
     private List<Drone> drones = new ArrayList<>();
     private List<String> hostilePatrolCities = new ArrayList<>();
     private List<String> surprisePatrolCities = new ArrayList<>();
+    private String activeDroneDefenseCity; // Hostile city with active SAM air defense battery for 1 turn
     private java.util.Map<String, List<PlanStep>> suspectPlans = new java.util.HashMap<>();
     private java.util.Map<String, Integer> cityHeat = new java.util.HashMap<>();
     private java.util.Map<String, Integer> sweepCooldownCities = new java.util.HashMap<>();
@@ -74,6 +75,10 @@ public class GameSession {
 
     // Deployment phase — true until DEFENDER player has placed all safehouses, agents, and teams
     private boolean deploymentPending = false;
+
+    // Drone Base Maintenance Event fields
+    private String maintenanceDroneBase; // Active drone base under 24h technical maintenance this turn
+    private String nextTurnMaintenanceDroneBase; // Advance warning city for scheduled maintenance next turn
 
     // Multiplayer properties
     private boolean isMultiplayer = false;
@@ -262,6 +267,15 @@ public class GameSession {
     public List<String> getSurprisePatrolCities() { return surprisePatrolCities; }
     public void setSurprisePatrolCities(List<String> surprisePatrolCities) { this.surprisePatrolCities = surprisePatrolCities; }
 
+    public String getMaintenanceDroneBase() { return maintenanceDroneBase; }
+    public void setMaintenanceDroneBase(String maintenanceDroneBase) { this.maintenanceDroneBase = maintenanceDroneBase; }
+
+    public String getNextTurnMaintenanceDroneBase() { return nextTurnMaintenanceDroneBase; }
+    public void setNextTurnMaintenanceDroneBase(String nextTurnMaintenanceDroneBase) { this.nextTurnMaintenanceDroneBase = nextTurnMaintenanceDroneBase; }
+
+    public String getActiveDroneDefenseCity() { return activeDroneDefenseCity; }
+    public void setActiveDroneDefenseCity(String activeDroneDefenseCity) { this.activeDroneDefenseCity = activeDroneDefenseCity; }
+
     // Nested Helper Classes
     public static class Agent {
         private int id;
@@ -331,6 +345,7 @@ public class GameSession {
         private String origin; // DEFAULT, PURCHASED
         private boolean uncovered;
         private String safehouseCode; // unique 3 digit code, e.g. "432"
+        private String subLocality; // neighborhood/place name, e.g. "Colaba"
         private String attackerName;
         private boolean secure;
 
@@ -356,6 +371,16 @@ public class GameSession {
             this.secure = false;
         }
 
+        public Safehouse(String cityNode, String ownerFaction, String origin, boolean uncovered, String safehouseCode, String subLocality) {
+            this.cityNode = cityNode;
+            this.ownerFaction = ownerFaction;
+            this.origin = origin;
+            this.uncovered = uncovered;
+            this.safehouseCode = safehouseCode;
+            this.subLocality = subLocality;
+            this.secure = false;
+        }
+
         public String getCityNode() { return cityNode; }
         public void setCityNode(String cityNode) { this.cityNode = cityNode; }
 
@@ -370,6 +395,9 @@ public class GameSession {
 
         public String getSafehouseCode() { return safehouseCode; }
         public void setSafehouseCode(String safehouseCode) { this.safehouseCode = safehouseCode; }
+
+        public String getSubLocality() { return subLocality; }
+        public void setSubLocality(String subLocality) { this.subLocality = subLocality; }
 
         public String getAttackerName() { return attackerName; }
         public void setAttackerName(String attackerName) { this.attackerName = attackerName; }
@@ -590,6 +618,7 @@ public class GameSession {
         private int maxHops = 1; // 1 or 2
         private String assignedActionType; // RECON, ATTACK, or null
         private String assignedTargetCity; // target city node or null
+        private int serviceCooldown = 0; // Turns remaining for technical servicing (2 turns)
 
         public Drone() {}
 
@@ -598,8 +627,9 @@ public class GameSession {
             this.currentCity = currentCity;
             this.status = status;
             this.cooldown = 0;
-            this.type = "1-HOP";
-            this.maxHops = 1;
+            this.serviceCooldown = 0;
+            this.type = (id == 2) ? "2-HOP" : "1-HOP";
+            this.maxHops = (id == 2) ? 2 : 1;
         }
 
         public Drone(int id, String currentCity, String status, String type, int maxHops) {
@@ -609,6 +639,7 @@ public class GameSession {
             this.type = type != null ? type : "1-HOP";
             this.maxHops = maxHops > 0 ? maxHops : 1;
             this.cooldown = 0;
+            this.serviceCooldown = 0;
         }
 
         public int getId() { return id; }
@@ -622,6 +653,9 @@ public class GameSession {
 
         public int getCooldown() { return cooldown; }
         public void setCooldown(int cooldown) { this.cooldown = cooldown; }
+
+        public int getServiceCooldown() { return serviceCooldown; }
+        public void setServiceCooldown(int serviceCooldown) { this.serviceCooldown = serviceCooldown; }
 
         public String getType() { return type; }
         public void setType(String type) { this.type = type; }

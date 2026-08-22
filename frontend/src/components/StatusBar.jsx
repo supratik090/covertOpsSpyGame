@@ -97,7 +97,7 @@ const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit, isWaiti
         style={isWaiting ? { opacity: 0.6, cursor: 'not-allowed', background: '#333', borderColor: '#555' } : {}}
       >
         <Activity size={18} />
-        <span>{isWaiting ? 'WAITING FOR OPPONENT' : 'TRANSMIT & END TURN'}</span>
+        <span>{isWaiting ? 'WAITING FOR OPPONENT' : 'END TURN'}</span>
         {covertActions?.length > 0 && !isWaiting && <span className="action-badge">{covertActions.length}</span>}
       </button>
 

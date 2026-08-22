@@ -210,6 +210,7 @@ public class GameSessionLobbyService {
                 }
             }
             session.setSafehouses(safehousesList);
+            com.spygame.covertops.util.SafehouseUtils.ensureAllSafehousesHavePlaces(session, config);
 
             // Initialize drones
             String defaultHomeCity = "amritsar"; // fallback
@@ -223,8 +224,8 @@ public class GameSessionLobbyService {
             }
 
             List<GameSession.Drone> initialDrones = new ArrayList<>();
-            initialDrones.add(new GameSession.Drone(1, defaultHomeCity, "ACTIVE"));
-            initialDrones.add(new GameSession.Drone(2, defaultHomeCity, "ACTIVE"));
+            initialDrones.add(new GameSession.Drone(1, defaultHomeCity, "ACTIVE", "1-HOP", 1));
+            initialDrones.add(new GameSession.Drone(2, defaultHomeCity, "ACTIVE", "2-HOP", 2));
             session.setDrones(initialDrones);
 
             List<String> initialDroneBases = new ArrayList<>();
@@ -373,6 +374,7 @@ public class GameSessionLobbyService {
                 }
             }
             session.setSafehouses(safehousesList);
+            com.spygame.covertops.util.SafehouseUtils.ensureAllSafehousesHavePlaces(session, config);
 
             // Initialize drones
             String defaultHomeCityMP = "amritsar"; // fallback
@@ -386,8 +388,8 @@ public class GameSessionLobbyService {
             }
 
             List<GameSession.Drone> initialDronesMP = new ArrayList<>();
-            initialDronesMP.add(new GameSession.Drone(1, defaultHomeCityMP, "ACTIVE"));
-            initialDronesMP.add(new GameSession.Drone(2, defaultHomeCityMP, "ACTIVE"));
+            initialDronesMP.add(new GameSession.Drone(1, defaultHomeCityMP, "ACTIVE", "1-HOP", 1));
+            initialDronesMP.add(new GameSession.Drone(2, defaultHomeCityMP, "ACTIVE", "2-HOP", 2));
             session.setDrones(initialDronesMP);
 
             List<String> initialDroneBasesMP = new ArrayList<>();

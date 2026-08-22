@@ -199,7 +199,6 @@ public class CombatResolutionService {
                             escaped.setState("Initial decoy");
                         }
                         session.setSuspectEscapedBefore(true);
-                        session.setCurrentTurn(Math.max(1, session.getCurrentTurn() - 10));
 
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "TACTICAL_FORCE",
                                 "COMBAT ENGAGEMENT: " + typeStr + " [" + targetCode + "] in " + city.toUpperCase() + " was destroyed by " + (team != null ? team.getName() : "Vanguard Unit") + ". Threat agents (" + kNames + ") were neutralized, but (" + eNames + ") escaped the dragnet and entered a 5-turn lockout. Any finance or logistics collected has been lost and must be re-sourced."));
@@ -223,7 +222,6 @@ public class CombatResolutionService {
                             escaped.setState("Initial decoy");
                         }
                         session.setSuspectEscapedBefore(true);
-                        session.setCurrentTurn(Math.max(1, session.getCurrentTurn() - 10));
 
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "TACTICAL_FORCE",
                                 "COMBAT ENGAGEMENT: " + (team != null ? team.getName() : "Delta Team") + " raided the " + typeStr + " [" + targetCode + "] in " + city.toUpperCase() + ". Safehouse was dismantled. All suspects (" + eNames + ") escaped and are now in a 5-turn lockout. Any finance or logistics collected has been forfeited and must be re-sourced."));

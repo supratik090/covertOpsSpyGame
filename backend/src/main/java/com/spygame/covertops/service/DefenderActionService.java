@@ -124,6 +124,19 @@ public class DefenderActionService {
             }
         }
 
+        // 1.8. Apply drone servicing requests ($10K per drone, 2-turn repair)
+        if (request.getServicedDroneIds() != null) {
+            for (Integer dId : request.getServicedDroneIds()) {
+                if (dId != null) {
+                    try {
+                        session = defenderService.serviceDrone(session, dId, config);
+                    } catch (Exception e) {
+                        System.err.println("Failed to service drone #" + dId + ": " + e.getMessage());
+                    }
+                }
+            }
+        }
+
         // 2. Apply tech deployments next
         if (request.getTechDeployments() != null) {
             for (Map<String, String> deploy : request.getTechDeployments()) {

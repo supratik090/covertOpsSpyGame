@@ -101,7 +101,10 @@ public class PlayerDefenderService {
         }
 
         session.setBudget(session.getBudget() - cost);
-        session.getSafehouses().add(new GameSession.Safehouse(cityNode, "DEFENDER", "PURCHASED", true));
+        String subLocality = com.spygame.covertops.util.SafehouseUtils.pickSubLocality(cityNode, config, session.getSafehouses());
+        GameSession.Safehouse sh = new GameSession.Safehouse(cityNode, "DEFENDER", "PURCHASED", true);
+        sh.setSubLocality(subLocality);
+        session.getSafehouses().add(sh);
         return session;
     }
 
@@ -150,7 +153,7 @@ public class PlayerDefenderService {
 
         String droneType = ("2-HOP".equalsIgnoreCase(type) || "2_HOP".equalsIgnoreCase(type) || "2".equals(type)) ? "2-HOP" : "1-HOP";
         int maxHops = "2-HOP".equals(droneType) ? 2 : 1;
-        int cost = "2-HOP".equals(droneType) ? 1000000 : 500000;
+        int cost = "2-HOP".equals(droneType) ? 400000 : 200000;
 
         if (session.getBudget() < cost) {
             throw new IllegalStateException("Insufficient budget ($" + String.format("%,d", cost) + " required) to purchase " + droneType + " Drone.");
@@ -167,6 +170,36 @@ public class PlayerDefenderService {
                     session.getCurrentTurn(),
                     "DEFENDER_ACTION",
                     "NEW ASSET PURCHASED: " + droneType + " Drone #" + nextId + " acquired and stationed at Drone Base in " + cityNode.toUpperCase() + " for $" + String.format("%,d", cost) + "."
+            ));
+        }
+
+        return session;
+    }
+
+    public GameSession serviceDrone(GameSession session, int droneId, ScenarioConfig config) {
+        GameSession.Drone drone = session.getDrones().stream()
+                .filter(d -> d.getId() == droneId)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Drone #" + droneId + " not found."));
+
+        if (!"DAMAGED".equalsIgnoreCase(drone.getStatus())) {
+            throw new IllegalStateException("Drone #" + droneId + " is not in DAMAGED status (current status: " + drone.getStatus() + ").");
+        }
+
+        int cost = 10000;
+        if (session.getBudget() < cost) {
+            throw new IllegalStateException("Insufficient budget ($10,000 required) to service Drone #" + droneId + ".");
+        }
+
+        session.setBudget(session.getBudget() - cost);
+        drone.setStatus("SERVICING");
+        drone.setServiceCooldown(2);
+
+        if (session.getDiscoveredClues() != null) {
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    session.getCurrentTurn(),
+                    "DRONE_SERVICING",
+                    "TECHNICAL SERVICING INITIATED: Drone #" + droneId + " submitted for 2-turn technical repair ($10,000 paid)."
             ));
         }
 

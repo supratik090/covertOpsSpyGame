@@ -19,7 +19,8 @@
       "coordinates": {"x": 10, "y": 30, "lat": 32.0853, "lng": 34.7818},
       "connections": ["haifa", "jerusalem", "beersheba"],
       "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
-      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"]
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Rothschild Boulevard", "Florentin", "Neve Tzedek", "Jaffa Port", "Ramat Aviv"]
     },
     {
       "id": "jerusalem",
@@ -28,7 +29,8 @@
       "coordinates": {"x": 12, "y": 35, "lat": 31.7683, "lng": 35.2137},
       "connections": ["tel_aviv", "beersheba", "beirut"],
       "availableFinance": ["HUNDI_HAWALA"],
-      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"]
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Rehavia", "German Colony", "Talbiya", "Nachlaot", "Yemin Moshe"]
     },
     {
       "id": "haifa",
@@ -37,7 +39,8 @@
       "coordinates": {"x": 9, "y": 22, "lat": 32.7940, "lng": 34.9896},
       "connections": ["tel_aviv"],
       "availableFinance": ["DRUG_SALES"],
-      "availableLogistics": ["BLACK_MARKET_IMPORT"]
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["German Colony", "Hadar HaCarmel", "Carmel Center", "Bat Galim", "Vadi Nisnas"]
     },
     {
       "id": "beersheba",
@@ -46,7 +49,8 @@
       "coordinates": {"x": 11, "y": 42, "lat": 31.2518, "lng": 34.7984},
       "connections": ["tel_aviv", "jerusalem", "eilat", "abu_dhabi"],
       "availableFinance": ["ILLICIT_ARMS_SALES"],
-      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"]
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Old City", "Ramot", "Neve Ze'ev", "Daled Quarter", "Bnei Shimon"]
     },
     {
       "id": "eilat",
@@ -55,7 +59,8 @@
       "coordinates": {"x": 10, "y": 55, "lat": 29.5577, "lng": 34.9519},
       "connections": ["beersheba"],
       "availableFinance": ["CROSS_BORDER_SMUGGLING"],
-      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"]
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"],
+      "places": ["Marina District", "Shahamon", "Yaelim", "Coral Beach", "Industrial Zone"]
     },
     {
       "id": "beirut",
@@ -64,7 +69,8 @@
       "coordinates": {"x": 15, "y": 25, "lat": 33.8938, "lng": 35.5018},
       "connections": ["jerusalem", "damascus"],
       "defenses": "HIGH",
-      "counterEspionage": "HIGH"
+      "counterEspionage": "HIGH",
+      "places": ["Hamra", "Achrafieh", "Badaro", "Mar Mikhael", "Gemmayzeh"]
     },
     {
       "id": "damascus",
@@ -73,7 +79,8 @@
       "coordinates": {"x": 20, "y": 28, "lat": 33.5138, "lng": 36.2765},
       "connections": ["beirut", "baghdad"],
       "defenses": "VERY_HIGH",
-      "counterEspionage": "HIGH"
+      "counterEspionage": "HIGH",
+      "places": ["Bab Touma", "Shaalan", "Malki", "Mezzeh", "Abbaseyyin"]
     },
     {
       "id": "baghdad",
@@ -82,7 +89,8 @@
       "coordinates": {"x": 45, "y": 35, "lat": 33.3152, "lng": 44.3661},
       "connections": ["damascus", "dubai"],
       "defenses": "MEDIUM",
-      "counterEspionage": "MEDIUM"
+      "counterEspionage": "MEDIUM",
+      "places": ["Karrada", "Mansour", "Jadriya", "Zeyouna", "Adhamiya"]
     },
     {
       "id": "dubai",
@@ -91,7 +99,8 @@
       "coordinates": {"x": 80, "y": 70, "lat": 25.2048, "lng": 55.2708},
       "connections": ["baghdad", "abu_dhabi"],
       "defenses": "HIGH",
-      "counterEspionage": "HIGH"
+      "counterEspionage": "HIGH",
+      "places": ["Business Bay", "Deira", "Jumeirah", "Downtown Marina", "Al Fahidi"]
     },
     {
       "id": "abu_dhabi",
@@ -100,7 +109,8 @@
       "coordinates": {"x": 75, "y": 75, "lat": 24.4539, "lng": 54.3773},
       "connections": ["dubai", "beersheba"],
       "defenses": "EXTREME",
-      "counterEspionage": "EXTREME"
+      "counterEspionage": "EXTREME",
+      "places": ["Al Khalidiyah", "Corniche Area", "Al Reem Island", "Al Zahiyah", "Al Bateen"]
     }
   ],
   "startingDefenderSafehouses": [

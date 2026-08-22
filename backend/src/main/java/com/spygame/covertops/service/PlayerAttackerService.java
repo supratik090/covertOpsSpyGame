@@ -214,7 +214,9 @@ public class PlayerAttackerService {
         String code = String.valueOf(100 + rand.nextInt(900));
         
         // Save safehouse in list (owner is HOSTILE as seen by the Defender, i.e. the Attacker)
+        String subLocality = com.spygame.covertops.util.SafehouseUtils.pickSubLocality(cityNode, config, session.getSafehouses());
         GameSession.Safehouse sh = new GameSession.Safehouse(cityNode, "HOSTILE", "PURCHASED", false, code);
+        sh.setSubLocality(subLocality);
         sh.setSecure(isSecure);
         session.getSafehouses().add(sh);
 

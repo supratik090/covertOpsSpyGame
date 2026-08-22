@@ -59,6 +59,7 @@ export default function MapView({
   localDroneOperations = [],
   setLocalDroneOperations,
   onBuyDrone,
+  onServiceDrone,
   onAnimationComplete
 }) {
   const mapContainerRef = useRef(null);
@@ -309,6 +310,7 @@ export default function MapView({
   const [destroyedFriendlyCities, setDestroyedFriendlyCities] = useState([]);
   const [destroyedEnemyCities, setDestroyedEnemyCities] = useState([]);
   const [isShaking, setIsShaking] = useState(false);
+  const [shakeIntensity, setShakeIntensity] = useState('heavy'); // 'heavy' | 'medium' | 'light'
   const [mapVersion, setMapVersion] = useState(0);
   const onAnimCompleteRef = useRef(onAnimationComplete);
 
@@ -530,7 +532,7 @@ export default function MapView({
        const cityDronesCount = (isAttacker && !showGodMode) ? 0 : (session.drones || []).filter(d => {
          const plannedBase = localDroneDeployments[d.id];
          if (plannedBase) return plannedBase === cityId;
-         return d.currentCity === cityId;
+         return d.currentCity === cityId && d.status !== 'SHOT_DOWN';
        }).length;
 
        const droneBaseHtml = hasDroneBase ? `
@@ -573,31 +575,140 @@ export default function MapView({
            ${droneHtml}
            ${hasIdleAgent ? `<div class="city-marker-idle">⚠</div>` : ''}
            ${isSweptZone ? '<div class="city-marker-sweep-label">⚠ SWEEP</div>' : ''}
-           <div class="city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}">${cityId.replace('_', ' ').toUpperCase()}</div>
-         </div>
-       `;
+            <div class="city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}">${cityId.replace('_', ' ').toUpperCase()}</div>
+          </div>
+        `;
 
-      const customIcon = L.divIcon({
-        html: markerHtml,
-        className: 'custom-leaflet-marker',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20]
-      });
+       // Construct rich Hover & Mobile Tooltip HTML
+       let tooltipContent = `<div class="city-tooltip-card">`;
+       tooltipContent += `<div class="city-tooltip-header ${isFriendly ? 'friendly' : 'hostile'}">
+         <span class="city-tooltip-title">${cityId.replace('_', ' ').toUpperCase()}</span>
+         <span class="city-tooltip-tag">${isFriendly ? 'FRIENDLY' : 'HOSTILE'}</span>
+       </div>`;
 
-      const marker = L.marker(coords, { icon: customIcon })
-        .addTo(map)
-        .on('click', () => {
-          setSelectedCityNode(cityId);
-          // Zoom into the clicked city smoothly
-          map.setView(coords, 8, { animate: true });
-        });
+       // 1. Agents section
+       if (cityAgents.length > 0) {
+         tooltipContent += `<div class="city-tooltip-section">
+           <div class="city-tooltip-section-title">🕵️ FIELD AGENTS (${cityAgents.length})</div>`;
+         cityAgents.forEach(a => {
+           const task = localAgentTasks[a.id] || a.activeTask || 'IDLE';
+           const isMoving = localAgentMoves[a.id] && localAgentMoves[a.id] === cityId && a.currentCity !== cityId;
+           const displayTask = isMoving ? '🚚 IN TRANSIT' : (task === 'NONE' || task === '' ? 'IDLE' : task.replace(/_/g, ' '));
+           tooltipContent += `<div class="city-tooltip-item">
+             <span class="item-name">${a.name || 'Agent #' + a.id} (${a.skill || 80}%)</span>
+             <span class="item-task ${displayTask === 'IDLE' ? 'idle' : 'active'}">${displayTask}</span>
+           </div>`;
+         });
+         tooltipContent += `</div>`;
+       }
 
-      markersRef.current[cityId] = marker;
-    });
+       // 2. Combat Teams section
+       const cityTeams = (session.tacticalTeams || []).filter(t => {
+         const plannedDest = localTeamMoves[t.id];
+         if (plannedDest) return plannedDest === cityId;
+         return t.currentCity === cityId;
+       });
+       if (cityTeams.length > 0) {
+         tooltipContent += `<div class="city-tooltip-section">
+           <div class="city-tooltip-section-title">⚔️ COMBAT TEAMS (${cityTeams.length})</div>`;
+         cityTeams.forEach(t => {
+           const isMoving = localTeamMoves[t.id] && localTeamMoves[t.id] === cityId && t.currentCity !== cityId;
+           const displayType = isMoving ? '🚚 IN TRANSIT' : (t.type || 'STRIKE_FORCE').replace(/_/g, ' ');
+           tooltipContent += `<div class="city-tooltip-item">
+             <span class="item-name">${t.name || 'Team #' + t.id} (${t.effectiveness || 80}%)</span>
+             <span class="item-task active">${displayType}</span>
+           </div>`;
+         });
+         tooltipContent += `</div>`;
+       }
+
+       // 3. Drones & Base section
+       const cityDrones = (isAttacker && !showGodMode) ? [] : (session.drones || []).filter(d => {
+         const plannedBase = localDroneDeployments[d.id];
+         if (plannedBase) return plannedBase === cityId;
+         return d.currentCity === cityId && d.status === 'ACTIVE';
+       });
+       if (cityDrones.length > 0 || hasDroneBase) {
+         tooltipContent += `<div class="city-tooltip-section">
+           <div class="city-tooltip-section-title">🚁 DRONES & BASE (${cityDrones.length} Stationed)</div>`;
+         if (hasDroneBase && cityDrones.length === 0) {
+           tooltipContent += `<div class="city-tooltip-item"><span class="item-name">Drone Base Operational</span><span class="item-task idle">EMPTY (0/2)</span></div>`;
+         }
+         cityDrones.forEach(d => {
+           const op = (localDroneOperations || []).find(o => o.droneId === d.id) || { actionType: d.assignedActionType, targetCity: d.assignedTargetCity };
+           const opText = op.actionType ? `${op.actionType} -> ${op.targetCity?.toUpperCase()}` : 'STANDBY';
+           tooltipContent += `<div class="city-tooltip-item">
+             <span class="item-name">Drone #${d.id} (${d.type || '1-HOP'})</span>
+             <span class="item-task ${op.actionType ? 'active' : 'idle'}">${opText}</span>
+           </div>`;
+         });
+         tooltipContent += `</div>`;
+       }
+
+       // 4. Tech Assets section
+       const cityTechs = (session.espionageResources || []).filter(r => r.cityNode?.toLowerCase() === cityId.toLowerCase());
+       if (cityTechs.length > 0) {
+         tooltipContent += `<div class="city-tooltip-section">
+           <div class="city-tooltip-section-title">📡 TECH ASSETS</div>`;
+         cityTechs.forEach(r => {
+           const label = r.type === 'BORDER_GUARD' ? 'BORDER GUARD (Interdiction)'
+                       : r.type === 'SATELLITE' ? 'SATELLITE SURVEILLANCE'
+                       : r.type === 'CCTV' ? 'CCTV MONITORING'
+                       : r.type.replace(/_/g, ' ');
+           tooltipContent += `<div class="city-tooltip-item"><span class="item-name">• ${label}</span></div>`;
+         });
+         tooltipContent += `</div>`;
+       }
+
+       // 5. Safehouses & Suspect section
+       const citySafehouses = (session.safehouses || []).filter(s => s.cityNode?.toLowerCase() === cityId.toLowerCase());
+       if (citySafehouses.length > 0 || isSuspectHere) {
+         tooltipContent += `<div class="city-tooltip-section">
+           <div class="city-tooltip-section-title">🏠 SAFEHOUSE / TARGET INTEL</div>`;
+         if (isSuspectHere) {
+           tooltipContent += `<div class="city-tooltip-item"><span class="item-name" style="color:#ff3b30; font-weight:800;">🎯 TARGET SUSPECT DETECTED</span></div>`;
+         }
+         citySafehouses.forEach(s => {
+           tooltipContent += `<div class="city-tooltip-item">
+             <span class="item-name">${s.ownerFaction} SAFEHOUSE</span>
+             <span class="item-task ${s.exposed ? 'compromised' : 'active'}">${s.exposed ? 'EXPOSED' : 'SECURE'}</span>
+           </div>`;
+         });
+         tooltipContent += `</div>`;
+       }
+
+       if (cityAgents.length === 0 && cityTeams.length === 0 && cityDrones.length === 0 && !hasDroneBase && cityTechs.length === 0 && citySafehouses.length === 0 && !isSuspectHere) {
+         tooltipContent += `<div class="city-tooltip-empty">No field assets stationed</div>`;
+       }
+
+       tooltipContent += `</div>`;
+
+       const customIcon = L.divIcon({
+         html: markerHtml,
+         className: 'custom-leaflet-marker',
+         iconSize: [40, 40],
+         iconAnchor: [20, 20]
+       });
+
+       const marker = L.marker(coords, { icon: customIcon })
+         .addTo(map)
+         .bindTooltip(tooltipContent, {
+           direction: 'top',
+           offset: [0, -25],
+           className: 'cyber-leaflet-tooltip',
+           sticky: false
+         })
+         .on('click', () => {
+           setSelectedCityNode(cityId);
+           // Zoom into the clicked city smoothly
+           map.setView(coords, 8, { animate: true });
+         });
+
+       markersRef.current[cityId] = marker;
+     });
 
     // Helper to add minor geographical offset to coordinate pairs
     const getOffsetCoords = (c1, c2, offsetAmount) => {
-      // Calculate normal vector to offset path sideways
       const dy = c2[0] - c1[0];
       const dx = c2[1] - c1[1];
       const len = Math.sqrt(dx * dx + dy * dy);
@@ -730,17 +841,93 @@ export default function MapView({
     });
 
     const lastTurnClues = session.discoveredClues.filter(c => c.turnDiscovered === prevSession.currentTurn);
+    // ── Combat detection: classify each TACTICAL_FORCE / SAFEHOUSE_ATTACK / BORDER clue into typed outcomes ──
+    const detectCombatOutcome = (c) => {
+      const src  = c.source || '';
+      const text = c.clueText || '';
+      if (src === 'TACTICAL_FORCE') {
+        if (text.includes('COMBAT SUCCESS'))               return 'COMBAT_VICTORY';
+        if (text.includes('COMBAT ENGAGEMENT') && (text.includes('escaped') || text.includes('lockout') || text.includes('forfeited'))) return 'COMBAT_PARTIAL';
+        if (text.includes('COMBAT ENGAGEMENT') && text.includes('no suspect presence')) return 'RAID_EMPTY';
+        if (text.includes('COMBAT ENGAGEMENT') && text.includes('Intel breach'))        return 'RAID_EMPTY';
+        if (text.includes('raided') || text.includes('dismantled') || text.includes('destroyed')) return 'SAFEHOUSE_RAIDED';
+        return 'COMBAT_PARTIAL';
+      }
+      if (src === 'SAFEHOUSE_ATTACK') {
+        if (text.includes('repelled') || text.includes('secure') || text.includes('defended')) return 'SAFEHOUSE_DEFENDED';
+        return 'SAFEHOUSE_RAIDED';
+      }
+      if (src === 'BORDER_GUARD' || src === 'BORDER_INCIDENT' || text.includes('BORDER')) return 'BORDER_INTERCEPTED';
+      if (src === 'COMMAND_CENTER' && text.includes('RAID LOGISTICS')) return 'LOGISTICS_RAIDED';
+      if (text.includes('COMBAT')) return 'COMBAT_PARTIAL';
+      return null;
+    };
+    const COMBAT_OUTCOME_COLOR = {
+      COMBAT_VICTORY:    '#fbbf24',  // gold
+      COMBAT_PARTIAL:    '#f97316',  // amber
+      SAFEHOUSE_RAIDED:  '#ff9800',  // orange
+      RAID_EMPTY:        '#facc15',  // yellow
+      SAFEHOUSE_DEFENDED:'#00f0ff',  // cyan
+      BORDER_INTERCEPTED:'#a855f7',  // purple
+      LOGISTICS_RAIDED:  '#14b8a6',  // teal
+    };
+    const COMBAT_OUTCOME_SHAKE = {
+      COMBAT_VICTORY:    'heavy',
+      COMBAT_PARTIAL:    'medium',
+      SAFEHOUSE_RAIDED:  'medium',
+      RAID_EMPTY:        'light',
+      SAFEHOUSE_DEFENDED:'light',
+      BORDER_INTERCEPTED:'light',
+      LOGISTICS_RAIDED:  null,
+    };
     const newCombat = [];
-    const wasCombatEncountered = lastTurnClues.some(c => c.source === 'TACTICAL_FORCE' || c.clueText?.includes('COMBAT') || c.clueText?.includes('raided'));
-    if (wasCombatEncountered) {
-      const step = session.aiMasterPlan?.primaryPlan?.find(s => s.turn === prevSession.currentTurn);
-      if (step?.suspectLocation) newCombat.push({ cityId: step.suspectLocation, progress: 0 });
-    }
+    lastTurnClues.forEach(c => {
+      const outcome = detectCombatOutcome(c);
+      if (!outcome) return;
+      // Find city: parse from clue text by matching scenario node names/ids
+      let cityId = null;
+      const nodes = activeScenario?.nodes || [];
+      for (const n of nodes) {
+        const needle = (n.name || n.id).toUpperCase();
+        if ((c.clueText || '').toUpperCase().includes(needle)) { cityId = n.id; break; }
+      }
+      // Fallback: use AI primary plan for this turn
+      if (!cityId) {
+        const step = session.aiMasterPlan?.primaryPlan?.find(s => s.turn === prevSession.currentTurn);
+        cityId = step?.suspectLocation || null;
+      }
+      if (!cityId) return;
+      // Find team's home city for travel phase
+      const teamInPrev = prevSession.tacticalTeams?.find(t => {
+        const needle = (t.name || '').toLowerCase();
+        return (c.clueText || '').toLowerCase().includes(needle);
+      });
+      const fromCity = teamInPrev?.currentCity || null;
+      // Deduplicate by cityId+outcome
+      if (!newCombat.some(x => x.cityId === cityId && x.outcome === outcome)) {
+        newCombat.push({ cityId, outcome, fromCity, color: COMBAT_OUTCOME_COLOR[outcome], shakeLevel: COMBAT_OUTCOME_SHAKE[outcome], progress: 0, phase: 0 });
+      }
+    });
 
     // ── Drone animations: multi-phase RECON / ATTACK / MOVE / DESTROYED ─────
+    // Outcome types: RECON_SUCCESS | RECON_NO_ENEMY | ATTACK_SUCCESS | ATTACK_NO_ENEMY | SHOT_DOWN | DAMAGED | RETURNED_SAFE | MOVE
+    const detectDroneOutcome = (c, droneAction) => {
+      const text = c.clueText || '';
+      if (text.includes('SHOT DOWN') || text.includes('DRONE DOWN')) return 'SHOT_DOWN';
+      if (droneAction === 'RECON') {
+        if (text.includes('RECON SUCCESS')) return 'RECON_SUCCESS';
+        return 'RECON_NO_ENEMY';
+      }
+      if (droneAction === 'ATTACK') {
+        if (text.includes('No exposed hostile')) return 'ATTACK_NO_ENEMY';
+        return 'ATTACK_SUCCESS';
+      }
+      return 'RETURNED_SAFE';
+    };
+
     lastTurnClues.forEach(c => {
-      if (c.source === 'DRONE_RECON' || c.source === 'DRONE_ATTACK') {
-        const droneMatch = c.clueText?.match(/Drone (\d+)/i);
+      if (c.source === 'DRONE_RECON' || c.source === 'DRONE_ATTACK' || c.source === 'DRONE_DAMAGED') {
+        const droneMatch = c.clueText?.match(/Drone #?(\d+)/i);
         if (droneMatch) {
           const droneId = parseInt(droneMatch[1]);
           const targetNode = activeScenario?.nodes?.find(n => c.clueText?.toLowerCase().includes(n.id.toLowerCase()) || (n.name && c.clueText?.toLowerCase().includes(n.name.toLowerCase())));
@@ -748,18 +935,32 @@ export default function MapView({
             const toCity = targetNode.id;
             const prevDrone = prevSession.drones?.find(d => d.id === droneId);
             const fromCity = prevDrone ? prevDrone.currentCity : null;
-            const isDestroyed = !!(c.clueText?.includes('SHOT DOWN') || c.clueText?.includes('DRONE DOWN'));
-            const droneAction = c.source === 'DRONE_RECON' ? 'RECON' : 'ATTACK';
             if (fromCity) {
+              const droneAction = c.source === 'DRONE_RECON' ? 'RECON' : 'ATTACK';
+              const outcome = c.source === 'DRONE_DAMAGED' ? 'DAMAGED' : detectDroneOutcome(c, droneAction);
+              const isDestroyed = outcome === 'SHOT_DOWN';
+
+              // Color-code by outcome
+              const outcomeColor = {
+                RECON_SUCCESS:   '#00f0ff',  // cyan — intel gathered
+                RECON_NO_ENEMY:  '#6ee7b7',  // muted green — clear
+                ATTACK_SUCCESS:  '#ff9800',  // orange — strike confirmed
+                ATTACK_NO_ENEMY: '#facc15',  // yellow — miss
+                SHOT_DOWN:       '#ff3b30',  // red — destroyed
+                DAMAGED:         '#f97316',  // amber — damaged
+                RETURNED_SAFE:   '#10b981',  // green — safe return
+              }[outcome] || '#10b981';
+
               newDroneAnims.push({
                 fromCity,
                 toCity,
-                baseCity: fromCity, // ATTACK drones return here
-                droneAction,
+                baseCity: fromCity,
+                droneAction: c.source === 'DRONE_DAMAGED' ? 'ATTACK' : droneAction,
+                outcome,
                 isDestroyed,
                 phase: 0,
                 progress: 0,
-                color: '#10b981'
+                color: outcomeColor
               });
             }
           }
@@ -777,6 +978,7 @@ export default function MapView({
             toCity: drone.currentCity,
             baseCity: drone.currentCity,
             droneAction: 'MOVE',
+            outcome: 'MOVE',
             isDestroyed: false,
             phase: 0,
             progress: 0,
@@ -830,7 +1032,7 @@ export default function MapView({
       setNewSafehouses([]); setUncoveredSafehouses([]); setNewTechDeploys([]);
       setExpiredTechScans([]); setMovingUnits([]); setDroneAnimUnits([]); setLostCities([]);
       setDestroyedFriendlyCities([]); setDestroyedEnemyCities([]); setConfettiCities([]);
-      setIsShaking(false);
+      setIsShaking(false); setShakeIntensity('heavy');
       setTimeout(() => { onAnimCompleteRef.current?.(); }, 300);
     };
 
@@ -861,18 +1063,74 @@ export default function MapView({
       setTimeout(() => { setExpiredTechScans([]); runLossPhase(lost); }, (deploys.length > 0 || expireds.length > 0) ? 1000 : 0);
     };
 
+    // Phase durations per combat outcome type
+    const COMBAT_ACTION_DUR = {
+      COMBAT_VICTORY:    2000,
+      COMBAT_PARTIAL:    1800,
+      SAFEHOUSE_RAIDED:  1700,
+      RAID_EMPTY:        1400,
+      SAFEHOUSE_DEFENDED:1500,
+      BORDER_INTERCEPTED:1300,
+      LOGISTICS_RAIDED:  1200,
+    };
+
     const runCombatPhase = (items, tech, expired, lost) => {
       if (items.length === 0) { runTechPhase(tech, expired, lost); return; }
-      setCombatAlerts(items.map(c => ({ ...c, progress: 0 })));
-      setIsShaking(true);
-      const start = performance.now(); const dur = 1400;
-      const loop = (t) => {
-        const p = Math.min((t - start) / dur, 1.0);
-        setCombatAlerts(prev => prev.map(c => ({ ...c, progress: p })));
-        if (p < 1.0) { rafId = requestAnimationFrame(loop); }
-        else { setCombatAlerts([]); setIsShaking(false); setTimeout(() => runTechPhase(tech, expired, lost), 200); }
+
+      // Determine max shake intensity across all events this turn
+      const maxShake = items.some(i => i.shakeLevel === 'heavy')  ? 'heavy'
+                     : items.some(i => i.shakeLevel === 'medium') ? 'medium'
+                     : items.some(i => i.shakeLevel === 'light')  ? 'light'
+                     : null;
+
+      // ── Phase 0: Travel (troop movement to target) ─────────────────
+      const TRAVEL_DUR = 1000;
+      const withTravel = items.filter(i => i.fromCity && i.fromCity !== i.cityId);
+      const noTravel   = items.filter(i => !i.fromCity || i.fromCity === i.cityId);
+
+      const startAction = () => {
+        // ── Phase 1: Action at city ─────────────────────────────────────
+        const maxDur = Math.max(...items.map(i => COMBAT_ACTION_DUR[i.outcome] || 1400));
+        if (maxShake) { setIsShaking(true); setShakeIntensity(maxShake); }
+        setCombatAlerts(items.map(i => ({ ...i, phase: 1, progress: 0 })));
+        const start1 = performance.now();
+        const loop1 = (t) => {
+          setCombatAlerts(prev => prev.map(i => {
+            const dur = COMBAT_ACTION_DUR[i.outcome] || 1400;
+            return { ...i, progress: Math.min((t - start1) / dur, 1.0) };
+          }));
+          if ((t - start1) < maxDur) { rafId = requestAnimationFrame(loop1); }
+          else {
+            setIsShaking(false);
+            // ── Phase 2: Linger (result glow fades) ─────────────────────
+            const LINGER_DUR = 800;
+            setCombatAlerts(prev => prev.map(i => ({ ...i, phase: 2, progress: 0 })));
+            const start2 = performance.now();
+            const loop2 = (t2) => {
+              const p2 = Math.min((t2 - start2) / LINGER_DUR, 1.0);
+              setCombatAlerts(prev => prev.map(i => ({ ...i, progress: p2 })));
+              if (p2 < 1.0) { rafId = requestAnimationFrame(loop2); }
+              else { setCombatAlerts([]); setTimeout(() => runTechPhase(tech, expired, lost), 200); }
+            };
+            rafId = requestAnimationFrame(loop2);
+          }
+        };
+        rafId = requestAnimationFrame(loop1);
       };
-      rafId = requestAnimationFrame(loop);
+
+      if (withTravel.length > 0) {
+        setCombatAlerts([...withTravel.map(i => ({ ...i, phase: 0, progress: 0 })), ...noTravel.map(i => ({ ...i, phase: 1, progress: 0 }))]);
+        const start0 = performance.now();
+        const loop0 = (t) => {
+          const p0 = Math.min((t - start0) / TRAVEL_DUR, 1.0);
+          setCombatAlerts(prev => prev.map(i => i.phase === 0 ? { ...i, progress: p0 } : i));
+          if (p0 < 1.0) { rafId = requestAnimationFrame(loop0); }
+          else { setTimeout(startAction, 80); }
+        };
+        rafId = requestAnimationFrame(loop0);
+      } else {
+        startAction();
+      }
     };
 
     const runExposurePhase = (items, combat, tech, expired, lost) => {
@@ -899,18 +1157,18 @@ export default function MapView({
       const buildNext = () => {
         if (buildIdx >= builds.length) { runExposurePhase(exposes, combat, tech, expired, lost); return; }
         const b = builds[buildIdx++];
-        // Phase A: ring expand (700ms)
+        // Phase A: Tactical construction reticle animation around the node (850ms)
         setBuildingSafehouses([{ ...b, progress: 0 }]);
-        const ringStart = performance.now(); const ringDur = 700;
+        const ringStart = performance.now(); const ringDur = 850;
         const ringLoop = (t) => {
           const p = Math.min((t - ringStart) / ringDur, 1.0);
           setBuildingSafehouses(prev => prev.map(x => ({ ...x, progress: p })));
           if (p < 1.0) { rafId = requestAnimationFrame(ringLoop); }
           else {
             setBuildingSafehouses([]);
-            // Phase B: drop-bounce icon (900ms)
+            // Phase B: Show final safehouse icon with drop-bounce reveal (950ms)
             setNewSafehouses(prev => [...prev, b.cityId]);
-            setTimeout(() => { setNewSafehouses([]); setTimeout(buildNext, 200); }, 900);
+            setTimeout(() => { setNewSafehouses([]); setTimeout(buildNext, 200); }, 950);
           }
         };
         rafId = requestAnimationFrame(ringLoop);
@@ -932,29 +1190,41 @@ export default function MapView({
       rafId = requestAnimationFrame(loop);
     };
 
-    // Multi-phase drone animation: TRAVEL → ACTION → RETURN → DESTROYED
+    // Multi-phase drone animation: TRAVEL → ACTION → RETURN/CRASH/DAMAGED
     const runDroneAnimPhase = (droneAnims, moves, builds, exposes, combat, tech, expired, lost) => {
       if (droneAnims.length === 0) { runMovePhase(moves, builds, exposes, combat, tech, expired, lost); return; }
 
-      const TRAVEL_DUR = 1300;
-      const RECON_DUR  = 950;
-      const ATTACK_DUR = 1100;
-      const RETURN_DUR = 1050;
-      const DESTROY_DUR = 750;
+      const TRAVEL_DUR  = 1400;  // phase 0 — fly to target
+      const ACTION_DUR  = 1350;  // phase 1 — action at target (base; per-outcome below)
+      const RETURN_DUR  = 1100;  // phase 2 — return flight (alive drones)
+      const DESTROY_DUR = 900;   // phase 3 — crash / neutralized
+
+      // Per-outcome action duration overrides
+      const actionDurForOutcome = (outcome) => ({
+        RECON_SUCCESS:   1500,
+        RECON_NO_ENEMY:  1000,
+        ATTACK_SUCCESS:  1600,
+        ATTACK_NO_ENEMY: 1100,
+        SHOT_DOWN:       1400,
+        DAMAGED:         1300,
+        RETURNED_SAFE:   950,
+        MOVE:            0,
+      }[outcome] ?? ACTION_DUR);
 
       const afterDrones = () => {
         setDroneAnimUnits([]);
         setTimeout(() => runMovePhase(moves, builds, exposes, combat, tech, expired, lost), 300);
       };
 
-      // Phase 3: Destroyed
+      // Phase 3: Crash / Neutralized (SHOT_DOWN) — or linger for DAMAGED
       const runDestroyPhase = () => {
-        const destroyed = droneAnims.filter(d => d.isDestroyed);
-        if (destroyed.length === 0) { afterDrones(); return; }
-        setDroneAnimUnits(destroyed.map(d => ({ ...d, phase: 3, progress: 0 })));
+        const terminal = droneAnims.filter(d => d.outcome === 'SHOT_DOWN' || d.outcome === 'DAMAGED');
+        if (terminal.length === 0) { afterDrones(); return; }
+        const dur = terminal.some(d => d.outcome === 'SHOT_DOWN') ? DESTROY_DUR : 700;
+        setDroneAnimUnits(terminal.map(d => ({ ...d, phase: 3, progress: 0 })));
         const start = performance.now();
         const loop = (t) => {
-          const p = Math.min((t - start) / DESTROY_DUR, 1.0);
+          const p = Math.min((t - start) / dur, 1.0);
           setDroneAnimUnits(prev => prev.map(d => ({ ...d, progress: p })));
           if (p < 1.0) { rafId = requestAnimationFrame(loop); }
           else { afterDrones(); }
@@ -962,33 +1232,41 @@ export default function MapView({
         rafId = requestAnimationFrame(loop);
       };
 
-      // Phase 2: Return to base (ATTACK drones that are NOT destroyed)
+      // Phase 2: Return to base — ALL surviving drones (RECON and ATTACK both fly home)
       const runReturnPhase = () => {
-        const returning = droneAnims.filter(d => d.droneAction === 'ATTACK' && !d.isDestroyed);
+        const returning = droneAnims.filter(d => d.outcome !== 'SHOT_DOWN' && d.outcome !== 'MOVE');
         if (returning.length === 0) { runDestroyPhase(); return; }
         setDroneAnimUnits(returning.map(d => ({ ...d, phase: 2, progress: 0 })));
         const start = performance.now();
+        // RECON drones return faster (850ms), ATTACK/DAMAGED take full 1100ms
         const loop = (t) => {
-          const p = Math.min((t - start) / RETURN_DUR, 1.0);
-          setDroneAnimUnits(prev => prev.map(d => ({ ...d, progress: p })));
-          if (p < 1.0) { rafId = requestAnimationFrame(loop); }
+          setDroneAnimUnits(prev => prev.map(d => {
+            const dur = (d.droneAction === 'RECON') ? 850 : RETURN_DUR;
+            return { ...d, progress: Math.min((t - start) / dur, 1.0) };
+          }));
+          const maxP = (t - start) / RETURN_DUR;
+          if (maxP < 1.0) { rafId = requestAnimationFrame(loop); }
           else { setTimeout(runDestroyPhase, 150); }
         };
         rafId = requestAnimationFrame(loop);
       };
 
-      // Phase 1: Action at target city
+
+      // Phase 1: Action at target city — outcome-specific animations
       const runActionPhase = () => {
         const actionAnims = droneAnims.filter(d => d.droneAction !== 'MOVE');
         if (actionAnims.length === 0) { runReturnPhase(); return; }
+        const maxDur = Math.max(...actionAnims.map(d => actionDurForOutcome(d.outcome)));
         setDroneAnimUnits(actionAnims.map(d => ({ ...d, phase: 1, progress: 0 })));
-        const maxDur = actionAnims.some(d => d.droneAction === 'ATTACK') ? ATTACK_DUR : RECON_DUR;
         const start = performance.now();
         const loop = (t) => {
-          const p = Math.min((t - start) / maxDur, 1.0);
-          setDroneAnimUnits(prev => prev.map(d => ({ ...d, progress: Math.min((t - start) / (d.droneAction === 'ATTACK' ? ATTACK_DUR : RECON_DUR), 1.0) })));
-          if (p < 1.0) { rafId = requestAnimationFrame(loop); }
-          else { setTimeout(runReturnPhase, 150); }
+          setDroneAnimUnits(prev => prev.map(d => ({
+            ...d,
+            progress: Math.min((t - start) / actionDurForOutcome(d.outcome), 1.0)
+          })));
+          const globalP = (t - start) / maxDur;
+          if (globalP < 1.0) { rafId = requestAnimationFrame(loop); }
+          else { setTimeout(runReturnPhase, 200); }
         };
         rafId = requestAnimationFrame(loop);
       };
@@ -1000,7 +1278,7 @@ export default function MapView({
         const p = Math.min((t - start) / TRAVEL_DUR, 1.0);
         setDroneAnimUnits(prev => prev.map(d => ({ ...d, progress: p })));
         if (p < 1.0) { rafId = requestAnimationFrame(loop); }
-        else { setTimeout(runActionPhase, 100); }
+        else { setTimeout(runActionPhase, 120); }
       };
       rafId = requestAnimationFrame(loop);
     };
@@ -1121,134 +1399,424 @@ export default function MapView({
         return null;
       })}
 
-      {/* Multi-phase drone animations: TRAVEL → ACTION → RETURN → DESTROYED */}
+
       {droneAnimUnits.map((m, idx) => {
-        const baseCoords = getPixelCoords(m.fromCity);
+        const baseCoords   = getPixelCoords(m.fromCity);
         const targetCoords = getPixelCoords(m.toCity);
         if (baseCoords.x === 0 || targetCoords.x === 0) return null;
-        const sc = isTacticalView ? 0.35 : 1;
+        const sc       = isTacticalView ? 0.35 : 1;
         const iconSize = isTacticalView ? 4 : 18;
-        const halfIcon = iconSize / 2;
+        const half     = iconSize / 2;
+        const tx = targetCoords.x;
+        const ty = targetCoords.y;
 
-        // Phase 0: Travel from base to target
+        /* ── Phase 0: Travel outbound ──────────────────────────────────────── */
         if (m.phase === 0) {
-          const cx = baseCoords.x + (targetCoords.x - baseCoords.x) * m.progress;
-          const cy = baseCoords.y + (targetCoords.y - baseCoords.y) * m.progress;
-          // Angle of travel for rotation
-          const angle = Math.atan2(targetCoords.y - baseCoords.y, targetCoords.x - baseCoords.x) * 180 / Math.PI + 90;
+          const cx    = baseCoords.x + (tx - baseCoords.x) * m.progress;
+          const cy    = baseCoords.y + (ty - baseCoords.y) * m.progress;
+          const angle = Math.atan2(ty - baseCoords.y, tx - baseCoords.x) * 180 / Math.PI + 90;
           return (
             <g key={`drone-${idx}`}>
-              <line x1={baseCoords.x} y1={baseCoords.y} x2={targetCoords.x} y2={targetCoords.y} stroke={m.color} strokeWidth={1.5 * sc} strokeDasharray="3,4" opacity="0.35" />
-              <line x1={baseCoords.x} y1={baseCoords.y} x2={cx} y2={cy} stroke={m.color} strokeWidth={2 * sc} opacity="0.7" />
-              <g transform={`translate(${cx}, ${cy}) rotate(${angle}) translate(${-halfIcon}, ${-halfIcon})`}>
+              <line x1={baseCoords.x} y1={baseCoords.y} x2={tx} y2={ty} stroke={m.color} strokeWidth={1.5*sc} strokeDasharray="3,4" opacity="0.28" />
+              <line x1={baseCoords.x} y1={baseCoords.y} x2={cx} y2={cy} stroke={m.color} strokeWidth={2.2*sc} opacity="0.72" strokeLinecap="round" />
+              <circle cx={cx} cy={cy} r={8*sc} fill={m.color} opacity={0.1} />
+              <g transform={`translate(${cx},${cy}) rotate(${angle}) translate(${-half},${-half})`}>
                 <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: m.color }) }} />
               </g>
-              <circle cx={cx} cy={cy} r={5 * sc} fill="none" stroke={m.color} strokeWidth={sc} opacity={0.5} />
+              <circle cx={cx} cy={cy} r={5*sc} fill="none" stroke={m.color} strokeWidth={sc} opacity={0.5} />
             </g>
           );
         }
 
-        // Phase 1: Action at target (RECON = hover circle, ATTACK = bounce)
+        /* ── Phase 1: Action at target — outcome-specific ──────────────────── */
         if (m.phase === 1) {
-          const actionAnim = m.droneAction === 'RECON' ? 'drone-recon-hover 0.9s ease-in-out infinite' : 'drone-attack-bounce 1.1s cubic-bezier(0.36,0.07,0.19,0.97) infinite';
-          const orbitR = isTacticalView ? 3.5 : 18;
-          return (
-            <g key={`drone-${idx}`}>
-              {/* Orbit ring at target for RECON */}
-              {m.droneAction === 'RECON' && (
-                <circle cx={targetCoords.x} cy={targetCoords.y} r={orbitR} fill="none" stroke={m.color} strokeWidth={isTacticalView ? 0.3 : 1.2} strokeDasharray={isTacticalView ? '0.6,0.6' : '3,3'} opacity="0.55" />
-              )}
-              {/* Impact rings for ATTACK */}
-              {m.droneAction === 'ATTACK' && [
-                <circle key="r1" cx={targetCoords.x} cy={targetCoords.y} r={orbitR * m.progress} fill="none" stroke="#ff3b30" strokeWidth={isTacticalView ? 0.4 : 1.5} opacity={1 - m.progress} />,
-                <circle key="r2" cx={targetCoords.x} cy={targetCoords.y} r={orbitR * m.progress * 0.6} fill="none" stroke="#ff6600" strokeWidth={isTacticalView ? 0.3 : 1} opacity={(1 - m.progress) * 0.7} />
-              ]}
-              <g
-                transform={`translate(${targetCoords.x - halfIcon}, ${targetCoords.y - halfIcon})`}
-                style={{ animation: actionAnim }}
-              >
-                <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: m.droneAction === 'ATTACK' ? '#ff9800' : m.color }) }} />
+          const p      = m.progress;
+          const orbitR = isTacticalView ? 4 : 22;
+
+          /* RECON_SUCCESS — cyan rotating scan rings + INTEL LOCK */
+          if (m.outcome === 'RECON_SUCCESS') {
+            const r1  = orbitR * (0.5 + p * 0.5);
+            const r2  = r1 * 0.62;
+            const deg = p * 540;
+            const bx  = tx + r1 * Math.cos(deg * Math.PI / 180);
+            const by  = ty + r1 * Math.sin(deg * Math.PI / 180);
+            const lop = p > 0.55 ? Math.min((p - 0.55) / 0.35, 1) : 0;
+            return (
+              <g key={`drone-${idx}`}>
+                <circle cx={tx} cy={ty} r={r1} fill="none" stroke="#00f0ff" strokeWidth={isTacticalView?0.45:1.8} strokeDasharray={`${4*sc},${3*sc}`} opacity={0.72} transform={`rotate(${deg},${tx},${ty})`} />
+                <circle cx={tx} cy={ty} r={r2} fill="none" stroke="#00f0ff" strokeWidth={isTacticalView?0.28:1.1} strokeDasharray={`${2*sc},${4*sc}`} opacity={0.44} transform={`rotate(${-deg*0.7},${tx},${ty})`} />
+                <line x1={tx-r1*0.35} y1={ty} x2={tx+r1*0.35} y2={ty} stroke="#00f0ff" strokeWidth={0.8*sc} opacity={0.65} />
+                <line x1={tx} y1={ty-r1*0.35} x2={tx} y2={ty+r1*0.35} stroke="#00f0ff" strokeWidth={0.8*sc} opacity={0.65} />
+                <circle cx={bx} cy={by} r={2.8*sc} fill="#00f0ff" opacity={0.88} />
+                <circle cx={bx} cy={by} r={5*sc} fill="none" stroke="#00f0ff" strokeWidth={0.6*sc} opacity={0.4} />
+                <g transform={`translate(${tx-half},${ty-half})`} style={{animation:'drone-recon-hover 0.9s ease-in-out infinite'}}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#00f0ff' }) }} />
+                </g>
+                {lop > 0 && (
+                  <g transform={`translate(${tx},${ty-r1-(isTacticalView?5:22)})`} opacity={lop}>
+                    <rect x={isTacticalView?-16:-62} y={isTacticalView?-3.5:-14} width={isTacticalView?32:124} height={isTacticalView?7:22} fill="rgba(0,20,30,0.92)" stroke="#00f0ff" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
+                    <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#00f0ff" fontSize={isTacticalView?'2.2':'9'} fontFamily="monospace" fontWeight="bold">🔍 RECON SUCCESS</text>
+                  </g>
+                )}
               </g>
-            </g>
-          );
+            );
+          }
+
+          /* RECON_NO_ENEMY — soft green pulse + SECTOR CLEAR */
+          if (m.outcome === 'RECON_NO_ENEMY') {
+            const r1  = orbitR * (0.5 + p * 0.5);
+            const lop = p > 0.6 ? Math.min((p - 0.6) / 0.3, 1) : 0;
+            return (
+              <g key={`drone-${idx}`}>
+                <circle cx={tx} cy={ty} r={r1} fill="rgba(110,231,183,0.07)" stroke="#6ee7b7" strokeWidth={isTacticalView?0.38:1.5} strokeDasharray={`${3*sc},${3*sc}`} opacity={0.7-p*0.3} />
+                <circle cx={tx} cy={ty} r={r1*0.5} fill="none" stroke="#6ee7b7" strokeWidth={isTacticalView?0.22:0.9} opacity={0.38} />
+                <line x1={tx-4*sc} y1={ty} x2={tx-1*sc} y2={ty+3.5*sc} stroke="#6ee7b7" strokeWidth={1.4*sc} strokeLinecap="round" opacity={0.85} />
+                <line x1={tx-1*sc} y1={ty+3.5*sc} x2={tx+5*sc} y2={ty-4*sc} stroke="#6ee7b7" strokeWidth={1.4*sc} strokeLinecap="round" opacity={0.85} />
+                <g transform={`translate(${tx-half},${ty-half})`} style={{animation:'drone-recon-hover 1.1s ease-in-out infinite'}}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#6ee7b7' }) }} />
+                </g>
+                {lop > 0 && (
+                  <g transform={`translate(${tx},${ty-r1-(isTacticalView?4.5:20)})`} opacity={lop}>
+                    <rect x={isTacticalView?-14:-55} y={isTacticalView?-3.5:-14} width={isTacticalView?28:110} height={isTacticalView?7:22} fill="rgba(0,18,10,0.9)" stroke="#6ee7b7" strokeWidth={isTacticalView?0.35:1.1} rx="3" />
+                    <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#6ee7b7" fontSize={isTacticalView?'2.1':'8.5'} fontFamily="monospace" fontWeight="bold">✅ SECTOR CLEAR</text>
+                  </g>
+                )}
+              </g>
+            );
+          }
+
+          /* ATTACK_SUCCESS — orange firestorm blast + STRIKE CONFIRMED */
+          if (m.outcome === 'ATTACK_SUCCESS') {
+            const br   = orbitR * (0.3 + p * 1.5);
+            const ir   = br * 0.52;
+            const cr   = br * 0.22;
+            const flk  = 0.5 + 0.5 * Math.sin(p * Math.PI * 10);
+            const lop  = p > 0.4 ? Math.min((p - 0.4) / 0.35, 1) : 0;
+            const angs = [0,0.52,1.05,1.57,2.09,2.62,3.14,3.67,4.19,4.71,5.24,5.76];
+            return (
+              <g key={`drone-${idx}`}>
+                <circle cx={tx} cy={ty} r={br} fill="rgba(255,152,0,0.13)"  stroke="#ff9800" strokeWidth={isTacticalView?0.55:2.5} opacity={1-p*0.75} />
+                <circle cx={tx} cy={ty} r={ir} fill="rgba(255,69,0,0.28)"   stroke="#ff4500" strokeWidth={isTacticalView?0.42:1.8} opacity={1-p*0.55} />
+                <circle cx={tx} cy={ty} r={cr} fill="rgba(255,255,80,0.6)"  stroke="#ffff00" strokeWidth={isTacticalView?0.3:1.2}  opacity={flk} />
+                <circle cx={tx} cy={ty} r={cr*0.45} fill="#ffffff" opacity={flk*0.7} />
+                {angs.map((a,i) => (
+                  <circle key={i} cx={tx+br*0.9*Math.cos(a)} cy={ty+br*0.9*Math.sin(a)}
+                    r={(2.5+(i%3)*0.8)*sc} fill={i%3===0?'#ffcc00':i%3===1?'#ff6500':'#ff3b30'} opacity={(1-p)*0.85} />
+                ))}
+                <g transform={`translate(${tx-half},${ty-half})`} style={{animation:'drone-attack-bounce 1.1s cubic-bezier(0.36,0.07,0.19,0.97) infinite'}}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#ff9800' }) }} />
+                </g>
+                {lop > 0 && (
+                  <g transform={`translate(${tx},${ty-br-(isTacticalView?5:20)})`} opacity={lop}>
+                    <rect x={isTacticalView?-18:-68} y={isTacticalView?-3.5:-14} width={isTacticalView?36:136} height={isTacticalView?7:22} fill="rgba(28,8,0,0.92)" stroke="#ff9800" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
+                    <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#ff9800" fontSize={isTacticalView?'2.2':'9'} fontFamily="monospace" fontWeight="bold">🎯 STRIKE CONFIRMED</text>
+                  </g>
+                )}
+              </g>
+            );
+          }
+
+          /* ATTACK_NO_ENEMY — yellow miss rings + X + NO TARGET FOUND */
+          if (m.outcome === 'ATTACK_NO_ENEMY') {
+            const mr  = orbitR * (0.5 + p * 0.8);
+            const lop = p > 0.6 ? Math.min((p - 0.6) / 0.3, 1) : 0;
+            return (
+              <g key={`drone-${idx}`}>
+                <circle cx={tx} cy={ty} r={mr}      fill="rgba(250,204,21,0.08)" stroke="#facc15" strokeWidth={isTacticalView?0.42:1.8} strokeDasharray={`${5*sc},${3*sc}`} opacity={0.8-p*0.5} />
+                <circle cx={tx} cy={ty} r={mr*0.55} fill="none" stroke="#facc15" strokeWidth={isTacticalView?0.25:1} opacity={0.38-p*0.28} />
+                <line x1={tx-6*sc} y1={ty-6*sc} x2={tx+6*sc} y2={ty+6*sc} stroke="#facc15" strokeWidth={isTacticalView?0.65:2.8} strokeLinecap="round" opacity={0.85} />
+                <line x1={tx+6*sc} y1={ty-6*sc} x2={tx-6*sc} y2={ty+6*sc} stroke="#facc15" strokeWidth={isTacticalView?0.65:2.8} strokeLinecap="round" opacity={0.85} />
+                <g transform={`translate(${tx-half},${ty-half})`} style={{animation:'drone-recon-hover 0.8s ease-in-out infinite'}}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#facc15' }) }} />
+                </g>
+                {lop > 0 && (
+                  <g transform={`translate(${tx},${ty-mr-(isTacticalView?4.5:20)})`} opacity={lop}>
+                    <rect x={isTacticalView?-17:-66} y={isTacticalView?-3.5:-14} width={isTacticalView?34:132} height={isTacticalView?7:22} fill="rgba(28,22,0,0.92)" stroke="#facc15" strokeWidth={isTacticalView?0.35:1.1} rx="3" />
+                    <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#facc15" fontSize={isTacticalView?'2.1':'8.5'} fontFamily="monospace" fontWeight="bold">⚠️ NO TARGET FOUND</text>
+                  </g>
+                )}
+              </g>
+            );
+          }
+
+          /* SHOT_DOWN — red alarm pulse + spinning + INTERCEPTED */
+          if (m.outcome === 'SHOT_DOWN') {
+            const ar  = orbitR * (0.45 + p * 0.7);
+            const flk = Math.abs(Math.sin(p * Math.PI * 7));
+            const deg = p * 360;
+            return (
+              <g key={`drone-${idx}`}>
+                <circle cx={tx} cy={ty} r={ar}      fill="rgba(255,59,48,0.15)"  stroke="#ff3b30" strokeWidth={isTacticalView?0.5:2.5} opacity={0.88-p*0.35} />
+                <circle cx={tx} cy={ty} r={ar*0.52} fill="rgba(255,59,48,0.22)"  stroke="#ff3b30" strokeWidth={isTacticalView?0.32:1.5} opacity={flk*0.9} />
+                <g transform={`translate(${tx},${ty}) rotate(${deg}) translate(${-half},${-half})`}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#ff3b30' }) }} />
+                </g>
+                <g transform={`translate(${tx},${ty-ar-(isTacticalView?4.5:20)})`} opacity={Math.min(p*3,1)}>
+                  <rect x={isTacticalView?-15:-60} y={isTacticalView?-3.5:-14} width={isTacticalView?30:120} height={isTacticalView?7:22} fill="rgba(28,0,0,0.94)" stroke="#ff3b30" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#ff3b30" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">🚨 INTERCEPTED</text>
+                </g>
+              </g>
+            );
+          }
+
+          /* DAMAGED — amber flicker rings + wobbly + DRONE DAMAGED */
+          if (m.outcome === 'DAMAGED') {
+            const dr  = orbitR * (0.42 + p * 0.5);
+            const flk = 0.5 + 0.5 * Math.abs(Math.sin(p * Math.PI * 6));
+            const wb  = Math.sin(p * Math.PI * 5) * 20;
+            const lop = p > 0.5 ? Math.min((p - 0.5) / 0.35, 1) : 0;
+            return (
+              <g key={`drone-${idx}`}>
+                <circle cx={tx} cy={ty} r={dr}      fill="rgba(249,115,22,0.12)" stroke="#f97316" strokeWidth={isTacticalView?0.42:2} strokeDasharray={`${3*sc},${2*sc}`} opacity={flk} />
+                <circle cx={tx} cy={ty} r={dr*0.55} fill="none" stroke="#f97316" strokeWidth={isTacticalView?0.25:1} opacity={flk*0.55} />
+                {[0.5,1.5,2.5,3.5,4.5].map((a,i) => (
+                  <circle key={i} cx={tx+dr*0.7*Math.cos(a+p*4)} cy={ty+dr*0.7*Math.sin(a+p*4)} r={2*sc} fill="#f97316" opacity={flk*0.8} />
+                ))}
+                <g transform={`translate(${tx},${ty}) rotate(${wb}) translate(${-half},${-half})`}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#f97316' }) }} />
+                </g>
+                {lop > 0 && (
+                  <g transform={`translate(${tx},${ty-dr-(isTacticalView?4.5:20)})`} opacity={lop}>
+                    <rect x={isTacticalView?-16:-64} y={isTacticalView?-3.5:-14} width={isTacticalView?32:128} height={isTacticalView?7:22} fill="rgba(28,10,0,0.92)" stroke="#f97316" strokeWidth={isTacticalView?0.35:1.1} rx="3" />
+                    <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#f97316" fontSize={isTacticalView?'2.1':'8.5'} fontFamily="monospace" fontWeight="bold">⚡ DRONE DAMAGED</text>
+                  </g>
+                )}
+              </g>
+            );
+          }
+
+          /* RETURNED_SAFE / MOVE fallback — colored hover */
+          {
+            const anim = m.droneAction === 'RECON'
+              ? 'drone-recon-hover 0.9s ease-in-out infinite'
+              : 'drone-attack-bounce 1.1s cubic-bezier(0.36,0.07,0.19,0.97) infinite';
+            return (
+              <g key={`drone-${idx}`}>
+                <circle cx={tx} cy={ty} r={orbitR} fill="none" stroke={m.color} strokeWidth={isTacticalView?0.32:1.3} strokeDasharray={isTacticalView?'0.6,0.6':'3,3'} opacity="0.55" />
+                <g transform={`translate(${tx-half},${ty-half})`} style={{animation:anim}}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: m.color }) }} />
+                </g>
+              </g>
+            );
+          }
         }
 
-        // Phase 2: Return to base (attack drones flying back)
+        /* ── Phase 2: Return flight — outcome-styled ───────────────────────── */
         if (m.phase === 2) {
-          const cx = targetCoords.x + (baseCoords.x - targetCoords.x) * m.progress;
-          const cy = targetCoords.y + (baseCoords.y - targetCoords.y) * m.progress;
-          const angle = Math.atan2(baseCoords.y - targetCoords.y, baseCoords.x - targetCoords.x) * 180 / Math.PI + 90;
+          const cx    = tx + (baseCoords.x - tx) * m.progress;
+          const cy    = ty + (baseCoords.y - ty) * m.progress;
+          const angle = Math.atan2(baseCoords.y - ty, baseCoords.x - tx) * 180 / Math.PI + 90;
+
+          /* DAMAGED: amber limp + smoke puffs */
+          if (m.outcome === 'DAMAGED') {
+            const sx = cx + (isTacticalView?1.5:6) * Math.sin(m.progress * 16);
+            const sy = cy + (isTacticalView?0.8:3.5);
+            return (
+              <g key={`drone-${idx}`}>
+                <circle cx={sx} cy={sy+(isTacticalView?1.5:6)} r={2.5*sc} fill="#555" opacity={0.38*(1-m.progress)} />
+                <circle cx={sx-(isTacticalView?1.2:5)} cy={sy+(isTacticalView?2.5:11)} r={1.8*sc} fill="#f97316" opacity={0.28*(1-m.progress)} />
+                <line x1={tx} y1={ty} x2={cx} y2={cy} stroke="#f97316" strokeWidth={1.6*sc} opacity={0.55} strokeDasharray={`${2*sc},${3*sc}`} />
+                <g transform={`translate(${cx},${cy}) rotate(${angle+Math.sin(m.progress*Math.PI*7)*18}) translate(${-half},${-half})`}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#f97316' }) }} />
+                </g>
+              </g>
+            );
+          }
+
+          /* ATTACK_SUCCESS: clean orange return */
+          if (m.outcome === 'ATTACK_SUCCESS') {
+            return (
+              <g key={`drone-${idx}`}>
+                <line x1={tx} y1={ty} x2={cx} y2={cy} stroke="#ff9800" strokeWidth={1.8*sc} opacity={0.55} strokeDasharray={`${3*sc},${3*sc}`} />
+                <circle cx={cx} cy={cy} r={4.5*sc} fill="#ff9800" opacity={0.18} />
+                <g transform={`translate(${cx},${cy}) rotate(${angle}) translate(${-half},${-half})`}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#ff9800' }) }} />
+                </g>
+              </g>
+            );
+          }
+
+          /* RECON_SUCCESS: cyan mission-complete return with glowing trail */
+          if (m.outcome === 'RECON_SUCCESS') {
+            const glowOp = m.progress * 0.35;
+            return (
+              <g key={`drone-${idx}`}>
+                <line x1={tx} y1={ty} x2={cx} y2={cy} stroke="#00f0ff" strokeWidth={1.8*sc} opacity={0.55} strokeDasharray={`${4*sc},${3*sc}`} />
+                <circle cx={cx} cy={cy} r={7*sc} fill="none" stroke="#00f0ff" strokeWidth={isTacticalView?0.4:1.5} opacity={glowOp*2} />
+                <circle cx={cx} cy={cy} r={4*sc} fill="#00f0ff" opacity={glowOp} />
+                <g transform={`translate(${cx},${cy}) rotate(${angle}) translate(${-half},${-half})`}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#00f0ff' }) }} />
+                </g>
+              </g>
+            );
+          }
+
+          /* RECON_NO_ENEMY: soft green return — sector was clear */
+          if (m.outcome === 'RECON_NO_ENEMY') {
+            return (
+              <g key={`drone-${idx}`}>
+                <line x1={tx} y1={ty} x2={cx} y2={cy} stroke="#6ee7b7" strokeWidth={1.6*sc} opacity={0.45} strokeDasharray={`${4*sc},${3*sc}`} />
+                <circle cx={cx} cy={cy} r={4*sc} fill="#6ee7b7" opacity={m.progress * 0.25} />
+                <g transform={`translate(${cx},${cy}) rotate(${angle}) translate(${-half},${-half})`}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#6ee7b7' }) }} />
+                </g>
+              </g>
+            );
+          }
+
+          /* Default return (ATTACK_NO_ENEMY / RETURNED_SAFE) */
           return (
             <g key={`drone-${idx}`}>
-              <line x1={targetCoords.x} y1={targetCoords.y} x2={cx} y2={cy} stroke={m.color} strokeWidth={1.5 * sc} opacity="0.5" strokeDasharray="3,3" />
-              <g transform={`translate(${cx}, ${cy}) rotate(${angle}) translate(${-halfIcon}, ${-halfIcon})`}>
+              <line x1={tx} y1={ty} x2={cx} y2={cy} stroke={m.color} strokeWidth={1.6*sc} opacity={0.5} strokeDasharray={`${3*sc},${3*sc}`} />
+              <g transform={`translate(${cx},${cy}) rotate(${angle}) translate(${-half},${-half})`}>
                 <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: m.color }) }} />
               </g>
             </g>
           );
         }
 
-        // Phase 3: Drone destroyed — spin out explosion at target
+        /* ── Phase 3: Terminal — SHOT_DOWN fireball | DAMAGED spark linger ─── */
         if (m.phase === 3) {
-          const explodeR = (isTacticalView ? 6 : 28) * m.progress;
-          return (
-            <g key={`drone-${idx}`}>
-              <circle cx={targetCoords.x} cy={targetCoords.y} r={explodeR} fill="none" stroke="#ff3b30" strokeWidth={isTacticalView ? 0.5 : 2.5} opacity={1 - m.progress} />
-              <circle cx={targetCoords.x} cy={targetCoords.y} r={explodeR * 0.55} fill="rgba(255,59,48,0.15)" stroke="#ff6600" strokeWidth={isTacticalView ? 0.3 : 1.5} opacity={(1 - m.progress) * 0.8} />
-              <g
-                transform={`translate(${targetCoords.x - halfIcon}, ${targetCoords.y - halfIcon})`}
-                style={{ animation: 'drone-destroyed-spin 0.75s ease-out forwards', transformOrigin: halfIcon + 'px ' + halfIcon + 'px' }}
-              >
-                <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#ff3b30' }) }} />
+          const p = m.progress;
+
+          /* SHOT_DOWN — cinematic fireball crash */
+          if (m.outcome === 'SHOT_DOWN') {
+            const eR  = (isTacticalView?11:46) * p;
+            const pY  = (isTacticalView?16:60) * p;
+            const deg = p * 1080;
+            const sOp = Math.max(0, 0.95 - p * 0.72);
+            const fOp = p > 0.32 ? Math.max(0, 1-(p-0.32)*2.4) : p*3.0;
+            const ffk = Math.abs(Math.sin(p * Math.PI * 12));
+            const sa  = [0,0.52,1.05,1.57,2.09,2.62,3.14,3.67,4.19,4.71,5.24,5.76];
+            return (
+              <g key={`drone-crash-${idx}`}>
+                {/* Zigzag fire trail */}
+                {[0,1,2,3,4].map(i => {
+                  const fy  = p*i*0.22; const fx  = Math.sin(p*9+i)*(isTacticalView?3.5:12);
+                  const fy2 = p*(i+1)*0.22; const fx2 = Math.sin(p*9+i+1)*(isTacticalView?3.5:12);
+                  return <line key={i} x1={tx+fx} y1={ty+pY*fy} x2={tx+fx2} y2={ty+pY*fy2}
+                    stroke={i%2===0?'#ff4500':'#cc2200'} strokeWidth={isTacticalView?1.5:5.5}
+                    strokeLinecap="round" opacity={sOp*(1-i*0.15)} />;
+                })}
+                {/* Smoke column */}
+                <line x1={tx} y1={ty} x2={tx+(isTacticalView?1.5:5)*Math.cos(p*13)} y2={ty+pY} stroke="#1a1a1a" strokeWidth={isTacticalView?3.5:12} strokeLinecap="round" opacity={sOp*0.5} />
+                {/* Blast rings */}
+                <circle cx={tx} cy={ty+pY} r={eR}       fill="rgba(255,59,48,0.18)"   stroke="#ff3b30" strokeWidth={isTacticalView?0.7:3.2} opacity={1-p} />
+                <circle cx={tx} cy={ty+pY} r={eR*0.62}  fill="rgba(255,100,0,0.28)"   stroke="#ff6500" strokeWidth={isTacticalView?0.5:2.2} opacity={fOp} />
+                <circle cx={tx} cy={ty+pY} r={eR*0.32}  fill="rgba(255,255,80,0.58)"  stroke="#ffff00" strokeWidth={isTacticalView?0.32:1.5} opacity={fOp*ffk} />
+                <circle cx={tx} cy={ty+pY} r={eR*0.13}  fill="#ffffff" opacity={fOp*0.88} />
+                {/* Spark burst */}
+                {sa.map((a,i) => (
+                  <circle key={i} cx={tx+eR*0.88*Math.cos(a)} cy={ty+pY+eR*0.88*Math.sin(a)}
+                    r={(2.8+(i%3)*0.9)*sc} fill={i%3===0?'#ffff00':i%3===1?'#ff6500':'#ff3b30'} opacity={(1-p)*0.92} />
+                ))}
+                {/* Spinning falling drone */}
+                <g transform={`translate(${tx},${ty+pY}) rotate(${deg}) translate(${-half},${-half})`}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize*1.15, color: '#ff3b30' }) }} />
+                </g>
+                {/* DRONE DOWN banner */}
+                <g transform={`translate(${tx},${ty-(isTacticalView?7:32)})`} opacity={Math.max(0, 1-p*2.0)}>
+                  <rect x={isTacticalView?-15:-60} y={isTacticalView?-3.5:-14} width={isTacticalView?30:120} height={isTacticalView?7:24} fill="rgba(22,0,0,0.94)" stroke="#ff3b30" strokeWidth={isTacticalView?0.35:1.5} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#ff3b30" fontSize={isTacticalView?'2.2':'9.5'} fontFamily="monospace" fontWeight="bold">💥 DRONE DOWN</text>
+                </g>
               </g>
-              <text x={targetCoords.x} y={targetCoords.y - (isTacticalView ? 5 : 26)} textAnchor="middle"
-                fill="#ff3b30" fontSize={isTacticalView ? '1.8' : '9'} fontFamily="monospace" fontWeight="bold"
-                opacity={1 - m.progress}>DRONE DOWN</text>
-            </g>
-          );
+            );
+          }
+
+          /* DAMAGED — amber sparks + RETURNING DAMAGED */
+          if (m.outcome === 'DAMAGED') {
+            const cx  = tx + (baseCoords.x - tx) * p * 0.6;
+            const cy  = ty + (baseCoords.y - ty) * p * 0.6;
+            const flk = 0.5 + 0.5 * Math.abs(Math.sin(p * Math.PI * 9));
+            const sr  = (isTacticalView?5:20) * (0.4 + p * 0.6);
+            const wb  = Math.sin(p * Math.PI * 8) * 22;
+            return (
+              <g key={`drone-damaged-${idx}`}>
+                {[0.4,1.3,2.2,3.1,4.0,5.0].map((a,i) => (
+                  <circle key={i} cx={cx+sr*Math.cos(a+p*7)} cy={cy+sr*Math.sin(a+p*7)}
+                    r={(2.2+(i%2)*0.8)*sc} fill={i%2===0?'#f97316':'#facc15'} opacity={flk*(1-p*0.4)} />
+                ))}
+                <circle cx={cx} cy={cy} r={(isTacticalView?7:26)*(0.35+p*0.35)} fill="rgba(249,115,22,0.1)" stroke="#f97316" strokeWidth={isTacticalView?0.4:1.6} strokeDasharray={`${2*sc},${2*sc}`} opacity={flk*0.65} />
+                <g transform={`translate(${cx},${cy}) rotate(${wb}) translate(${-half},${-half})`}>
+                  <g dangerouslySetInnerHTML={{ __html: droneIconHtml({ size: iconSize, color: '#f97316' }) }} />
+                </g>
+                <g transform={`translate(${cx},${cy-(isTacticalView?7.5:32)})`} opacity={Math.min(p*3.5,0.92)}>
+                  <rect x={isTacticalView?-18:-72} y={isTacticalView?-3.5:-14} width={isTacticalView?36:144} height={isTacticalView?7:22} fill="rgba(28,10,0,0.92)" stroke="#f97316" strokeWidth={isTacticalView?0.35:1.1} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#f97316" fontSize={isTacticalView?'2.1':'8.5'} fontFamily="monospace" fontWeight="bold">⚡ RETURNING DAMAGED</text>
+                </g>
+              </g>
+            );
+          }
         }
 
         return null;
+      })}
+
+
+      {/* Drone Repair Complete SVG Animation Overlay */}
+      {(session?.drones || []).filter(d => d.status === 'ACTIVE' && (session?.discoveredClues || []).some(c => c.turnDiscovered === session?.currentTurn && c.source === 'DRONE_SERVICED' && c.clueText?.includes(`Drone #${d.id}`))).map(d => {
+        const center = getPixelCoords(d.currentCity);
+        if (center.x === 0) return null;
+        const sc = isTacticalView ? 0.2 : 1;
+        return (
+          <g key={`drone-repaired-${d.id}`}>
+            <circle cx={center.x} cy={center.y} r={isTacticalView ? 8 : 36} fill="rgba(0, 255, 102, 0.15)" stroke="#00ff66" strokeWidth={isTacticalView ? 0.4 : 2} strokeDasharray="3,3">
+              <animate attributeName="r" values={isTacticalView ? "4;10;4" : "18;42;18"} dur="2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite" />
+            </circle>
+            <g transform={`translate(${center.x}, ${center.y - (isTacticalView ? 7 : 32)})`}>
+              <rect x={isTacticalView ? -14 : -60} y={isTacticalView ? -3 : -14} width={isTacticalView ? 28 : 120} height={isTacticalView ? 6 : 22} fill="rgba(6, 20, 12, 0.9)" stroke="#00ff66" strokeWidth={isTacticalView ? 0.3 : 1} rx="4" />
+              <text x="0" y={isTacticalView ? 1 : 1} textAnchor="middle" fill="#00ff66" fontSize={isTacticalView ? '2.2' : '9.5'} fontFamily="monospace" fontWeight="bold">
+                🛠️ REPAIR COMPLETE
+              </text>
+            </g>
+          </g>
+        );
       })}
       {buildingSafehouses.map((b, idx) => {
         const center = getPixelCoords(b.cityId);
         if (center.x === 0) return null;
         const color = (b.ownerFaction === 'HOSTILE') ? '#ff3b30' : '#00f0ff';
-        const sc = isTacticalView ? 0.2 : 1;
-        // Rings CONTRACT inward (large to small) as safehouse materializes
-        const maxR = isTacticalView ? 9 : 42;
-        const r1 = maxR * (1 - b.progress * 0.75);
-        const r2 = r1 * 0.62;
-        const ringOpacity = Math.max(0, 1 - b.progress * 1.1);
-        const glowR = (isTacticalView ? 1.5 : 6) * b.progress;
-        const iconSize = isTacticalView ? 2.5 : 11;
-        const iconOpacity = b.progress > 0.4 ? Math.min((b.progress - 0.4) / 0.6, 1.0) : 0;
-        // Corner L-brackets instead of crosshairs
-        const bkt = r1 * 0.42;
-        const bktW = isTacticalView ? 0.3 : 1.2;
+        const sc = isTacticalView ? 0.22 : 1;
+        const maxR = isTacticalView ? 10 : 46;
+        const r1 = maxR * (1 - b.progress * 0.72);
+        const r2 = r1 * 0.6;
+        const ringOpacity = Math.max(0, 1 - b.progress * 0.85);
+        const glowR = (isTacticalView ? 2 : 8) * b.progress;
+        const bkt = r1 * 0.45;
+        const bktW = isTacticalView ? 0.35 : 1.5;
+        const scanDeg = b.progress * 540;
         return (
           <g key={`build-${idx}`}>
-            <circle cx={center.x} cy={center.y} r={r1} fill="none" stroke={color}
-              strokeWidth={isTacticalView ? 0.4 : 1.6} strokeDasharray={`${3 * sc},${3 * sc}`} opacity={ringOpacity} />
+            {/* Contracting outer dashed scan ring */}
+            <circle cx={center.x} cy={center.y} r={r1} fill="rgba(0,240,255,0.06)" stroke={color}
+              strokeWidth={isTacticalView ? 0.45 : 1.8} strokeDasharray={`${4 * sc},${3 * sc}`} opacity={ringOpacity}
+              transform={`rotate(${scanDeg},${center.x},${center.y})`} />
+            {/* Inner Contracting Ring */}
             <circle cx={center.x} cy={center.y} r={r2} fill="none" stroke={color}
-              strokeWidth={isTacticalView ? 0.25 : 1} strokeDasharray={`${2 * sc},${2 * sc}`} opacity={ringOpacity * 0.55} />
+              strokeWidth={isTacticalView ? 0.28 : 1.2} strokeDasharray={`${2 * sc},${2 * sc}`} opacity={ringOpacity * 0.65}
+              transform={`rotate(${-scanDeg * 0.8},${center.x},${center.y})`} />
+            {/* L-bracket Corner Reticle Marks */}
             {[[-1,-1],[1,-1],[1,1],[-1,1]].map(([sx, sy], i) => (
               <g key={i}>
                 <line x1={center.x + sx * r1} y1={center.y + sy * r1}
                       x2={center.x + sx * (r1 - bkt)} y2={center.y + sy * r1}
-                      stroke={color} strokeWidth={bktW} strokeLinecap="round" opacity={ringOpacity * 0.85} />
+                      stroke={color} strokeWidth={bktW} strokeLinecap="round" opacity={ringOpacity * 0.9} />
                 <line x1={center.x + sx * r1} y1={center.y + sy * r1}
                       x2={center.x + sx * r1} y2={center.y + sy * (r1 - bkt)}
-                      stroke={color} strokeWidth={bktW} strokeLinecap="round" opacity={ringOpacity * 0.85} />
+                      stroke={color} strokeWidth={bktW} strokeLinecap="round" opacity={ringOpacity * 0.9} />
               </g>
             ))}
-            <circle cx={center.x} cy={center.y} r={glowR} fill={color} opacity={b.progress * 0.3} />
-            <text x={center.x} y={center.y - r1 - (isTacticalView ? 1.5 : 7)} textAnchor="middle"
-              fill={color} fontSize={isTacticalView ? 1.3 : 7} fontFamily="monospace" fontWeight="bold"
-              opacity={ringOpacity * 0.8} letterSpacing="0.1em">BUILD</text>
-            {iconOpacity > 0 && (
-              <g opacity={iconOpacity} dangerouslySetInnerHTML={{ __html: safehouseAnimSvgGroup(center.x, center.y, color, iconSize) }} />
-            )}
+            {/* Center tactical energy core glow */}
+            <circle cx={center.x} cy={center.y} r={glowR} fill={color} opacity={b.progress * 0.4} />
+            <circle cx={center.x} cy={center.y} r={glowR * 0.5} fill="#ffffff" opacity={b.progress * 0.6} />
+            {/* Construction Label */}
+            <g transform={`translate(${center.x},${center.y - r1 - (isTacticalView ? 2 : 8)})`}>
+              <rect x={isTacticalView ? -16 : -68} y={isTacticalView ? -3 : -12} width={isTacticalView ? 32 : 136} height={isTacticalView ? 6 : 20} fill="rgba(0,20,30,0.92)" stroke={color} strokeWidth={isTacticalView ? 0.3 : 1} rx="3" opacity={ringOpacity * 0.9} />
+              <text x="0" y={isTacticalView ? 1.5 : 1.5} textAnchor="middle" fill={color} fontSize={isTacticalView ? '2' : '8.5'} fontFamily="monospace" fontWeight="bold" opacity={ringOpacity * 0.95} letterSpacing="0.08em">
+                🛠️ CONSTRUCTING SAFEHOUSE
+              </text>
+            </g>
           </g>
         );
       })}
@@ -1277,89 +1845,321 @@ export default function MapView({
           </g>
         );
       })}
-      {combatAlerts.map((c, idx) => {
-        const center = getPixelCoords(c.cityId);
+      {combatAlerts.map((ca, idx) => {
+        // ── Phase 0: Troop travel to target ──────────────────────────────
+        if (ca.phase === 0 && ca.fromCity) {
+          const from = getPixelCoords(ca.fromCity);
+          const to   = getPixelCoords(ca.cityId);
+          if (from.x === 0 || to.x === 0) return null;
+          const cx    = from.x + (to.x - from.x) * ca.progress;
+          const cy    = from.y + (to.y - from.y) * ca.progress;
+          const angle = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+          const sc    = isTacticalView ? 0.35 : 1;
+          const iSz   = isTacticalView ? 4 : 18;
+          return (
+            <g key={`combat-travel-${idx}`}>
+              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={ca.color} strokeWidth={1.5*sc} strokeDasharray={`${3*sc},${3*sc}`} opacity={0.28} />
+              <line x1={from.x} y1={from.y} x2={cx} y2={cy} stroke={ca.color} strokeWidth={2.2*sc} opacity={0.72} strokeLinecap="round" />
+              <circle cx={cx} cy={cy} r={7*sc} fill={ca.color} opacity={0.12} />
+              <g transform={`translate(${cx},${cy}) rotate(${angle}) translate(${-iSz/2},${-iSz/2})`}>
+                <g dangerouslySetInnerHTML={{ __html: combatTeamIconHtml({ size: iSz, color: ca.color }) }} />
+              </g>
+            </g>
+          );
+        }
+
+        // ── Phase 1 & 2: Action & Linger at battle city ──────────────────
+        const center = getPixelCoords(ca.cityId);
         if (center.x === 0) return null;
-        // Pulsing flash: 3 expanding diamond rings fading out — no crosshair, no huge circles
-        const pulse = Math.sin(c.progress * Math.PI * 5) * 0.5 + 0.5; // oscillate 0–1
-        const sc = isTacticalView ? 0.22 : 1;
-        const r1 = (8 + c.progress * 20) * sc;
-        const r2 = (4 + c.progress * 12) * sc;
-        const opacity1 = (1 - c.progress) * 0.9;
-        const opacity2 = (1 - c.progress) * 0.65;
-        // Diamond shape via rotated square
-        const d = r1;
-        const dmPoints = `${center.x},${center.y - d} ${center.x + d},${center.y} ${center.x},${center.y + d} ${center.x - d},${center.y}`;
-        const d2 = r2;
-        const dmPoints2 = `${center.x},${center.y - d2} ${center.x + d2},${center.y} ${center.x},${center.y + d2} ${center.x - d2},${center.y}`;
-        return (
-          <g key={`combat-${idx}`}>
-            {/* Outer flash ring */}
-            <polygon points={dmPoints} fill="rgba(255,59,48,0.06)" stroke="#ff3b30" strokeWidth={1.8 * sc} opacity={opacity1} />
-            {/* Inner compact ring */}
-            <polygon points={dmPoints2} fill="rgba(255,100,50,0.1)" stroke="#ff6600" strokeWidth={1.2 * sc} opacity={opacity2} />
-            {/* Center strike flash dot */}
-            <circle cx={center.x} cy={center.y} r={3.5 * sc} fill="#ff3b30" opacity={0.5 + pulse * 0.5} />
-            {/* STRIKE label — small, compact, no crosshair */}
-            <text x={center.x} y={center.y - (10 + c.progress * 18) * sc} textAnchor="middle"
-              fill="#ff3b30" fontSize={isTacticalView ? 1.6 : 8} fontFamily="monospace" fontWeight="bold"
-              opacity={opacity1} letterSpacing="0.08em">STRIKE</text>
-          </g>
-        );
+        const sc  = isTacticalView ? 0.22 : 1;
+        const p   = ca.progress;
+        const phs = ca.phase; // 1=action, 2=linger
+        const lop = phs === 2 ? 1 - p : 1; // overall fade in linger phase
+        const tx  = center.x, ty = center.y;
+        const pulse  = Math.abs(Math.sin(p * Math.PI * 7));
+        const flk    = 0.5 + 0.5 * pulse;
+
+        /* ── COMBAT_VICTORY — gold starburst + 12 particle burst ── */
+        if (ca.outcome === 'COMBAT_VICTORY') {
+          const br  = (isTacticalView?10:44) * (0.25 + p * 0.75);
+          const ir  = br * 0.55;
+          const cr  = br * 0.22;
+          const sa  = Array.from({length:12}, (_,i) => i * Math.PI / 6);
+          const bop = p > 0.35 ? Math.min((p-0.35)/0.3, 1) : 0;
+          return (
+            <g key={`combat-${idx}`} opacity={lop}>
+              {/* Outer gold blast ring */}
+              <circle cx={tx} cy={ty} r={br}   fill="rgba(251,191,36,0.1)" stroke="#fbbf24" strokeWidth={isTacticalView?0.7:3.2} opacity={(1-p)*0.9} />
+              <circle cx={tx} cy={ty} r={ir}   fill="rgba(251,191,36,0.2)" stroke="#fde68a" strokeWidth={isTacticalView?0.5:2.2} opacity={(1-p*0.6)*0.85} />
+              <circle cx={tx} cy={ty} r={cr}   fill="rgba(255,255,180,0.7)" stroke="#fff" strokeWidth={isTacticalView?0.3:1.3} opacity={flk} />
+              <circle cx={tx} cy={ty} r={cr*0.4} fill="#ffffff" opacity={flk*0.85} />
+              {/* 12-particle starburst */}
+              {sa.map((a,i) => (
+                <g key={i}>
+                  <line x1={tx+cr*0.5*Math.cos(a)} y1={ty+cr*0.5*Math.sin(a)}
+                        x2={tx+br*0.92*Math.cos(a)} y2={ty+br*0.92*Math.sin(a)}
+                        stroke={i%3===0?'#fbbf24':i%3===1?'#fde68a':'#ff9800'}
+                        strokeWidth={(1.8+(i%2)*0.8)*sc} strokeLinecap="round"
+                        opacity={(1-p)*0.9} />
+                  <circle cx={tx+br*0.9*Math.cos(a)} cy={ty+br*0.9*Math.sin(a)}
+                    r={(2.5+(i%3)*0.7)*sc} fill={i%3===0?'#fbbf24':'#fff'} opacity={(1-p)*0.85} />
+                </g>
+              ))}
+              {/* NEUTRALIZED banner */}
+              {bop > 0 && (
+                <g transform={`translate(${tx},${ty-br-(isTacticalView?5:24)})`} opacity={bop*lop}>
+                  <rect x={isTacticalView?-18:-72} y={isTacticalView?-3.5:-14} width={isTacticalView?36:144} height={isTacticalView?7:24} fill="rgba(30,20,0,0.94)" stroke="#fbbf24" strokeWidth={isTacticalView?0.35:1.4} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#fbbf24" fontSize={isTacticalView?'2.2':'9.5'} fontFamily="monospace" fontWeight="bold">🏆 ALL NEUTRALIZED</text>
+                </g>
+              )}
+            </g>
+          );
+        }
+
+        /* ── COMBAT_PARTIAL — amber dual rings + sparks ── */
+        if (ca.outcome === 'COMBAT_PARTIAL') {
+          const r1  = (isTacticalView?8:36) * (0.3 + p * 0.7);
+          const r2  = r1 * 0.52;
+          const spR = r1 * 0.82;
+          const bop = p > 0.45 ? Math.min((p-0.45)/0.3, 1) : 0;
+          const spks = [0,1.05,2.09,3.14,4.19,5.24];
+          return (
+            <g key={`combat-${idx}`} opacity={lop}>
+              <circle cx={tx} cy={ty} r={r1} fill="rgba(249,115,22,0.1)" stroke="#f97316" strokeWidth={isTacticalView?0.55:2.5} opacity={(1-p)*0.9} />
+              <circle cx={tx} cy={ty} r={r2} fill="rgba(249,115,22,0.18)" stroke="#fb923c" strokeWidth={isTacticalView?0.35:1.6} strokeDasharray={`${2*sc},${2*sc}`} opacity={flk*0.8} />
+              {spks.map((a,i) => (
+                <circle key={i} cx={tx+spR*Math.cos(a+p*3)} cy={ty+spR*Math.sin(a+p*3)}
+                  r={(2.2+(i%2)*0.6)*sc} fill={i%2===0?'#f97316':'#facc15'} opacity={flk*(1-p*0.5)} />
+              ))}
+              <circle cx={tx} cy={ty} r={(isTacticalView?1.5:5)*flk} fill="#f97316" opacity={flk*0.7} />
+              {bop > 0 && (
+                <g transform={`translate(${tx},${ty-r1-(isTacticalView?4.5:22)})`} opacity={bop*lop}>
+                  <rect x={isTacticalView?-18:-72} y={isTacticalView?-3.5:-14} width={isTacticalView?36:144} height={isTacticalView?7:24} fill="rgba(28,10,0,0.93)" stroke="#f97316" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#f97316" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">⚡ SUSPECT ESCAPED</text>
+                </g>
+              )}
+            </g>
+          );
+        }
+
+        /* ── SAFEHOUSE_RAIDED — orange lock-break rotation + flash ── */
+        if (ca.outcome === 'SAFEHOUSE_RAIDED') {
+          const r1  = (isTacticalView?9:40) * (0.3 + p * 0.7);
+          const deg = p * 720;
+          const bop = p > 0.4 ? Math.min((p-0.4)/0.3, 1) : 0;
+          const sa  = [0, 0.79, 1.57, 2.36, 3.14, 3.93, 4.71, 5.50];
+          return (
+            <g key={`combat-${idx}`} opacity={lop}>
+              {/* Rotating orange segmented ring */}
+              {sa.map((a,i) => (
+                <line key={i}
+                  x1={tx + r1*0.55*Math.cos(a+deg*Math.PI/180)} y1={ty + r1*0.55*Math.sin(a+deg*Math.PI/180)}
+                  x2={tx + r1*Math.cos(a+deg*Math.PI/180)}       y2={ty + r1*Math.sin(a+deg*Math.PI/180)}
+                  stroke={i%2===0?'#ff9800':'#ff6500'} strokeWidth={(1.8+(i%2)*0.6)*sc} strokeLinecap="round"
+                  opacity={(1-p*0.5)*0.9} />
+              ))}
+              <circle cx={tx} cy={ty} r={r1} fill="rgba(255,152,0,0.08)" stroke="#ff9800" strokeWidth={isTacticalView?0.45:2} opacity={(1-p)*0.8} />
+              <circle cx={tx} cy={ty} r={r1*0.3} fill="rgba(255,200,50,0.5)" stroke="#fde68a" strokeWidth={isTacticalView?0.3:1.2} opacity={flk*0.75} />
+              <circle cx={tx} cy={ty} r={(isTacticalView?1.5:5)*flk} fill="#ffffff" opacity={flk*0.6} />
+              {bop > 0 && (
+                <g transform={`translate(${tx},${ty-r1-(isTacticalView?4.5:22)})`} opacity={bop*lop}>
+                  <rect x={isTacticalView?-20:-80} y={isTacticalView?-3.5:-14} width={isTacticalView?40:160} height={isTacticalView?7:24} fill="rgba(28,8,0,0.93)" stroke="#ff9800" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#ff9800" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">🏚️ SAFEHOUSE DESTROYED</text>
+                </g>
+              )}
+            </g>
+          );
+        }
+
+        /* ── RAID_EMPTY — yellow dashed shimmer + X + LOCATION EMPTY ── */
+        if (ca.outcome === 'RAID_EMPTY') {
+          const r1  = (isTacticalView?8:34) * (0.4 + p * 0.6);
+          const bop = p > 0.5 ? Math.min((p-0.5)/0.35, 1) : 0;
+          return (
+            <g key={`combat-${idx}`} opacity={lop}>
+              <circle cx={tx} cy={ty} r={r1} fill="rgba(250,204,21,0.07)" stroke="#facc15" strokeWidth={isTacticalView?0.42:1.9} strokeDasharray={`${5*sc},${3*sc}`} opacity={(1-p)*0.85} />
+              <circle cx={tx} cy={ty} r={r1*0.55} fill="none" stroke="#facc15" strokeWidth={isTacticalView?0.25:1.1} opacity={(1-p)*0.4} />
+              {/* Bold question / X shimmer */}
+              <line x1={tx-5*sc} y1={ty-5*sc} x2={tx+5*sc} y2={ty+5*sc} stroke="#facc15" strokeWidth={isTacticalView?0.6:2.8} strokeLinecap="round" opacity={flk*0.88} />
+              <line x1={tx+5*sc} y1={ty-5*sc} x2={tx-5*sc} y2={ty+5*sc} stroke="#facc15" strokeWidth={isTacticalView?0.6:2.8} strokeLinecap="round" opacity={flk*0.88} />
+              {bop > 0 && (
+                <g transform={`translate(${tx},${ty-r1-(isTacticalView?4:20)})`} opacity={bop*lop}>
+                  <rect x={isTacticalView?-17:-68} y={isTacticalView?-3.5:-14} width={isTacticalView?34:136} height={isTacticalView?7:24} fill="rgba(28,22,0,0.93)" stroke="#facc15" strokeWidth={isTacticalView?0.35:1.1} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#facc15" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">❓ LOCATION EMPTY</text>
+                </g>
+              )}
+            </g>
+          );
+        }
+
+        /* ── SAFEHOUSE_DEFENDED — cyan shield ripple ── */
+        if (ca.outcome === 'SAFEHOUSE_DEFENDED') {
+          const r1  = (isTacticalView?9:40) * (0.3 + p * 0.7);
+          const sa  = Array.from({length:8}, (_,i) => i * Math.PI / 4);
+          const bop = p > 0.45 ? Math.min((p-0.45)/0.3, 1) : 0;
+          return (
+            <g key={`combat-${idx}`} opacity={lop}>
+              <circle cx={tx} cy={ty} r={r1}      fill="rgba(0,240,255,0.08)" stroke="#00f0ff" strokeWidth={isTacticalView?0.5:2.4} opacity={(1-p)*0.88} />
+              <circle cx={tx} cy={ty} r={r1*0.6}  fill="rgba(0,240,255,0.12)" stroke="#00d4e8" strokeWidth={isTacticalView?0.32:1.4} opacity={flk*0.75} />
+              {sa.map((a,i) => (
+                <line key={i}
+                  x1={tx + r1*0.28*Math.cos(a)} y1={ty + r1*0.28*Math.sin(a)}
+                  x2={tx + r1*0.88*Math.cos(a)} y2={ty + r1*0.88*Math.sin(a)}
+                  stroke={i%2===0?'#00f0ff':'#67e8f9'} strokeWidth={1.5*sc} strokeLinecap="round"
+                  opacity={(1-p*0.55)*0.82} />
+              ))}
+              <circle cx={tx} cy={ty} r={(isTacticalView?1.5:6)*flk} fill="#00f0ff" opacity={flk*0.45} />
+              {bop > 0 && (
+                <g transform={`translate(${tx},${ty-r1-(isTacticalView?4.5:22)})`} opacity={bop*lop}>
+                  <rect x={isTacticalView?-17:-68} y={isTacticalView?-3.5:-14} width={isTacticalView?34:136} height={isTacticalView?7:24} fill="rgba(0,18,26,0.93)" stroke="#00f0ff" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#00f0ff" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">🛡️ ATTACK REPELLED</text>
+                </g>
+              )}
+            </g>
+          );
+        }
+
+        /* ── BORDER_INTERCEPTED — purple scan gate + blocked line ── */
+        if (ca.outcome === 'BORDER_INTERCEPTED') {
+          const r1  = (isTacticalView?8:36) * (0.3 + p * 0.7);
+          const deg = p * 360;
+          const bop = p > 0.4 ? Math.min((p-0.4)/0.35, 1) : 0;
+          return (
+            <g key={`combat-${idx}`} opacity={lop}>
+              <circle cx={tx} cy={ty} r={r1} fill="rgba(168,85,247,0.1)" stroke="#a855f7" strokeWidth={isTacticalView?0.5:2.2} strokeDasharray={`${4*sc},${2*sc}`} opacity={(1-p*0.5)*0.88} transform={`rotate(${deg},${tx},${ty})`} />
+              <circle cx={tx} cy={ty} r={r1*0.5} fill="none" stroke="#c084fc" strokeWidth={isTacticalView?0.3:1.3} opacity={flk*0.65} />
+              {/* Blocked path bar */}
+              <line x1={tx-r1*0.7} y1={ty} x2={tx+r1*0.7} y2={ty} stroke="#ff3b30" strokeWidth={isTacticalView?0.6:3} strokeLinecap="round" opacity={(1-p)*0.85} />
+              <circle cx={tx} cy={ty} r={(isTacticalView?1.5:5.5)*flk} fill="#a855f7" opacity={flk*0.5} />
+              {bop > 0 && (
+                <g transform={`translate(${tx},${ty-r1-(isTacticalView?4.5:22)})`} opacity={bop*lop}>
+                  <rect x={isTacticalView?-16:-64} y={isTacticalView?-3.5:-14} width={isTacticalView?32:128} height={isTacticalView?7:24} fill="rgba(18,0,28,0.94)" stroke="#a855f7" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#a855f7" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">🚫 ROUTE BLOCKED</text>
+                </g>
+              )}
+            </g>
+          );
+        }
+
+        /* ── LOGISTICS_RAIDED — teal cache-strike flash ── */
+        if (ca.outcome === 'LOGISTICS_RAIDED') {
+          const r1  = (isTacticalView?7:30) * (0.4 + p * 0.6);
+          const bop = p > 0.45 ? Math.min((p-0.45)/0.35, 1) : 0;
+          return (
+            <g key={`combat-${idx}`} opacity={lop}>
+              <circle cx={tx} cy={ty} r={r1} fill="rgba(20,184,166,0.1)" stroke="#14b8a6" strokeWidth={isTacticalView?0.45:2} opacity={(1-p)*0.85} />
+              <circle cx={tx} cy={ty} r={r1*0.5} fill="rgba(20,184,166,0.2)" stroke="#2dd4bf" strokeWidth={isTacticalView?0.28:1.2} opacity={flk*0.7} />
+              {[0, 1.57, 3.14, 4.71].map((a,i) => (
+                <line key={i} x1={tx+r1*0.22*Math.cos(a)} y1={ty+r1*0.22*Math.sin(a)}
+                              x2={tx+r1*0.78*Math.cos(a)} y2={ty+r1*0.78*Math.sin(a)}
+                  stroke="#14b8a6" strokeWidth={1.8*sc} strokeLinecap="round" opacity={(1-p)*0.85} />
+              ))}
+              <circle cx={tx} cy={ty} r={(isTacticalView?1.2:4.5)*flk} fill="#14b8a6" opacity={flk*0.6} />
+              {bop > 0 && (
+                <g transform={`translate(${tx},${ty-r1-(isTacticalView?4:20)})`} opacity={bop*lop}>
+                  <rect x={isTacticalView?-16:-64} y={isTacticalView?-3.5:-14} width={isTacticalView?32:128} height={isTacticalView?7:24} fill="rgba(0,18,16,0.93)" stroke="#14b8a6" strokeWidth={isTacticalView?0.35:1.1} rx="3" />
+                  <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#14b8a6" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">💰 CACHE SEIZED</text>
+                </g>
+              )}
+            </g>
+          );
+        }
+
+        /* ── Fallback generic (unknown outcome) ── */
+        {
+          const r1 = (isTacticalView?8:36) * (0.3 + p * 0.7);
+          const col = ca.color || '#ff3b30';
+          return (
+            <g key={`combat-${idx}`} opacity={lop}>
+              <circle cx={tx} cy={ty} r={r1} fill="none" stroke={col} strokeWidth={isTacticalView?0.5:2.2} opacity={(1-p)*0.85} />
+              <circle cx={tx} cy={ty} r={(isTacticalView?1.5:5)*flk} fill={col} opacity={flk*0.6} />
+            </g>
+          );
+        }
       })}
       {destroyedFriendlyCities.map((item, idx) => {
         const center = getPixelCoords(item.cityId);
         if (center.x === 0) return null;
-        const p = item.progress;
-        const sc = isTacticalView ? 0.2 : 1;
-        // Phase 1 (0→0.4): compact red shockwave ring expands then fades
-        // Phase 2 (0.4→1): small SAFEHOUSE LOST pill fades in then drifts up and fades out
-        const ringR = (isTacticalView ? 3 : 14) * Math.min(p / 0.4, 1.0);
-        const ringOp = p < 0.4 ? (1 - p / 0.4) * 0.85 : 0;
-        const textOp = p > 0.35 ? Math.min((p - 0.35) / 0.25, 1) * (1 - Math.max(0, (p - 0.75) / 0.25)) : 0;
-        const textY = center.y - (isTacticalView ? 3 : 14) - (p > 0.35 ? (p - 0.35) * (isTacticalView ? 4 : 18) : 0);
-        const dotPulse = Math.sin(p * Math.PI * 6) * 0.3 + 0.7;
+        const p   = item.progress;
+        const sc  = isTacticalView ? 0.2 : 1;
+        const tx  = center.x, ty = center.y;
+        // Phase A (0→0.45): red implosion — rings collapse inward
+        // Phase B (0.35→0.8): SAFEHOUSE LOST pill fades in and drifts up
+        // Phase C (0.75→1): everything fades out
+        const phA  = Math.min(p / 0.45, 1.0);
+        const maxR = isTacticalView ? 14 : 58;
+        const r1   = maxR * (1 - phA * 0.88);   // collapses inward
+        const r2   = r1 * 0.55;
+        const r3   = r1 * 0.28;
+        const rOp  = Math.max(0, 1 - phA * 1.15);
+        const flk  = Math.abs(Math.sin(p * Math.PI * 8));
+        const sa   = [0, 0.52, 1.05, 1.57, 2.09, 2.62, 3.14, 3.67];
+        const textOp = p > 0.35 ? Math.min((p-0.35)/0.25, 1) * (1 - Math.max(0,(p-0.75)/0.25)) : 0;
+        const textY  = ty - (isTacticalView?5:22) - (p > 0.35 ? (p-0.35)*(isTacticalView?8:32) : 0);
         return (
           <g key={`friendly-destroy-${idx}`}>
-            {/* Compact shockwave ring */}
-            <circle cx={center.x} cy={center.y} r={ringR} fill="rgba(255,59,48,0.08)"
-              stroke="#ff3b30" strokeWidth={isTacticalView ? 0.5 : 2} opacity={ringOp} />
-            <circle cx={center.x} cy={center.y} r={ringR * 0.5} fill="none"
-              stroke="#ff6600" strokeWidth={isTacticalView ? 0.3 : 1.2} opacity={ringOp * 0.7} />
-            {/* Small pulsing center dot — replaces giant X */}
-            <circle cx={center.x} cy={center.y} r={isTacticalView ? 1 : 4}
-              fill="#ff3b30" opacity={dotPulse * Math.min(p * 3, 1) * (1 - Math.max(0,(p-0.8)/0.2))} />
-            {/* Elegant floating label */}
-            <text x={center.x} y={textY} textAnchor="middle"
-              fill="#ff3b30" fontSize={isTacticalView ? 1.4 : 7.5} fontFamily="monospace" fontWeight="bold"
-              opacity={textOp} letterSpacing="0.06em">SAFEHOUSE LOST</text>
+            {/* Collapsing red rings */}
+            <circle cx={tx} cy={ty} r={r1} fill="rgba(255,59,48,0.1)"  stroke="#ff3b30" strokeWidth={isTacticalView?0.6:2.8} opacity={rOp} />
+            <circle cx={tx} cy={ty} r={r2} fill="rgba(255,80,20,0.18)" stroke="#ff6600" strokeWidth={isTacticalView?0.4:1.8} opacity={rOp*0.8} />
+            <circle cx={tx} cy={ty} r={r3} fill="rgba(255,200,50,0.5)" stroke="#ffcc00" strokeWidth={isTacticalView?0.28:1.2} opacity={rOp*flk} />
+            {/* Particle burst outward on impact */}
+            {sa.map((a,i) => (
+              <circle key={i}
+                cx={tx + maxR*phA*0.75*Math.cos(a)} cy={ty + maxR*phA*0.75*Math.sin(a)}
+                r={(2.2+(i%3)*0.6)*sc} fill={i%2===0?'#ff3b30':'#ff6600'}
+                opacity={(1-phA)*0.88} />
+            ))}
+            {/* Center core flash */}
+            <circle cx={tx} cy={ty} r={(isTacticalView?1.5:6)*Math.max(0,1-phA*1.5)} fill="#ff3b30" opacity={flk*0.85} />
+            {/* Floating SAFEHOUSE LOST label */}
+            <g transform={`translate(${tx},${textY})`} opacity={textOp}>
+              <rect x={isTacticalView?-17:-66} y={isTacticalView?-3.5:-14} width={isTacticalView?34:132} height={isTacticalView?7:24} fill="rgba(28,0,0,0.92)" stroke="#ff3b30" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
+              <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#ff3b30" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">⚠️ SAFEHOUSE LOST</text>
+            </g>
           </g>
         );
       })}
       {destroyedEnemyCities.map((item, idx) => {
         const center = getPixelCoords(item.cityId);
         if (center.x === 0) return null;
-        const p = item.progress;
-        const sc = isTacticalView ? 0.2 : 1;
-        const ringR = (isTacticalView ? 3 : 14) * Math.min(p / 0.4, 1.0);
-        const ringOp = p < 0.4 ? (1 - p / 0.4) * 0.8 : 0;
-        const textOp = p > 0.35 ? Math.min((p - 0.35) / 0.25, 1) * (1 - Math.max(0, (p - 0.75) / 0.25)) : 0;
-        const textY = center.y - (isTacticalView ? 3 : 14) - (p > 0.35 ? (p - 0.35) * (isTacticalView ? 4 : 18) : 0);
-        const dotPulse = Math.sin(p * Math.PI * 6) * 0.3 + 0.7;
+        const p   = item.progress;
+        const sc  = isTacticalView ? 0.2 : 1;
+        const tx  = center.x, ty = center.y;
+        // Phase A (0→0.5): green starburst explosion expands outward
+        // Phase B (0.4→0.8): ELIMINATED label fades in and drifts up
+        // Phase C (0.75→1): fade out
+        const phA  = Math.min(p / 0.5, 1.0);
+        const maxR = isTacticalView ? 16 : 64;
+        const eR   = maxR * phA;
+        const eOp  = Math.max(0, 1 - phA * 1.1);
+        const flk  = Math.abs(Math.sin(p * Math.PI * 7));
+        const sa   = Array.from({length:12}, (_,i) => i * Math.PI / 6);
+        const textOp = p > 0.38 ? Math.min((p-0.38)/0.25, 1) * (1 - Math.max(0,(p-0.75)/0.25)) : 0;
+        const textY  = ty - (isTacticalView?5:22) - (p > 0.38 ? (p-0.38)*(isTacticalView?8:32) : 0);
         return (
           <g key={`enemy-destroy-${idx}`}>
-            {/* Compact green shockwave ring */}
-            <circle cx={center.x} cy={center.y} r={ringR} fill="rgba(16,185,129,0.08)"
-              stroke="#10b981" strokeWidth={isTacticalView ? 0.5 : 2} opacity={ringOp} />
-            <circle cx={center.x} cy={center.y} r={ringR * 0.5} fill="none"
-              stroke="#00ff66" strokeWidth={isTacticalView ? 0.3 : 1.2} opacity={ringOp * 0.7} />
-            {/* Small pulsing center dot */}
-            <circle cx={center.x} cy={center.y} r={isTacticalView ? 1 : 4}
-              fill="#10b981" opacity={dotPulse * Math.min(p * 3, 1) * (1 - Math.max(0,(p-0.8)/0.2))} />
-            {/* Elegant floating label */}
-            <text x={center.x} y={textY} textAnchor="middle"
-              fill="#10b981" fontSize={isTacticalView ? 1.4 : 7.5} fontFamily="monospace" fontWeight="bold"
-              opacity={textOp} letterSpacing="0.06em">ENEMY NEUTRALIZED</text>
+            {/* Expanding green blast rings */}
+            <circle cx={tx} cy={ty} r={eR}       fill="rgba(16,185,129,0.12)" stroke="#10b981" strokeWidth={isTacticalView?0.6:2.8} opacity={eOp} />
+            <circle cx={tx} cy={ty} r={eR*0.6}   fill="rgba(0,255,102,0.18)" stroke="#00ff66" strokeWidth={isTacticalView?0.4:1.8} opacity={eOp*0.85} />
+            <circle cx={tx} cy={ty} r={eR*0.28}  fill="rgba(180,255,220,0.55)" stroke="#a7f3d0" strokeWidth={isTacticalView?0.28:1.2} opacity={eOp*flk} />
+            {/* 12-ray starburst */}
+            {sa.map((a,i) => (
+              <g key={i}>
+                <line x1={tx+eR*0.22*Math.cos(a)} y1={ty+eR*0.22*Math.sin(a)}
+                      x2={tx+eR*0.9*Math.cos(a)}  y2={ty+eR*0.9*Math.sin(a)}
+                  stroke={i%3===0?'#10b981':i%3===1?'#34d399':'#00ff66'}
+                  strokeWidth={(1.6+(i%2)*0.8)*sc} strokeLinecap="round" opacity={eOp*0.9} />
+                <circle cx={tx+eR*0.88*Math.cos(a)} cy={ty+eR*0.88*Math.sin(a)}
+                  r={(2+(i%3)*0.5)*sc} fill={i%2===0?'#10b981':'#a7f3d0'} opacity={eOp*0.88} />
+              </g>
+            ))}
+            {/* Core white flash */}
+            <circle cx={tx} cy={ty} r={(isTacticalView?2:8)*Math.max(0,1-phA*1.6)} fill="#ffffff" opacity={flk*0.8} />
+            {/* Floating ELIMINATED label */}
+            <g transform={`translate(${tx},${textY})`} opacity={textOp}>
+              <rect x={isTacticalView?-15:-60} y={isTacticalView?-3.5:-14} width={isTacticalView?30:120} height={isTacticalView?7:24} fill="rgba(0,20,10,0.92)" stroke="#10b981" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
+              <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#10b981" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">✓ ELIMINATED</text>
+            </g>
           </g>
         );
       })}
@@ -1399,7 +2199,7 @@ export default function MapView({
     : session.safehouses.some(s => s.cityNode === selectedCityNode && s.ownerFaction === 'DEFENDER');
 
   return (
-    <div className={`map-container relative w-full h-full overflow-hidden ${isShaking ? 'shake-effect' : ''}`}>
+    <div className={`map-container relative w-full h-full overflow-hidden ${isShaking ? `shake-${shakeIntensity}` : ''}`}>
       <style>{`
         @keyframes flowConnection {
           to {
@@ -2010,8 +2810,9 @@ export default function MapView({
               const hasExposedNormalSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered && !s.secure);
               const hasExposedSecureSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered && s.secure);
               
+              const isBuildingHere = buildingSafehouses.some(b => b.cityId === cityId);
               const isSecureSafehouse = hasHostileSafehouse && session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.secure);
-              const showSafehouseIcon = isAttacker ? hasHostileSafehouse : hasDefenderSafehouse;
+              const showSafehouseIcon = !isBuildingHere && (isAttacker ? hasHostileSafehouse : hasDefenderSafehouse);
               const shColorT = isAttacker ? (isSecureSafehouse ? '#ffcc00' : '#ff3b30') : '#00f0ff';
               const showExposedNormalIcon = !isAttacker && hasExposedNormalSH;
               const showExposedSecureIcon = !isAttacker && hasExposedSecureSH;
@@ -2118,8 +2919,10 @@ export default function MapView({
               const cityDronesCount = (isAttacker && !showGodMode) ? 0 : (session.drones || []).filter(d => {
                 const plannedBase = localDroneDeployments[d.id];
                 if (plannedBase) return plannedBase === cityId;
-                return d.currentCity === cityId;
+                return d.currentCity === cityId && d.status !== 'SHOT_DOWN';
               }).length;
+
+              const isDroneDefenseActive = session.activeDroneDefenseCity && session.activeDroneDefenseCity.equalsIgnoreCase(cityId);
 
               return (
                 <div
@@ -2151,50 +2954,56 @@ export default function MapView({
                       <div className="expose-glow expose-glow--tactical" />
                     )}
                     {isSweptZone && <div className="city-marker-sweep-ring"></div>}
+                    {isDroneDefenseActive && <div className="city-marker-drone-defense-ring"></div>}
                     {isSuspectHere && <div className="suspect-radar-ring"></div>}
                     {struckCities.includes(cityId.toLowerCase()) && (
                       <div className="struck-glow struck-glow--tactical" />
                     )}
-                    <div className={`city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''}`}></div>
+                    <div className={`city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''} ${isDroneDefenseActive ? 'drone-defense-alert' : ''}`}></div>
                     <div className={`city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}`}></div>
-                    {showSafehouseIcon && (
-                      <div 
-                        className={`city-marker-safehouse ${isNewSafehouse ? 'safehouse-drop-bounce' : ''}`} 
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <SafehouseIcon
-                          size={11}
-                          color={shColorT}
-                          secure={isSecureSafehouse}
-                          hostile={isAttacker && hasHostileSafehouse}
-                        />
-                      </div>
-                    )}
-                    {showExposedNormalIcon && (
-                      <div className={`city-marker-exposed-hostile ${isNewExposed ? 'safehouse-reveal-bounce' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                        <SafehouseIcon size={9} color="#f59e0b" />
-                        <span style={{ fontSize: '8px' }}>👁️</span>
-                      </div>
-                    )}
-                    {showExposedSecureIcon && (
-                      <div className={`city-marker-exposed-secure ${isNewExposed ? 'safehouse-reveal-bounce' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                        <SafehouseIcon size={9} color="#ffcc00" secure />
-                        <span style={{ fontSize: '8px' }}>👁️</span>
+                    {/* Structured Top Asset Toolbar — Flex container prevents icon collisions */}
+                    {(agentsCount > 0 || showSafehouseIcon || showExposedNormalIcon || showExposedSecureIcon || teamsCount > 0) && (
+                      <div className="city-marker-asset-bar">
+                        {agentsCount > 0 && (
+                          <div className="asset-chip asset-chip--agent" title={`${agentsCount} Field Agent(s)`}>
+                            <AgentIcon size={11} color="#00f0ff" />
+                            {agentsCount > 1 && <span className="chip-count">{agentsCount}</span>}
+                          </div>
+                        )}
+
+                        {showSafehouseIcon && (
+                          <div 
+                            className={`asset-chip asset-chip--safehouse ${isNewSafehouse ? 'safehouse-drop-bounce' : ''}`}
+                            title={isSecureSafehouse ? 'Secure Safehouse' : 'Standard Safehouse'}
+                          >
+                            <SafehouseIcon
+                              size={11}
+                              color={shColorT}
+                              secure={isSecureSafehouse}
+                              hostile={isAttacker && hasHostileSafehouse}
+                            />
+                          </div>
+                        )}
+
+                        {(showExposedNormalIcon || showExposedSecureIcon) && (
+                          <div 
+                            className={`asset-chip asset-chip--exposed ${isNewExposed ? 'safehouse-reveal-bounce' : ''}`}
+                            title="Exposed Hostile Safehouse"
+                          >
+                            <SafehouseIcon size={10} color={showExposedSecureIcon ? '#ffcc00' : '#f59e0b'} secure={showExposedSecureIcon} />
+                            <span className="chip-eye">👁️</span>
+                          </div>
+                        )}
+
+                        {teamsCount > 0 && (
+                          <div className="asset-chip asset-chip--team" title={`${teamsCount} Tactical Team(s)`}>
+                            <CombatTeamIcon size={11} color="#ff3b30" />
+                            {teamsCount > 1 && <span className="chip-count">{teamsCount}</span>}
+                          </div>
+                        )}
                       </div>
                     )}
                     {isSuspectHere && <div className="city-marker-badge suspect pulse-badge" style={{ background: '#ff3b30', boxShadow: '0 0 15px #ff3b30', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', border: '2px solid white', borderRadius: '50%', width: '22px', height: '22px', transform: 'translate(12px, -24px)', zIndex: 1000 }}>🎯</div>}
-                    {agentsCount > 0 && (
-                      <div className="city-marker-badge agents-icon">
-                        <AgentIcon size={11} color="#00f0ff" />
-                        {agentsCount > 1 && <span className="badge-count">{agentsCount}</span>}
-                      </div>
-                    )}
-                    {teamsCount > 0 && (
-                      <div className="city-marker-badge teams-icon">
-                        <CombatTeamIcon size={11} color="#ff3b30" />
-                        {teamsCount > 1 && <span className="badge-count">{teamsCount}</span>}
-                      </div>
-                    )}
                     {combinedTech.length > 0 && (
                       <div className="city-marker-tech" style={{ display: 'flex', gap: '2px' }}>
                         {combinedTech}
@@ -2249,6 +3058,7 @@ export default function MapView({
                      )}
                     {hasIdleAgent && <div className="city-marker-idle">⚠</div>}
                     {isSweptZone && <div className="city-marker-sweep-label">⚠ SWEEP</div>}
+                    {isDroneDefenseActive && <div className="city-marker-drone-defense-label">🛡️ AIR DEFENSE ACTIVE</div>}
                     <div className={`city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''} ${nodeIdx % 2 === 0 ? 'label-top' : 'label-bottom'}`}>{cityId.replace('_', ' ').toUpperCase()}</div>
                   </div>
                 </div>
@@ -2374,6 +3184,7 @@ export default function MapView({
               });
             }}
             onBuyDrone={onBuyDrone}
+            onServiceDrone={onServiceDrone}
           />
         )
       )}

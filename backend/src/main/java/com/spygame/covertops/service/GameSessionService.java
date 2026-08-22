@@ -286,6 +286,79 @@ public class GameSessionService {
         session = combatResolutionService.resolveCovertActions(session, covertActions, currentStep, config);
         log.info("[TIMING] resolveCovertActions took: {} ms", System.currentTimeMillis() - combatStart);
 
+        // Rotate Drone Base Maintenance: promote advance warning to active maintenance for current turn
+        session.setMaintenanceDroneBase(session.getNextTurnMaintenanceDroneBase());
+        session.setNextTurnMaintenanceDroneBase(null);
+
+        // Schedule new Drone Base Maintenance advance warning ~once every 7 turns (when currentTurn % 7 == 0)
+        if (currentTurn % 7 == 0 && session.getDroneBases() != null && !session.getDroneBases().isEmpty()) {
+            List<String> activeBases = new java.util.ArrayList<>(session.getDroneBases());
+            final String lastMaintBase = session.getMaintenanceDroneBase();
+            if (activeBases.size() > 1 && lastMaintBase != null) {
+                activeBases.removeIf(b -> b.equalsIgnoreCase(lastMaintBase));
+            }
+            String chosenBase = activeBases.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(activeBases.size()));
+            session.setNextTurnMaintenanceDroneBase(chosenBase);
+            session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "ADVANCE_WARNING",
+                    "TECHNICAL ADVISORY: Drone Base in " + chosenBase.toUpperCase() + " is scheduled for 24h technical maintenance in Turn " + (currentTurn + 1) + ". All drone launches from " + chosenBase.toUpperCase() + " will be suspended next turn."));
+        }
+
+        if (session.getMaintenanceDroneBase() != null) {
+            session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_MAINTENANCE",
+                    "MAINTENANCE ACTIVE: Drone Base in " + session.getMaintenanceDroneBase().toUpperCase() + " is currently offline for scheduled 24h technical maintenance. No drone operations could originate from this base this turn."));
+        }
+
+        // Rotate Drone Defense Activated Event (~1 in 7 turns, 1 turn in 1 enemy city)
+        session.setActiveDroneDefenseCity(null);
+        if (currentTurn % 7 == 3 && config != null && config.getNodes() != null) {
+            List<String> hostileCities = config.getNodes().stream()
+                    .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                    .map(Node::getId)
+                    .collect(java.util.stream.Collectors.toList());
+            if (!hostileCities.isEmpty()) {
+                // Monitor city heat: prioritize hostile cities with elevated heat levels (>30%)
+                List<String> highHeatHostileCities = new java.util.ArrayList<>();
+                if (session.getCityHeat() != null) {
+                    for (Map.Entry<String, Integer> entry : session.getCityHeat().entrySet()) {
+                        if (entry.getValue() > 30 && hostileCities.stream().anyMatch(c -> c.equalsIgnoreCase(entry.getKey()))) {
+                            highHeatHostileCities.add(entry.getKey());
+                        }
+                    }
+                }
+                List<String> candidateCities = !highHeatHostileCities.isEmpty() ? highHeatHostileCities : hostileCities;
+                String chosenDefenseCity = candidateCities.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(candidateCities.size()));
+                session.setActiveDroneDefenseCity(chosenDefenseCity);
+                int cityHeat = session.getCityHeat() != null ? session.getCityHeat().getOrDefault(chosenDefenseCity.toLowerCase(), 0) : 0;
+                session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_DEFENSE_ACTIVATED",
+                        "🚨 DRONE DEFENSE ACTIVATED: Hostile SAM air defense batteries activated in " + chosenDefenseCity.toUpperCase() +
+                        " for 24h (Current Heat: " + cityHeat + "%). Repeated drone strikes trigger +25% Heat increase (Capped Interdiction: 10% Shot Down / 15% Damaged).",
+                        chosenDefenseCity,
+                        "SIGINT Advisory"));
+            }
+        }
+
+        // 3.4. Progress Drone Servicing Cooldowns (2-turn technical repair)
+        if (session.getDrones() != null) {
+            for (GameSession.Drone drone : session.getDrones()) {
+                if ("SERVICING".equalsIgnoreCase(drone.getStatus())) {
+                    int remaining = drone.getServiceCooldown() - 1;
+                    if (remaining <= 0) {
+                        drone.setStatus("ACTIVE");
+                        drone.setServiceCooldown(0);
+                        session.getDiscoveredClues().add(new GameSession.Clue(
+                                currentTurn,
+                                "DRONE_SERVICED",
+                                "🔧 REPAIR COMPLETE: Drone #" + drone.getId() + " servicing complete. Aircraft is back online and ready for deployment.",
+                                drone.getCurrentCity(),
+                                "Base Technical Operations"
+                        ));
+                    } else {
+                        drone.setServiceCooldown(remaining);
+                    }
+                }
+            }
+        }
+
         // 3.5. Resolve Drone Operations
         if (session.getDrones() != null && !session.getDrones().isEmpty()) {
             Random rand = new Random();
@@ -297,32 +370,50 @@ public class GameSessionService {
 
                 int droneId = drone.getId();
                 try {
-                    // 1. Check if housing Drone Base is damaged / inactive
                     String baseCity = drone.getCurrentCity();
+
+                    // Check if housing Drone Base is under 24h scheduled maintenance
+                    if (baseCity != null && baseCity.equalsIgnoreCase(session.getMaintenanceDroneBase())) {
+                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_MAINTENANCE",
+                                "Drone #" + droneId + " operation " + actionType + " in " + targetCity.toUpperCase() +
+                                " CANCELLED: Drone Base in " + baseCity.toUpperCase() + " is offline for scheduled technical maintenance."));
+                        drone.setAssignedActionType(null);
+                        drone.setAssignedTargetCity(null);
+                        continue;
+                    }
+
+                    // 1. Check if housing Drone Base is damaged / inactive
                     if (baseCity != null && session.getDroneBaseCooldowns() != null) {
                         int cooldown = session.getDroneBaseCooldowns().getOrDefault(baseCity.toLowerCase(), 0);
                         if (cooldown > 0) {
                             session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
                                     "Drone #" + droneId + " operation " + actionType + " in " + targetCity.toUpperCase() +
                                     " CANCELLED: Drone Base in " + baseCity.toUpperCase() + " is damaged and offline (" + cooldown + " turn(s) remaining)."));
+                            drone.setAssignedActionType(null);
+                            drone.setAssignedTargetCity(null);
                             continue;
                         }
                     }
 
                     // 1.5. Hop range validation
                     int requiredHops = calculateHops(baseCity, targetCity, config);
-                    int maxAllowedHops = drone.getMaxHops() > 0 ? drone.getMaxHops() : 1;
+                    int maxAllowedHops = (drone.getId() == 2 || "2-HOP".equalsIgnoreCase(drone.getType())) ? 2 : (drone.getMaxHops() > 0 ? drone.getMaxHops() : 1);
                     if (requiredHops > maxAllowedHops) {
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
-                                "Drone #" + droneId + " (" + (drone.getType() != null ? drone.getType() : "1-HOP") + ") operation in " + targetCity.toUpperCase() +
-                                " CANCELLED: Target is out of operational range (" + requiredHops + " hop(s) required from " + baseCity.toUpperCase() + ", max " + maxAllowedHops + " hop(s) allowed)."));
+                                "Drone #" + droneId + " operation " + actionType + " in " + targetCity.toUpperCase() +
+                                " CANCELLED: Target is out of operational range (" + requiredHops + " hops required, max " + maxAllowedHops + " hop(s) allowed)."));
+                        drone.setAssignedActionType(null);
+                        drone.setAssignedTargetCity(null);
                         continue;
                     }
 
-                    int opCost = "RECON".equals(actionType) ? 50000 : 100000;
+                    // 2. Deduct operation cost
+                    int opCost = "ATTACK".equalsIgnoreCase(actionType) ? 50000 : 15000;
                     if (session.getBudget() < opCost) {
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
                                 "Drone #" + droneId + " operation " + actionType + " in " + targetCity + " cancelled: Insufficient budget."));
+                        drone.setAssignedActionType(null);
+                        drone.setAssignedTargetCity(null);
                         continue;
                     }
                     session.setBudget(session.getBudget() - opCost);
@@ -335,18 +426,43 @@ public class GameSessionService {
 
                     boolean isCityUnderSweep = (session.getHostilePatrolCities() != null && session.getHostilePatrolCities().stream().anyMatch(c -> c.equalsIgnoreCase(targetCity)))
                             || (session.getSurprisePatrolCities() != null && session.getSurprisePatrolCities().stream().anyMatch(c -> c.equalsIgnoreCase(targetCity)));
+                    boolean isDroneDefenseActive = (targetCity != null && targetCity.equalsIgnoreCase(session.getActiveDroneDefenseCity()));
 
-                    int shotDownChance = isCityUnderSweep ? 30 : (isEnemyNode ? 10 : 0);
-                    boolean shotDown = rand.nextInt(100) < shotDownChance;
+                    // Interdiction risk caps: Max 10% shot down (lost) and 15% damaged during active drone defense
+                    int shotDownChance = isEnemyNode ? (isDroneDefenseActive ? 10 : (isCityUnderSweep ? 10 : 5)) : 0;
+                    int damagedChance  = isEnemyNode ? (isDroneDefenseActive ? 15 : (isCityUnderSweep ? 10 : 5)) : 0;
+                    int totalRisk = shotDownChance + damagedChance;
+                    int roll = rand.nextInt(100);
 
-                    if (shotDown) {
+                    // Increase heat if repeated drone strikes in active drone defense city
+                    if (isDroneDefenseActive) {
+                        int currentHeat = session.getCityHeat() != null ? session.getCityHeat().getOrDefault(targetCity.toLowerCase(), 0) : 0;
+                        int newHeat = Math.min(100, currentHeat + 25);
+                        if (session.getCityHeat() != null) {
+                            session.getCityHeat().put(targetCity.toLowerCase(), newHeat);
+                        }
+                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_DEFENSE_STRIKE",
+                                "🚨 REPEATED DRONE STRIKE IN DEFENDED AIRSPACE: Active SAM defenses in " + targetCity.toUpperCase() +
+                                " tracked the drone flight path! City Heat increased to " + newHeat + "% (+25% increase)."));
+                    }
+
+                    if (roll < shotDownChance) {
                         drone.setStatus("SHOT_DOWN");
                         drone.setCurrentCity(targetCity);
                         drone.setAssignedActionType(null);
                         drone.setAssignedTargetCity(null);
-                        String defenseType = isCityUnderSweep ? "heightened security sweep air defenses" : "hostile air defenses";
+                        String defenseType = isDroneDefenseActive ? "active SAM air defense battery" : (isCityUnderSweep ? "heightened security sweep air defenses" : "hostile air defenses");
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
-                                "DRONE DOWN: Drone #" + droneId + " was SHOT DOWN by " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + shotDownChance + "% interdiction risk)"));
+                                "DRONE DOWN: Drone #" + droneId + " was SHOT DOWN by " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + shotDownChance + "% shot down risk, " + totalRisk + "% total interdiction risk)"));
+                        continue;
+                    } else if (roll < totalRisk) {
+                        drone.setStatus("DAMAGED");
+                        drone.setServiceCooldown(0);
+                        drone.setAssignedActionType(null);
+                        drone.setAssignedTargetCity(null);
+                        String defenseType = isDroneDefenseActive ? "active SAM anti-air missile fire" : (isCityUnderSweep ? "heightened security sweep AA fire" : "hostile anti-air fire");
+                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_DAMAGED",
+                                "DRONE DAMAGED: Drone #" + droneId + " sustained anti-aircraft damage from " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + damagedChance + "% damage risk) Requires $10K technical servicing (2-turn repair)."));
                         continue;
                     }
 
@@ -359,14 +475,11 @@ public class GameSessionService {
                     boolean isEnhancedRecon = hasSatelliteView || hasAgentInCity;
 
                     if ("RECON".equals(actionType)) {
-                        // Standard Drone Recon cannot uncover Secure safehouses.
-                        // However, if Satellite View or a Ground Agent is present in the target city, Drone Recon CAN uncover Secure safehouses!
                         List<GameSession.Safehouse> targetSHs = session.getSafehouses().stream()
                                 .filter(s -> s.getCityNode().equalsIgnoreCase(targetCity) && "HOSTILE".equals(s.getOwnerFaction()) && !s.isUncovered())
                                 .filter(s -> isEnhancedRecon || !s.isSecure())
                                 .collect(Collectors.toList());
 
-                        // Enhanced Recon increases efficiency (guarantees uncovering at least 2 safehouses or all)
                         int countToUncover = isEnhancedRecon
                                 ? Math.min(targetSHs.size(), 2 + rand.nextInt(3))
                                 : Math.min(targetSHs.size(), rand.nextInt(4));
@@ -417,7 +530,6 @@ public class GameSessionService {
                                 if (!activeAttackersInSH.isEmpty()) {
                                     boolean success = false;
                                     if (isEnhancedRecon) {
-                                        // Satellite View or Ground Agent guidance boosts strike accuracy to 90%
                                         success = rand.nextInt(100) < 90;
                                     } else if (sh.isSecure()) {
                                         success = rand.nextInt(100) < 50;
@@ -461,8 +573,13 @@ public class GameSessionService {
                         }
                     }
 
+                    // Clear drone action directive so it DOES NOT automatically repeat next turn
+                    drone.setAssignedActionType(null);
+                    drone.setAssignedTargetCity(null);
                 } catch (Exception e) {
-                    System.err.println("Failed to resolve drone operation: " + e.getMessage());
+                    log.error("Failed drone operation for drone {}: {}", drone.getId(), e.getMessage());
+                    drone.setAssignedActionType(null);
+                    drone.setAssignedTargetCity(null);
                 }
             }
         }
@@ -535,6 +652,7 @@ public class GameSessionService {
             session.setTurnDeadline(java.time.LocalDateTime.now().plusMinutes(session.getTurnTimerDurationMinutes()));
         }
 
+        com.spygame.covertops.util.SafehouseUtils.ensureAllSafehousesHavePlaces(session, config);
         long dbSaveStart = System.currentTimeMillis();
         GameSession saved = repository.save(session);
         log.info("[TIMING] Final DB save took: {} ms", System.currentTimeMillis() - dbSaveStart);

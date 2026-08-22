@@ -21,7 +21,8 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
         report.combatOps?.length > 0 || 
         report.permissionAlerts?.length > 0 || 
         report.handoverAlerts?.length > 0 ||
-        report.strikeEvents?.length > 0
+        report.strikeEvents?.length > 0 ||
+        report.droneDefenseAlerts?.length > 0
       );
 
   if (!hasContent) return null;
@@ -165,6 +166,68 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
             </div>
           )}
 
+          {/* Drone Defense Activated Events */}
+          {report.droneDefenseAlerts?.length > 0 && (
+            <div className="report-card" style={{
+              border: '1px solid rgba(239, 68, 68, 0.45)',
+              background: 'rgba(239, 68, 68, 0.08)',
+              padding: '14px',
+              borderRadius: '6px',
+              boxShadow: '0 0 16px rgba(239, 68, 68, 0.25)',
+              animationDelay: '130ms'
+            }}>
+              <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                <Siren size={14} /> 🚨 DRONE DEFENSE ACTIVATED
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: '#fca5a5', lineHeight: '1.6', fontWeight: 'bold' }}>
+                {report.droneDefenseAlerts.map((clue, idx) => (
+                  <li key={idx}>{clue.clueText}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Drone Base Maintenance Alerts & Advance Warnings */}
+          {report.droneMaintenanceAlerts?.length > 0 && (
+            <div className="report-card" style={{
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              background: 'rgba(245, 158, 11, 0.06)',
+              padding: '14px',
+              borderRadius: '6px',
+              animationDelay: '150ms'
+            }}>
+              <span style={{ color: '#f59e0b', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <Activity size={14} /> 🛠️ DRONE BASE MAINTENANCE ADVISORY
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: '#fbbf24', lineHeight: '1.6', fontWeight: '500' }}>
+                {report.droneMaintenanceAlerts.map((clue, idx) => (
+                  <li key={idx}>{clue.clueText}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Drone Serviced / Repair Completed */}
+          {report.droneServicedAlerts?.length > 0 && (
+            <div className="report-card" style={{
+              border: '1px solid rgba(0, 255, 102, 0.5)',
+              background: 'rgba(0, 255, 102, 0.08)',
+              padding: '14px',
+              borderRadius: '6px',
+              boxShadow: '0 0 16px rgba(0, 255, 102, 0.2)',
+              animationDelay: '160ms'
+            }}>
+              <span style={{ color: '#00ff66', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                <Activity size={14} /> 🛠️ DRONE SERVICING & REPAIR COMPLETE
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: '#66ffb2', lineHeight: '1.6', fontWeight: 'bold' }}>
+                {report.droneServicedAlerts.map((clue, idx) => (
+                  <li key={idx}>{clue.clueText}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Asset Losses (from sweep loss clues) */}
           {!isAttacker && report.sweepLosses?.length > 0 && (
             <div className="report-card" style={{
@@ -245,9 +308,9 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
                 {report.newExposedHostileSH.map(s => (
                   <li key={s.cityNode}>
                     {isAttacker ? (
-                      <span>Your safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>{s.safehouseCode || '???'}</span> — evasion protocol failed.</span>
+                      <span>Your safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>#{s.safehouseCode || '???'}{s.subLocality ? ` - ${s.subLocality}` : ''}</span> — evasion protocol failed.</span>
                     ) : (
-                      <span>Hostile safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>{s.safehouseCode || '???'}</span>. Raid to dismantle.</span>
+                      <span>Hostile safehouse in <strong style={{ color: '#ffcc00' }}>{s.cityNode.toUpperCase()}</strong> uncovered. Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace' }}>#{s.safehouseCode || '???'}{s.subLocality ? ` - ${s.subLocality}` : ''}</span>. Raid to dismantle.</span>
                     )}
                   </li>
                 ))}
@@ -335,7 +398,7 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
                           <SafehouseIcon size={11} color={isAttacker ? '#ff7070' : 'var(--cyan)'} secure={s.secure} />
                           {s.secure ? 'Secure' : 'Standard'} safehouse established in{' '}
                           <strong style={{ color: isAttacker ? '#ff7070' : 'var(--cyan)' }}>{s.cityNode.toUpperCase()}</strong>.
-                          Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace', fontWeight: 'bold' }}>#{s.safehouseCode}</span>
+                          Code: <span style={{ color: 'var(--cyan)', fontFamily: 'monospace', fontWeight: 'bold' }}>#{s.safehouseCode}{s.subLocality ? ` - ${s.subLocality}` : ''}</span>
                         </span>
                       ) : (
                         <span className="text-threat">

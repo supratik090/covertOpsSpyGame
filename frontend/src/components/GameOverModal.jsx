@@ -99,7 +99,7 @@ function TimelineCard({ step, stepIdx, session, visible }) {
           ) : (
             showLocation && (
               <span style={{ padding: '2px 8px', borderRadius: '3px', fontSize: '9px', fontFamily: 'monospace', fontWeight: 700, color: '#ff7070', background: 'rgba(255,59,48,0.08)', border: '1px solid rgba(255,59,48,0.25)', letterSpacing: '0.04em' }}>
-                📍 {step.suspectLocation.replace(/_/g, ' ').toUpperCase()}{targetSafehouse ? ` [#${targetSafehouse.safehouseCode}]` : ''}
+                📍 {step.suspectLocation.replace(/_/g, ' ').toUpperCase()}{targetSafehouse ? ` [#${targetSafehouse.safehouseCode}${targetSafehouse.subLocality ? ` - ${targetSafehouse.subLocality}` : ''}]` : ''}
               </span>
             )
           )}
@@ -149,7 +149,7 @@ function TimelineCard({ step, stepIdx, session, visible }) {
 }
 
 /* ─── Main modal ─────────────────────────────────────────────────────────── */
-export default function GameOverModal({ session, onConfirm }) {
+export default function GameOverModal({ session, onConfirm, lastTurnReport }) {
   const isFullSuccess = session?.status === 'SUCCESS';
   const isPartialSuccess = session?.status === 'PARTIAL_DEFENDER_VICTORY';
   const isDefenderWin = isFullSuccess || isPartialSuccess;
@@ -172,6 +172,13 @@ export default function GameOverModal({ session, onConfirm }) {
     ? 'Target strike was executed in friendly territory, but all hostile threat agents were subsequently neutralized by Defender forces.'
     : 'The target attack was executed and hostile operatives exfiltrated. Intelligence gaps allowed the cell to complete their mission.';
 
+  const finalTurnClues = (session?.discoveredClues || []).filter(c => 
+    c.turnDiscovered === session?.currentTurn && 
+    (c.source === 'TACTICAL_FORCE' || c.source === 'DRONE_ATTACK' || c.source === 'DRONE_RECON' || c.source === 'SAFEHOUSE_ATTACK' || c.source === 'STRIKE_EXECUTED' || c.source === 'SECURITY_SWEEP_ALERT' || c.source === 'SECURITY_SWEEP_LOSS' || c.source === 'BORDER_INCIDENT' || c.source === 'COMMAND_CENTER' || c.clueText?.toLowerCase().includes('neutralized') || c.clueText?.toLowerCase().includes('attacked') || c.clueText?.toLowerCase().includes('uncovered') || c.clueText?.toLowerCase().includes('shot down'))
+  );
+
+  const hasCombatReport = lastTurnReport?.combatOps?.length > 0 || lastTurnReport?.strikeEvents?.length > 0 || lastTurnReport?.sweepLosses?.length > 0 || finalTurnClues.length > 0;
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
@@ -189,14 +196,15 @@ export default function GameOverModal({ session, onConfirm }) {
           border: `1px solid ${isDefenderWin ? 'rgba(0,240,255,0.3)' : 'rgba(255,59,48,0.3)'}`,
           borderRadius: '16px',
           padding: '40px 36px',
-          maxWidth: '540px',
+          maxWidth: '560px',
           width: '100%',
+          maxHeight: '88vh',
+          overflowY: 'auto',
           boxShadow: isDefenderWin
             ? '0 0 80px rgba(0,240,255,0.12), inset 0 0 40px rgba(0,240,255,0.05)'
             : '0 0 80px rgba(255,59,48,0.15), inset 0 0 40px rgba(255,59,48,0.05)',
           textAlign: 'center',
           position: 'relative',
-          overflow: 'hidden',
         }}
       >
         <div style={{
@@ -260,10 +268,57 @@ export default function GameOverModal({ session, onConfirm }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '28px' }}
+            style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '20px' }}
           >
             {subtitleText}
           </motion.p>
+
+          {/* Final Turn Combat & Tactical Resolution Report */}
+          {hasCombatReport && (
+            <div style={{
+              margin: '0 auto 20px',
+              maxWidth: '460px',
+              padding: '14px 16px',
+              borderRadius: '8px',
+              background: 'rgba(6, 12, 28, 0.95)',
+              border: `1px solid ${isDefenderWin ? 'rgba(0, 240, 255, 0.4)' : 'rgba(255, 59, 48, 0.4)'}`,
+              boxShadow: '0 0 20px rgba(0, 0, 0, 0.5)',
+              textAlign: 'left'
+            }}>
+              <div style={{
+                fontSize: '10px',
+                fontFamily: 'monospace',
+                fontWeight: 900,
+                color: isDefenderWin ? '#00f0ff' : '#ff3b30',
+                letterSpacing: '0.08em',
+                marginBottom: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                paddingBottom: '6px'
+              }}>
+                <Target size={14} /> ⚔️ FINAL TURN RESOLUTION REPORT (TURN {session?.currentTurn || 1})
+              </div>
+
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '11.5px', fontFamily: 'monospace', color: 'var(--text-primary)', lineHeight: '1.6' }}>
+                {lastTurnReport?.strikeEvents?.map((c, i) => (
+                  <li key={`strike-${i}`} style={{ color: '#ff3b30', fontWeight: 'bold' }}>💥 {c.clueText}</li>
+                ))}
+                {lastTurnReport?.combatOps?.map((c, i) => (
+                  <li key={`combat-${i}`} style={{ color: '#ff6b60' }}>🎯 {c.clueText}</li>
+                ))}
+                {lastTurnReport?.newExposedHostileSH?.map((sh, i) => (
+                  <li key={`uncover-${i}`} style={{ color: '#00ff66' }}>🔍 Discovered hostile safehouse #{sh.safehouseCode}{sh.subLocality ? ` - ${sh.subLocality}` : ''} in {sh.cityNode.toUpperCase()}</li>
+                ))}
+                {(!lastTurnReport?.combatOps || lastTurnReport.combatOps.length === 0) && finalTurnClues.map((c, i) => (
+                  <li key={`clue-${i}`} style={{ color: c.clueText?.includes('SHOT DOWN') || c.clueText?.includes('DESTROYED') ? '#ff3b30' : '#00f0ff' }}>
+                    • {c.clueText}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Attacker team status list */}
           {session?.aiAttackers && session.aiAttackers.length > 0 && (

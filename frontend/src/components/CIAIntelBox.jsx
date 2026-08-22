@@ -231,6 +231,11 @@ export default function CIAIntelBox({
 
   return (
     <div className="cia-intel-box cyber-panel animate-fade-in">
+      {/* Mobile Bottom Sheet Pull Bar */}
+      <div className="mobile-bottom-sheet-handle">
+        <div className="mobile-handle-bar"></div>
+      </div>
+
       <div className="cia-box-header">
         <div className="cia-glow-indicator animate-ping"></div>
         <h3 className="text-cyber">TACTICAL REPORT</h3>
@@ -282,7 +287,7 @@ export default function CIAIntelBox({
                   friendlySafehouses.map((s, idx) => (
                     <span key={idx} className="cia-tag cyan font-mono" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <SafehouseIcon size={10} color="#00f0ff" secure={s.secure} />
-                      #{s.safehouseCode}
+                      #{s.safehouseCode}{s.subLocality ? ` - ${s.subLocality}` : ''}
                     </span>
                   ))
                 )}
@@ -297,7 +302,7 @@ export default function CIAIntelBox({
                   hostileSafehouses.map((s, idx) => (
                     <span key={idx} className="cia-tag red font-mono" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <ExposedSafehouseIcon size={10} secure={s.secure} />
-                      #{s.safehouseCode} (EXPOSED)
+                      #{s.safehouseCode}{s.subLocality ? ` - ${s.subLocality}` : ''} (EXPOSED)
                     </span>
                   ))
                 )}
@@ -672,12 +677,26 @@ export default function CIAIntelBox({
                     return `Drone #${id}`;
                   };
 
-                  if (localDrones.length === 0 && reserveDrones.length === 0) {
-                    return <div className="text-dim font-mono text-[10px] py-1">No drones deployed</div>;
-                  }
+                  const isCurrentUnderMaint = session?.maintenanceDroneBase === cityId;
+                  const isNextUnderMaint = session?.nextTurnMaintenanceDroneBase === cityId;
 
                   return (
                     <div className="cia-list">
+                      {isCurrentUnderMaint && (
+                        <div className="p-2 mb-2 rounded border font-mono text-[9.5px] font-bold bg-[rgba(245,158,11,0.12)] border-[rgba(245,158,11,0.5)] text-[#f59e0b] flex items-center gap-1.5">
+                          <span>🛠️ DRONE BASE UNDER 24H MAINTENANCE — LAUNCHES SUSPENDED THIS TURN</span>
+                        </div>
+                      )}
+                      {isNextUnderMaint && (
+                        <div className="p-1.5 mb-2 rounded border font-mono text-[9px] bg-[rgba(245,158,11,0.06)] border-[rgba(245,158,11,0.3)] text-[#fbbf24] flex items-center gap-1.5">
+                          <span>⚠️ ADVANCE WARNING: 24H TECHNICAL MAINTENANCE SCHEDULED FOR NEXT TURN</span>
+                        </div>
+                      )}
+                      {localDrones.length === 0 && (
+                        <div className="text-dim font-mono text-[9.5px] py-1.5 px-2 mb-2 rounded border border-dashed border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.2)]">
+                          No drones currently stationed at this base
+                        </div>
+                      )}
                       {localDrones.map(drone => {
                         const plannedOp = localDroneOperations.find(op => op.droneId === drone.id);
                         const droneName = getDroneName(drone.id);
@@ -696,12 +715,38 @@ export default function CIAIntelBox({
                                 </span>
                               </span>
                               <span className="label font-mono text-[9px]">
-                                {plannedOp ? `${plannedOp.actionType} -> ${plannedOp.targetCity.toUpperCase()}` : (drone.status === 'ACTIVE' ? 'READY' : drone.status)}
+                                {plannedOp ? `${plannedOp.actionType} -> ${plannedOp.targetCity.toUpperCase()}` : (drone.status === 'ACTIVE' ? 'READY' : drone.status === 'DAMAGED' ? '⚠️ DAMAGED' : drone.status === 'SERVICING' ? `🔧 REPAIRING (${drone.serviceCooldown}T)` : drone.status)}
                               </span>
                             </div>
 
                             {activeDroneId === drone.id && (
                               <div className="cia-agent-controls animate-fade-in">
+                                {drone.status === 'DAMAGED' && (
+                                  <div className="p-2 bg-[rgba(239,68,68,0.08)] border border-[rgba(239,68,68,0.3)] rounded mb-2 flex flex-col gap-1.5">
+                                    <span className="text-red-400 font-mono text-[9px] font-bold">⚠️ CRITICAL DAMAGE SUSTAINED</span>
+                                    <button
+                                      onClick={() => onServiceDrone?.(drone.id)}
+                                      disabled={session.budget < 10000}
+                                      className="p-1.5 rounded font-mono text-[9px] font-bold transition-all flex items-center justify-center gap-1"
+                                      style={{
+                                        border: '1px solid rgba(245, 158, 11, 0.5)',
+                                        background: 'rgba(245, 158, 11, 0.15)',
+                                        color: '#f59e0b',
+                                        opacity: session.budget >= 10000 ? 1 : 0.45,
+                                        cursor: session.budget >= 10000 ? 'pointer' : 'not-allowed'
+                                      }}
+                                    >
+                                      <span>🛠️ SERVICE DRONE ($10K — 2 TURNS)</span>
+                                    </button>
+                                  </div>
+                                )}
+                                {drone.status === 'SERVICING' && (
+                                  <div className="p-2 bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.3)] rounded mb-2">
+                                    <span className="text-[#fbbf24] font-mono text-[9.5px] font-bold block">
+                                      🔧 REPAIR IN PROGRESS ({drone.serviceCooldown} TURN{drone.serviceCooldown === 1 ? '' : 'S'} REMAINING)
+                                    </span>
+                                  </div>
+                                )}
                                 {plannedOp ? (
                                   <div className="flex justify-between items-center bg-[rgba(0,240,255,0.04)] border border-[rgba(0,240,255,0.25)] p-2 rounded">
                                     <span className="text-cyber font-mono text-[10px] font-bold">
@@ -709,7 +754,8 @@ export default function CIAIntelBox({
                                     </span>
                                     <button 
                                       onClick={() => onToggleDroneOperation?.(drone.id, plannedOp.actionType, plannedOp.targetCity)}
-                                      className="text-red-400 text-[9px] font-mono font-bold underline hover:text-red-300 transition-colors"
+                                      className="text-red-400 text-[7.5px] font-mono font-bold underline hover:text-red-300 transition-colors"
+                                      style={{ letterSpacing: '0.04em' }}
                                     >
                                       CANCEL ORDER
                                     </button>
@@ -725,14 +771,14 @@ export default function CIAIntelBox({
                                            className={`cia-task-btn font-mono ${currentMode === 'RECON' ? 'active' : ''}`}
                                            style={{ flex: 1, padding: '8px 12px', margin: '2px 0' }}
                                          >
-                                           🔍 RECON ($50K)
+                                           🔍 RECON ($20K)
                                          </button>
                                          <button
                                            onClick={() => setSelectedDroneMode(prev => ({ ...prev, [drone.id]: 'ATTACK' }))}
                                            className={`cia-task-btn font-mono ${currentMode === 'ATTACK' ? 'active' : ''}`}
                                            style={{ flex: 1, padding: '8px 12px', margin: '2px 0', ...(currentMode === 'ATTACK' ? { background: 'rgba(255, 59, 48, 0.15)', borderColor: 'var(--red)', color: 'var(--red)' } : {}) }}
                                          >
-                                           🚀 ATTACK ($100K)
+                                           🚀 ATTACK ($50K)
                                          </button>
                                        </div>
                                      </div>
@@ -752,7 +798,7 @@ export default function CIAIntelBox({
                                              const connNode = nodesData.find(n => n.id === targetId);
                                              const isConnHostile = connNode ? connNode.territory === 'HOSTILE_TERRITORY' : false;
                                              const riskText = isConnHostile ? ' (10% RISK)' : '';
-                                             const costText = currentMode === 'ATTACK' ? '$100K' : '$50K';
+                                             const costText = currentMode === 'ATTACK' ? '$50K' : '$20K';
                                              const hopTag = hops === 0 ? ' (BASE CITY)' : drone.id === 2 ? ` (${hops} ${hops === 1 ? 'HOP' : 'HOPS'})` : '';
 
                                              return (
@@ -838,51 +884,68 @@ export default function CIAIntelBox({
                       )}
 
                       {/* Buy New Drone Section (Max 2 Drones per Base limit) */}
-                      <div className="mt-3 pt-2 border-t border-[rgba(0,240,255,0.15)]">
-                        <div className="flex justify-between items-center text-[9px] font-mono mb-1.5">
-                          <span className="text-dim font-bold">DRONE BASE CAPACITY:</span>
-                          <span className="font-bold" style={{ color: localDrones.length >= 2 ? '#ff3b30' : '#00ff66' }}>
-                            {localDrones.length} / 2 DRONES {localDrones.length >= 2 ? '(FULL)' : ''}
+                      <div className="cia-sub-item mt-3 pt-2.5" style={{ borderTop: '1px solid rgba(0, 240, 255, 0.15)' }}>
+                        <div className="flex justify-between items-center mb-3.5">
+                          <span className="cia-controls-label" style={{ marginBottom: 0, borderLeftColor: 'var(--cyan)' }}>
+                            SQUADRON CAPACITY
+                          </span>
+                          <span 
+                            className="font-mono text-[9px] font-bold px-2 py-0.5 rounded"
+                            style={{
+                              background: localDrones.length >= 2 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 255, 102, 0.12)',
+                              border: localDrones.length >= 2 ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(0, 255, 102, 0.35)',
+                              color: localDrones.length >= 2 ? '#ef4444' : '#00ff66',
+                              letterSpacing: '0.04em'
+                            }}
+                          >
+                            {localDrones.length} / 2 STATIONED {localDrones.length >= 2 ? '(MAX CAPACITY)' : ''}
                           </span>
                         </div>
 
-                        {localDrones.length < 2 ? (
-                          <div className="flex gap-2 mt-1">
-                            <button
-                              onClick={() => onBuyDrone?.(cityId, '1-HOP')}
-                              disabled={session.budget < 500000}
-                              className="flex-1 p-1.5 rounded border font-mono text-[9px] font-bold transition-all flex flex-col items-center justify-center"
-                              style={{
-                                border: '1px solid rgba(0, 240, 255, 0.35)',
-                                background: 'rgba(0, 240, 255, 0.08)',
-                                color: 'var(--cyan)',
-                                opacity: session.budget >= 500000 ? 1 : 0.45,
-                                cursor: session.budget >= 500000 ? 'pointer' : 'not-allowed'
-                              }}
-                            >
-                              <span>+ 1-HOP DRONE</span>
-                              <span style={{ fontSize: '8px', color: '#00ff66', marginTop: '1px' }}>$500K</span>
-                            </button>
+                        {localDrones.length < 2 && (
+                          <div className="flex flex-col gap-2 mt-4 mb-2">
+                            <span className="text-[8.5px] font-mono text-dim block my-2" style={{ letterSpacing: '0.04em' }}>
+                              PROCURE & DEPLOY AIRCRAFT TO BASE:
+                            </span>
+                            <div className="grid grid-cols-2 gap-2.5">
+                              <button
+                                onClick={() => onBuyDrone?.(cityId, '1-HOP')}
+                                disabled={session.budget < 200000}
+                                className="cia-dispatch-btn font-mono"
+                                style={{
+                                  padding: '8px 10px',
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                  background: session.budget >= 200000 ? 'rgba(0, 240, 255, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                                  borderColor: session.budget >= 200000 ? 'rgba(0, 240, 255, 0.35)' : 'rgba(255, 255, 255, 0.08)',
+                                  opacity: session.budget >= 200000 ? 1 : 0.45,
+                                  cursor: session.budget >= 200000 ? 'pointer' : 'not-allowed',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                <span className="text-cyber font-bold text-[9px]">+ 1-HOP RECON</span>
+                                <span className="text-[#00ff66] text-[9px] font-mono font-bold" style={{ marginLeft: '4px' }}>- $200K</span>
+                              </button>
 
-                            <button
-                              onClick={() => onBuyDrone?.(cityId, '2-HOP')}
-                              disabled={session.budget < 1000000}
-                              className="flex-1 p-1.5 rounded border font-mono text-[9px] font-bold transition-all flex flex-col items-center justify-center"
-                              style={{
-                                border: '1px solid rgba(168, 85, 247, 0.4)',
-                                background: 'rgba(168, 85, 247, 0.1)',
-                                color: '#c084fc',
-                                opacity: session.budget >= 1000000 ? 1 : 0.45,
-                                cursor: session.budget >= 1000000 ? 'pointer' : 'not-allowed'
-                              }}
-                            >
-                              <span>+ 2-HOP DRONE</span>
-                              <span style={{ fontSize: '8px', color: '#00ff66', marginTop: '1px' }}>$1.0M</span>
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="text-[8.5px] font-mono text-red-400 mt-1 italic text-center">
-                            Base capacity reached. Relocate or decommission drones to free space.
+                              <button
+                                onClick={() => onBuyDrone?.(cityId, '2-HOP')}
+                                disabled={session.budget < 400000}
+                                className="cia-dispatch-btn font-mono"
+                                style={{
+                                  padding: '8px 10px',
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                  background: session.budget >= 400000 ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                                  borderColor: session.budget >= 400000 ? 'rgba(168, 85, 247, 0.38)' : 'rgba(255, 255, 255, 0.08)',
+                                  opacity: session.budget >= 400000 ? 1 : 0.45,
+                                  cursor: session.budget >= 400000 ? 'pointer' : 'not-allowed',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                <span className="font-bold text-[9px]" style={{ color: '#c084fc' }}>+ 2-HOP LR</span>
+                                <span className="text-[#00ff66] text-[9px] font-mono font-bold" style={{ marginLeft: '4px' }}>- $400K</span>
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>

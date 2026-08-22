@@ -1,7 +1,9 @@
 package com.spygame.covertops.service;
 
 import com.spygame.covertops.model.GameSession;
+import com.spygame.covertops.model.ScenarioConfig;
 import com.spygame.covertops.repository.GameSessionRepository;
+import com.spygame.covertops.repository.ScenarioConfigRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +17,9 @@ public class DeploymentService {
 
     @Autowired
     private GameSessionRepository repository;
+
+    @Autowired
+    private ScenarioConfigRepository scenarioConfigRepository;
 
     /**
      * Commits the player's initial deployment choices.
@@ -35,6 +40,10 @@ public class DeploymentService {
                                         String droneBaseCity) {
         GameSession session = repository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
+
+        ScenarioConfig config = session.getScenarioId() != null
+                ? scenarioConfigRepository.findById(session.getScenarioId()).orElse(null)
+                : null;
 
         if (!session.isDeploymentPending()) {
             throw new IllegalStateException("Deployment phase is not active for this session.");
@@ -114,13 +123,26 @@ public class DeploymentService {
             }
         }
 
-        // 3.5. Place drone base and drones
+        // 3.5. Place drone base and drones (strictly in HOME_TERRITORY)
         String finalDroneBaseCity = droneBaseCity;
+        String firstHomeCity = "amritsar";
+        if (config != null && config.getNodes() != null) {
+            firstHomeCity = config.getNodes().stream()
+                    .filter(n -> "HOME_TERRITORY".equals(n.getTerritory()))
+                    .map(com.spygame.covertops.model.Node::getId)
+                    .findFirst()
+                    .orElse("amritsar");
+        }
+
         if (finalDroneBaseCity == null || finalDroneBaseCity.isBlank()) {
-            if (safehouses != null && !safehouses.isEmpty()) {
-                finalDroneBaseCity = safehouses.get(0);
-            } else {
-                finalDroneBaseCity = "amritsar"; // fallback
+            finalDroneBaseCity = firstHomeCity;
+        } else {
+            // Verify chosen city is in HOME_TERRITORY
+            final String targetCity = finalDroneBaseCity;
+            boolean isHome = config != null && config.getNodes() != null && config.getNodes().stream()
+                    .anyMatch(n -> n.getId().equalsIgnoreCase(targetCity) && "HOME_TERRITORY".equals(n.getTerritory()));
+            if (!isHome) {
+                finalDroneBaseCity = firstHomeCity;
             }
         }
 

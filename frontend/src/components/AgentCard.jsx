@@ -18,7 +18,7 @@ export default function AgentCard({
     s.cityNode?.toLowerCase() === agent.currentCity?.toLowerCase() && s.ownerFaction === 'DEFENDER'
   );
   const safehouseText = agentSafehouse 
-    ? `${agentSafehouse.secure ? 'Secure' : 'Standard'} Safehouse (#${agentSafehouse.safehouseCode})`
+    ? `${agentSafehouse.secure ? 'Secure' : 'Standard'} Safehouse (#${agentSafehouse.safehouseCode}${agentSafehouse.subLocality ? ` - ${agentSafehouse.subLocality}` : ''})`
     : 'None';
 
   return (

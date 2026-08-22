@@ -19,7 +19,8 @@
       "coordinates": {"x": 91, "y": 64, "lat": 23.8103, "lng": 90.4125},
       "connections": ["kolkata", "rajshahi", "moimonsingh", "sylhet", "chittagong"],
       "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
-      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"]
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Gulshan", "Dhanmondi", "Banani", "Uttara", "Motijheel"]
     },
     {
       "id": "chittagong",
@@ -28,7 +29,8 @@
       "coordinates": {"x": 94, "y": 75, "lat": 22.3569, "lng": 91.7832},
       "connections": ["dhaka", "sylhet"],
       "availableFinance": ["DRUG_SALES", "ILLICIT_ARMS_SALES"],
-      "availableLogistics": ["BLACK_MARKET_IMPORT"]
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Agrabad", "GEC Circle", "Halishahar", "Nasirabad", "Patenga"]
     },
     {
       "id": "sylhet",
@@ -37,7 +39,8 @@
       "coordinates": {"x": 95, "y": 55, "lat": 24.8949, "lng": 91.8687},
       "connections": ["dhaka", "chittagong", "siliguri", "guwahati", "moimonsingh"],
       "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
-      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"]
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"],
+      "places": ["Zindabazar", "Chowhatta", "Ambarkhana", "Upattya", "Kumarpara"]
     },
     {
       "id": "rajshahi",
@@ -46,7 +49,8 @@
       "coordinates": {"x": 87, "y": 58, "lat": 24.3745, "lng": 88.6042},
       "connections": ["dhaka", "moimonsingh", "kolkata", "patna"],
       "availableFinance": ["HUNDI_HAWALA", "COMMERCIAL_FRONT_LOAN"],
-      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"]
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Saheb Bazar", "Kazla", "Shiromoni", "Motihar", "Baluaghat"]
     },
     {
       "id": "moimonsingh",
@@ -55,7 +59,8 @@
       "coordinates": {"x": 91, "y": 56, "lat": 24.7471, "lng": 90.4203},
       "connections": ["dhaka", "rajshahi", "sylhet"],
       "availableFinance": ["TRIBAL_TOLLS", "RANSOMWARE_HACK"],
-      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"]
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Town Hall Area", "Charpara", "Ganginarpar", "Kewatkhali", "Shambhuganj"]
     },
     {
       "id": "kolkata",
@@ -64,7 +69,8 @@
       "coordinates": {"x": 85, "y": 70, "lat": 22.5726, "lng": 88.3639},
       "connections": ["patna", "siliguri", "dhaka", "rajshahi"],
       "defenses": "HIGH",
-      "counterEspionage": "HIGH"
+      "counterEspionage": "HIGH",
+      "places": ["Park Street", "Salt Lake", "Ballygunge", "New Town", "Howrah Gate"]
     },
     {
       "id": "siliguri",
@@ -73,7 +79,8 @@
       "coordinates": {"x": 88, "y": 45, "lat": 26.7271, "lng": 88.3953},
       "connections": ["patna", "kolkata", "guwahati", "sylhet"],
       "defenses": "VERY_HIGH",
-      "counterEspionage": "HIGH"
+      "counterEspionage": "HIGH",
+      "places": ["Hill Cart Road", "Pradhan Nagar", "Hakim Para", "Matigara", "Sevoke Road"]
     },
     {
       "id": "guwahati",
@@ -82,7 +89,8 @@
       "coordinates": {"x": 92, "y": 42, "lat": 26.1445, "lng": 91.7362},
       "connections": ["siliguri", "sylhet"],
       "defenses": "MEDIUM",
-      "counterEspionage": "MEDIUM"
+      "counterEspionage": "MEDIUM",
+      "places": ["Ganeshguri", "Paltan Bazaar", "Zoo Road", "Dispur", "Fancy Bazaar"]
     },
     {
       "id": "patna",
@@ -91,7 +99,8 @@
       "coordinates": {"x": 80, "y": 60, "lat": 25.5941, "lng": 85.1376},
       "connections": ["new_delhi", "kolkata", "siliguri", "rajshahi"],
       "defenses": "MEDIUM",
-      "counterEspionage": "MEDIUM"
+      "counterEspionage": "MEDIUM",
+      "places": ["Boring Road", "Kankarbagh", "Patliputra Colony", "Frazer Road", "Rajendra Nagar"]
     },
     {
       "id": "new_delhi",
@@ -100,7 +109,8 @@
       "coordinates": {"x": 75, "y": 55, "lat": 28.6139, "lng": 77.2090},
       "connections": ["patna"],
       "defenses": "EXTREME",
-      "counterEspionage": "EXTREME"
+      "counterEspionage": "EXTREME",
+      "places": ["Connaught Place", "Lajpat Nagar", "Hauz Khas", "Dwarka", "Karol Bagh"]
     }
   ],
   "startingDefenderSafehouses": [

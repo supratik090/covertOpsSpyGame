@@ -19,7 +19,8 @@
       "coordinates": {"x": 80, "y": 20, "lat": 21.0285, "lng": 105.8542},
       "connections": ["phnom_penh", "ho_chi_minh", "naypyidaw", "bangkok"],
       "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
-      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"]
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Old Quarter", "Tay Ho", "Ba Dinh", "Cau Giay", "Hoan Kiem"]
     },
     {
       "id": "ho_chi_minh",
@@ -28,7 +29,8 @@
       "coordinates": {"x": 85, "y": 35, "lat": 10.8231, "lng": 106.6297},
       "connections": ["hanoi", "phnom_penh", "kuala_lumpur"],
       "availableFinance": ["DRUG_SALES", "ILLICIT_ARMS_SALES"],
-      "availableLogistics": ["BLACK_MARKET_IMPORT"]
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["District 1", "Thao Dien", "District 3", "Phu Nhuan", "Binh Thanh"]
     },
     {
       "id": "phnom_penh",
@@ -37,7 +39,8 @@
       "coordinates": {"x": 75, "y": 32, "lat": 11.5564, "lng": 104.9282},
       "connections": ["hanoi", "ho_chi_minh", "bangkok"],
       "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
-      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"]
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"],
+      "places": ["Boeung Keng Kang", "Daun Penh", "Toul Tom Poung", "7 Makara", "Chroy Changvar"]
     },
     {
       "id": "naypyidaw",
@@ -46,7 +49,8 @@
       "coordinates": {"x": 50, "y": 22, "lat": 19.7633, "lng": 96.0785},
       "connections": ["yangon", "hanoi", "bangkok"],
       "availableFinance": ["HUNDI_HAWALA", "COMMERCIAL_FRONT_LOAN"],
-      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"]
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Zabuthiri", "Ottarathiri", "Dekkhinathiri", "Pobbathiri", "Pygimana"]
     },
     {
       "id": "yangon",
@@ -55,7 +59,8 @@
       "coordinates": {"x": 48, "y": 28, "lat": 16.8409, "lng": 96.1735},
       "connections": ["naypyidaw", "bangkok"],
       "availableFinance": ["TRIBAL_TOLLS", "RANSOMWARE_HACK"],
-      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"]
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Dagon", "Bahan", "Kamayut", "Kyauktada", "Sanchaung"]
     },
     {
       "id": "bangkok",
@@ -64,7 +69,8 @@
       "coordinates": {"x": 60, "y": 40, "lat": 13.7563, "lng": 100.5018},
       "connections": ["yangon", "naypyidaw", "phnom_penh", "hanoi", "kuala_lumpur"],
       "defenses": "HIGH",
-      "counterEspionage": "HIGH"
+      "counterEspionage": "HIGH",
+      "places": ["Sukhumvit", "Silom", "Sathorn", "Siam", "Chatuchak"]
     },
     {
       "id": "kuala_lumpur",
@@ -73,7 +79,8 @@
       "coordinates": {"x": 62, "y": 60, "lat": 3.1390, "lng": 101.6869},
       "connections": ["bangkok", "ho_chi_minh", "singapore", "jakarta"],
       "defenses": "VERY_HIGH",
-      "counterEspionage": "HIGH"
+      "counterEspionage": "HIGH",
+      "places": ["KLCC", "Bukit Bintang", "Bangsar", "Mont Kiara", "Cheras"]
     },
     {
       "id": "singapore",
@@ -82,7 +89,8 @@
       "coordinates": {"x": 65, "y": 66, "lat": 1.3521, "lng": 103.8198},
       "connections": ["kuala_lumpur", "jakarta"],
       "defenses": "EXTREME",
-      "counterEspionage": "EXTREME"
+      "counterEspionage": "EXTREME",
+      "places": ["Orchard", "Marina Bay", "Bugis", "Tampines", "Jurong"]
     },
     {
       "id": "jakarta",
@@ -91,7 +99,8 @@
       "coordinates": {"x": 70, "y": 80, "lat": -6.2088, "lng": 106.8456},
       "connections": ["kuala_lumpur", "singapore", "bali"],
       "defenses": "MEDIUM",
-      "counterEspionage": "MEDIUM"
+      "counterEspionage": "MEDIUM",
+      "places": ["Menteng", "Kuningan", "SCBD", "Kemang", "Pondok Indah"]
     },
     {
       "id": "bali",
@@ -100,7 +109,8 @@
       "coordinates": {"x": 88, "y": 85, "lat": -8.4095, "lng": 115.1889},
       "connections": ["jakarta"],
       "defenses": "MEDIUM",
-      "counterEspionage": "MEDIUM"
+      "counterEspionage": "MEDIUM",
+      "places": ["Seminyak", "Canggu", "Ubud", "Sanur", "Nusa Dua"]
     }
   ],
   "startingDefenderSafehouses": [

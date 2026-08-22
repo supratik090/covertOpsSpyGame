@@ -224,8 +224,7 @@ public class GameSessionServiceTest {
                     .anyMatch(c -> c.getClueText().contains("neutralized"));
             assertTrue(successClue, "Capture announcement should be logged");
         } else {
-            assertEquals(9, result.getCurrentTurn(), "Escaping should rewind turn back to 8 and then advance to 9 (18 - 10 + 1)");
-            assertEquals(25, result.getMaxTurns(), "Max turns deadline should remain strictly capped at 25");
+            assertEquals(19, result.getCurrentTurn(), "Turn should advance normally from 18 to 19 without rewinding current turn");
             boolean escapeClue = result.getDiscoveredClues().stream()
                     .anyMatch(c -> c.getClueText().contains("escaped"));
             assertTrue(escapeClue, "Escape announcement should be logged");
