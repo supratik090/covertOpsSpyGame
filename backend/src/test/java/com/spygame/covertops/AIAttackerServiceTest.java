@@ -81,10 +81,92 @@ public class AIAttackerServiceTest {
         sh.setAttackerName("Tariq Mahmood");
         session.getSafehouses().add(sh);
 
-        GameSession updatedSession = service.executeTurn(session, config);
-        GameSession.AIAttacker updatedAtt = updatedSession.getAiAttackers().get(0);
+        // Turn 1: AI attacker pre-builds safehouse at destination city and remains in current location
+        GameSession turn1Session = service.executeTurn(session, config);
+        GameSession.AIAttacker turn1Att = turn1Session.getAiAttackers().get(0);
+        boolean hasPrebuiltDestSh = turn1Session.getSafehouses().stream()
+                .anyMatch(s -> !s.getCityNode().equals("karachi") && "HOSTILE".equals(s.getOwnerFaction()));
+        assertTrue(hasPrebuiltDestSh, "AI attacker should pre-build safehouse at destination in previous turn");
 
-        // Verify attacker started moving towards the finance city target
-        assertNotEquals("karachi", updatedAtt.getCurrentLocation(), "AI attacker should evaluate moves and route towards target");
+        // Turn 2: With destination safehouse established in turn 1, AI attacker moves to destination
+        GameSession turn2Session = service.executeTurn(turn1Session, config);
+        GameSession.AIAttacker turn2Att = turn2Session.getAiAttackers().get(0);
+        assertNotEquals("karachi", turn2Att.getCurrentLocation(), "AI attacker should move to destination city on turn 2");
+    }
+
+    @Test
+    public void testExecuteTurnSafehouseAttack() {
+        GameSession session = new GameSession();
+        session.setCurrentTurn(5);
+        session.setMaxTurns(25);
+        session.setStatus("ACTIVE");
+        session.setSafehouses(new ArrayList<>());
+        session.setDiscoveredClues(new ArrayList<>());
+        session.setCityHeat(new java.util.HashMap<>());
+        session.setHostilePatrolCities(new ArrayList<>());
+        session.setSurprisePatrolCities(new ArrayList<>());
+
+        // Setup AI attacker in Karachi (early stage: Request Finance, border permission not approved)
+        ArrayList<GameSession.AIAttacker> attackers = new ArrayList<>();
+        GameSession.AIAttacker att = new GameSession.AIAttacker("Tariq Mahmood", "karachi", "Request Finance");
+        att.setRequestedFinanceCity("islamabad");
+        att.setFinanceCollectionTurnsRemaining(2);
+        att.setBudget(300000);
+        attackers.add(att);
+        session.setAiAttackers(attackers);
+
+        // Add a friendly (DEFENDER) safehouse in Karachi
+        GameSession.Safehouse friendlySH = new GameSession.Safehouse("karachi", "DEFENDER", "PURCHASED", true, "999");
+        session.getSafehouses().add(friendlySH);
+
+        // Add an agent in Karachi
+        ArrayList<GameSession.Agent> agents = new ArrayList<>();
+        GameSession.Agent agent = new GameSession.Agent();
+        agent.setId(1);
+        agent.setCodename("Agent X");
+        agent.setCurrentCity("karachi");
+        agents.add(agent);
+        session.setAgents(agents);
+
+        // Also add a hostile safehouse for Tariq Mahmood in karachi so he doesn't fail basic location check
+        GameSession.Safehouse hostileSH = new GameSession.Safehouse("karachi", "HOSTILE", "PURCHASED", true, "111");
+        hostileSH.setAttackerName("Tariq Mahmood");
+        session.getSafehouses().add(hostileSH);
+
+        // We run executeTurn multiple times to ensure we hit the randomized chance to attack
+        boolean attackTriggered = false;
+        for (int i = 0; i < 60; i++) {
+            GameSession tempSession = new GameSession();
+            tempSession.setCurrentTurn(5);
+            tempSession.setMaxTurns(25);
+            tempSession.setStatus("ACTIVE");
+            tempSession.setSafehouses(new ArrayList<>(session.getSafehouses()));
+            tempSession.setDiscoveredClues(new ArrayList<>());
+            tempSession.setCityHeat(new java.util.HashMap<>());
+            tempSession.setHostilePatrolCities(new ArrayList<>());
+            tempSession.setSurprisePatrolCities(new ArrayList<>());
+            tempSession.setAgents(new ArrayList<>(session.getAgents()));
+            tempSession.setTacticalTeams(new ArrayList<>());
+            
+            ArrayList<GameSession.AIAttacker> tempAttackers = new ArrayList<>();
+            GameSession.AIAttacker tempAtt = new GameSession.AIAttacker("Tariq Mahmood", "karachi", "Request Finance");
+            tempAtt.setRequestedFinanceCity("islamabad");
+            tempAtt.setFinanceCollectionTurnsRemaining(2);
+            tempAtt.setBudget(300000);
+            tempAttackers.add(tempAtt);
+            tempSession.setAiAttackers(tempAttackers);
+
+            service.executeTurn(tempSession, config);
+
+            boolean hasAttackClue = tempSession.getDiscoveredClues().stream()
+                    .anyMatch(c -> "SAFEHOUSE_ATTACK".equals(c.getSource()));
+            
+            if (hasAttackClue) {
+                attackTriggered = true;
+                break;
+            }
+        }
+
+        assertTrue(attackTriggered, "Safehouse attack should be triggered given the probabilities");
     }
 }

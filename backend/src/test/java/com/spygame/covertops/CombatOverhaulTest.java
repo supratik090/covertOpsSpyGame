@@ -81,9 +81,9 @@ public class CombatOverhaulTest {
         // Verify safehouse was destroyed (removed from active list)
         assertTrue(result.getSafehouses().isEmpty(), "Secure safehouse should be destroyed after a raid");
 
-        // Verify attacker is either eliminated (Lost) or escaping (Healing)
+        // Verify attacker is either eliminated (Lost) or escaping (Initial decoy)
         GameSession.AIAttacker updatedAtt = result.getAiAttackers().get(0);
-        assertTrue(updatedAtt.isEliminated() || "Healing".equals(updatedAtt.getState()));
+        assertTrue(updatedAtt.isEliminated() || "Initial decoy".equals(updatedAtt.getState()));
         if (!updatedAtt.isEliminated()) {
             assertEquals(5, updatedAtt.getHealingTurnsRemaining(), "Escaping attacker should enter 5 turn healing lockout");
         }
@@ -121,7 +121,7 @@ public class CombatOverhaulTest {
 
         // With 3 attackers, the rule says: 2 gets killed, 1 escapes (100% chance if successful roll, or all escape if failed roll)
         long eliminatedCount = result.getAiAttackers().stream().filter(GameSession.AIAttacker::isEliminated).count();
-        long healingCount = result.getAiAttackers().stream().filter(a -> "Healing".equals(a.getState())).count();
+        long healingCount = result.getAiAttackers().stream().filter(a -> "Initial decoy".equals(a.getState()) && a.getHealingTurnsRemaining() > 0).count();
 
         // Safehouse is definitely destroyed
         assertTrue(result.getSafehouses().isEmpty());
@@ -305,7 +305,7 @@ public class CombatOverhaulTest {
         // Both clues are generated with turnDiscovered = 11.
         attackerService.executeTurn(session, config);
 
-        assertEquals("Border crossed", attacker.getState());
+        assertEquals("Clearance approved", attacker.getState());
 
         System.err.println("DISCOVERED CLUES IN TEST:");
         for (GameSession.Clue clue : session.getDiscoveredClues()) {
@@ -317,7 +317,7 @@ public class CombatOverhaulTest {
         assertTrue(hasCrossingRequestClue);
 
         boolean hasCrossingApprovedClue = session.getDiscoveredClues().stream()
-                .anyMatch(c -> "STATE_INTELLIGENCE".equals(c.getSource()) && c.getClueText().contains("permission granted to suspect") && c.getTurnDiscovered() == 11);
+                .anyMatch(c -> "BORDER_PERMISSION".equals(c.getSource()) && c.getClueText().contains("permission granted to suspect") && c.getTurnDiscovered() == 11);
         assertTrue(hasCrossingApprovedClue);
 
         // Now move to target city and test attack request
@@ -331,7 +331,7 @@ public class CombatOverhaulTest {
         assertTrue(hasAttackRequestClue);
 
         boolean hasAttackApprovedClue = session.getDiscoveredClues().stream()
-                .anyMatch(c -> "STATE_INTELLIGENCE".equals(c.getSource()) && c.getClueText().contains("Permission to engage target has been granted") && c.getTurnDiscovered() == 12);
+                .anyMatch(c -> "ATTACK_APPROVED".equals(c.getSource()) && c.getClueText().contains("Permission to engage target has been granted") && c.getTurnDiscovered() == 12);
         assertTrue(hasAttackApprovedClue);
     }
 

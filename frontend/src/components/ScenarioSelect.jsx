@@ -26,8 +26,8 @@ const ScenarioSelect = ({
   errorMsg,
   onLogout
 }) => {
-  const [playerRole, setPlayerRole] = useState('DEFENDER');
-  const [gameMode, setGameMode] = useState('SINGLE'); // 'SINGLE', 'MULTIPLAYER'
+  const playerRole = 'DEFENDER';
+  const gameMode = 'SINGLE';
   const [timerMinutes, setTimerMinutes] = useState(5);
   const [joinToken, setJoinToken] = useState('');
 
@@ -36,7 +36,6 @@ const ScenarioSelect = ({
     return s ? s.title : scenarioId;
   };
 
-  const activeSession = sessions.find(s => s.status === 'ACTIVE');
   const activeScenarioIds = new Set(sessions.filter(s => s.status === 'ACTIVE').map(s => s.scenarioId));
   const availableScenarios = scenarios.filter(s => !activeScenarioIds.has(s.scenarioId));
 
@@ -66,40 +65,48 @@ const ScenarioSelect = ({
 
         {errorMsg && <div className="error-msg">{errorMsg}</div>}
 
-        {/* Active Campaign */}
-        {activeSession && (
-          <div className="scenario-card selected" style={{ borderLeftColor: '#00ff66', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)', letterSpacing: '0.08em', marginBottom: '2px' }}>ACTIVE CAMPAIGN</div>
-                <h3 style={{ margin: '4px 0' }}>{getScenarioTitle(activeSession.scenarioId)}</h3>
-                {activeSession.multiplayer && (
-                  <div style={{ fontSize: '9.5px', fontFamily: 'monospace', color: 'var(--cyan)', marginTop: '2px', wordBreak: 'break-all' }}>
-                    GAME TOKEN: {activeSession.id}
+        {/* Active Campaigns */}
+        {sessions.filter(s => s.status === 'ACTIVE').length > 0 && (
+          <div style={{ marginBottom: '24px' }}>
+            <h2 className="select-title" style={{ fontSize: '11px', paddingBottom: '8px', marginBottom: '10px', borderBottom: 'none' }}>
+              ACTIVE CAMPAIGNS
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {sessions.filter(s => s.status === 'ACTIVE').map(s => (
+                <div key={s.id} className="scenario-card selected" style={{ borderLeftColor: '#00ff66', marginBottom: '0px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ margin: '4px 0' }}>{getScenarioTitle(s.scenarioId)}</h3>
+                      {s.multiplayer && (
+                        <div style={{ fontSize: '9.5px', fontFamily: 'monospace', color: 'var(--cyan)', marginTop: '2px', wordBreak: 'break-all' }}>
+                          GAME TOKEN: {s.id}
+                        </div>
+                      )}
+                      <div className="scenario-meta" style={{ marginTop: '6px' }}>
+                        <div>TURN: <span className="val cyan">{s.currentTurn}/{s.maxTurns}</span></div>
+                        <div>ROLE: <span className={`val ${s.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{s.playerRole}</span></div>
+                        <div>STATUS: <span className="val green">ACTIVE</span></div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      <button
+                        className="cyber-btn sm green"
+                        onClick={() => onLoadGame(s.id)}
+                        disabled={loading}
+                      >
+                        <Play size={12} /> RESUME
+                      </button>
+                      <button
+                        className="cyber-btn sm red"
+                        onClick={() => onDeleteGame(s.id)}
+                        disabled={loading}
+                      >
+                        <Trash2 size={12} /> ABANDON
+                      </button>
+                    </div>
                   </div>
-                )}
-                <div className="scenario-meta" style={{ marginTop: '6px' }}>
-                  <div>TURN: <span className="val cyan">{activeSession.currentTurn}/{activeSession.maxTurns}</span></div>
-                  <div>ROLE: <span className={`val ${activeSession.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{activeSession.playerRole}</span></div>
-                  <div>STATUS: <span className="val green">ACTIVE</span></div>
                 </div>
-              </div>
-              <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                <button
-                  className="cyber-btn sm green"
-                  onClick={() => onLoadGame(activeSession.id)}
-                  disabled={loading}
-                >
-                  <Play size={12} /> RESUME
-                </button>
-                <button
-                  className="cyber-btn sm red"
-                  onClick={() => onDeleteGame(activeSession.id)}
-                  disabled={loading}
-                >
-                  <Trash2 size={12} /> ABANDON
-                </button>
-              </div>
+              ))}
             </div>
           </div>
         )}
@@ -110,28 +117,35 @@ const ScenarioSelect = ({
             <h2 className="select-title" style={{ fontSize: '11px', paddingBottom: '8px', marginBottom: '10px', borderBottom: 'none' }}>
               ARCHIVED CAMPAIGNS
             </h2>
-            {sessions.filter(s => s.status !== 'ACTIVE').map(s => (
-              <div key={s.id} className="scenario-card selected" style={{ borderLeftColor: s.status === 'SUCCESS' ? '#00f0ff' : '#ff3b30', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: '11px' }}>{getScenarioTitle(s.scenarioId)}</h3>
-                    <div className="scenario-meta" style={{ marginTop: '4px' }}>
-                      <div>TURN: <span className="val cyan">{s.currentTurn}/{s.maxTurns}</span></div>
-                      <div>ROLE: <span className={`val ${s.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{s.playerRole}</span></div>
-                      <div>STATUS: <span className={`val ${s.status === 'SUCCESS' ? 'cyan' : 'red'}`}>{s.status}</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {sessions.filter(s => s.status !== 'ACTIVE').map(s => {
+                const isSuccess = s.status === 'SUCCESS';
+                const isPartial = s.status === 'PARTIAL_DEFENDER_VICTORY';
+                const statusColor = isSuccess ? '#00f0ff' : isPartial ? '#f59e0b' : '#ff3b30';
+                return (
+                  <div key={s.id} className="scenario-card selected" style={{ borderLeftColor: statusColor, marginBottom: '0px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '11px' }}>{getScenarioTitle(s.scenarioId)}</h3>
+                        <div className="scenario-meta" style={{ marginTop: '4px' }}>
+                          <div>TURN: <span className="val cyan">{s.currentTurn}/{s.maxTurns}</span></div>
+                          <div>ROLE: <span className={`val ${s.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{s.playerRole}</span></div>
+                          <div>STATUS: <span className="val" style={{ color: statusColor, fontWeight: 'bold' }}>{s.status}</span></div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                        <button className="cyber-btn sm" onClick={() => onLoadGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
+                          <Play size={10} /> REVIEW
+                        </button>
+                        <button className="cyber-btn sm red" onClick={() => onDeleteGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
+                          <Trash2 size={10} /> PURGE
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                    <button className="cyber-btn sm" onClick={() => onLoadGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
-                      <Play size={10} /> REVIEW
-                    </button>
-                    <button className="cyber-btn sm red" onClick={() => onDeleteGame(s.id)} disabled={loading} style={{ fontSize: '9px', padding: '4px 8px' }}>
-                      <Trash2 size={10} /> DELETE
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -140,7 +154,7 @@ const ScenarioSelect = ({
           START NEW CAMPAIGN
         </h2>
 
-        <div className="scenario-list" style={{ maxHeight: '240px', marginBottom: '16px' }}>
+        <div className="scenario-list" style={{ marginBottom: '16px' }}>
           {scenarios.length === 0 ? (
             <div className="empty-state" style={{ padding: '20px' }}>
               <p style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-dim)' }}>No scenario profiles loaded on the Command Desk.</p>
@@ -150,7 +164,9 @@ const ScenarioSelect = ({
               <p style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-dim)' }}>All scenarios currently have an active campaign in progress.</p>
             </div>
           ) : availableScenarios.map(scenario => {
-            const isCompleted = sessions.some(s => s.scenarioId === scenario.scenarioId && s.status === 'SUCCESS');
+            const completedSession = sessions.find(s => s.scenarioId === scenario.scenarioId && (s.status === 'SUCCESS' || s.status === 'PARTIAL_DEFENDER_VICTORY'));
+            const isFullSuccess = completedSession?.status === 'SUCCESS';
+            const isPartialSuccess = completedSession?.status === 'PARTIAL_DEFENDER_VICTORY';
             return (
               <div 
                 key={scenario.scenarioId}
@@ -160,9 +176,14 @@ const ScenarioSelect = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <h3 style={{ margin: 0 }}>
                     {scenario.title} 
-                    {isCompleted && (
-                      <span className="cia-tag green" style={{ background: 'rgba(0, 255, 102, 0.1)', color: '#00ff66', border: '1px solid rgba(0, 255, 102, 0.4)', fontSize: '8px', padding: '1px 5px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle' }}>
-                        ✓ COMPLETED
+                    {isFullSuccess && (
+                      <span className="cia-tag green" style={{ background: 'rgba(0, 255, 102, 0.1)', color: '#00ff66', border: '1px solid rgba(0, 255, 102, 0.4)', fontSize: '8.5px', padding: '2px 6px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle', fontWeight: 'bold' }}>
+                        ✓ FULL VICTORY
+                      </span>
+                    )}
+                    {isPartialSuccess && (
+                      <span className="cia-tag gold" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.4)', fontSize: '8.5px', padding: '2px 6px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle', fontWeight: 'bold' }}>
+                        ⚡ PARTIAL VICTORY
                       </span>
                     )}
                   </h3>
@@ -189,63 +210,9 @@ const ScenarioSelect = ({
           })}
         </div>
 
-        {/* Player Role Selection */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <button 
-            type="button"
-            className={`cyber-btn sm ${playerRole === 'DEFENDER' ? 'green' : ''}`}
-            onClick={() => setPlayerRole('DEFENDER')}
-            style={{ flex: 1, padding: '8px', fontSize: '10px' }}
-          >
-            PLAY AS DEFENDER
-          </button>
-          <button 
-            type="button"
-            className={`cyber-btn sm ${playerRole === 'ATTACKER' ? 'red' : ''}`}
-            onClick={() => setPlayerRole('ATTACKER')}
-            style={{ flex: 1, padding: '8px', fontSize: '10px' }}
-          >
-            PLAY AS ATTACKER
-          </button>
-        </div>
+        {/* Player Role & Game Mode: locked to DEFENDER / SINGLE PLAYER — UI toggles hidden */}
 
-        {/* Game Mode Selection */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <button 
-            type="button"
-            className={`cyber-btn sm ${gameMode === 'SINGLE' ? 'green' : ''}`}
-            onClick={() => setGameMode('SINGLE')}
-            style={{ flex: 1, padding: '6px', fontSize: '9.5px' }}
-          >
-            SINGLE PLAYER VS AI
-          </button>
-          <button 
-            type="button"
-            className={`cyber-btn sm ${gameMode === 'MULTIPLAYER' ? 'cyan' : ''}`}
-            onClick={() => setGameMode('MULTIPLAYER')}
-            style={{ flex: 1, padding: '6px', fontSize: '9.5px' }}
-          >
-            MULTIPLAYER PVP
-          </button>
-        </div>
 
-        {gameMode === 'MULTIPLAYER' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
-            <label style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-dim)' }}>TURN TIMER (MINUTES)</label>
-            <select 
-              className="cyber-input" 
-              value={timerMinutes} 
-              onChange={(e) => setTimerMinutes(Number(e.target.value))}
-              style={{ width: '100%', height: '32px', fontSize: '11px', background: 'var(--bg-card)', color: '#00f0ff', borderColor: 'var(--border-color)', borderStyle: 'solid', borderWidth: '1px' }}
-            >
-              <option value="1">1 MINUTE</option>
-              <option value="2">2 MINUTES</option>
-              <option value="3">3 MINUTES</option>
-              <option value="5">5 MINUTES</option>
-              <option value="10">10 MINUTES</option>
-            </select>
-          </div>
-        )}
 
         <button 
           className="cyber-btn lg" 
@@ -257,30 +224,7 @@ const ScenarioSelect = ({
           <span>{gameMode === 'MULTIPLAYER' ? 'CREATE MULTIPLAYER LOBBY' : 'START NEW OPERATION'}</span>
         </button>
 
-        {/* Join Game Section */}
-        <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
-          <h2 className="select-title" style={{ fontSize: '11px', paddingBottom: '6px', marginBottom: '8px', borderBottom: 'none' }}>
-            JOIN MULTIPLAYER OPERATION
-          </h2>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input 
-              type="text" 
-              placeholder="ENTER GAME TOKEN ID" 
-              value={joinToken} 
-              onChange={(e) => setJoinToken(e.target.value)} 
-              className="cyber-input"
-              style={{ flex: 1, height: '32px', fontSize: '11px', textAlign: 'center', fontFamily: 'monospace' }}
-            />
-            <button 
-              className="cyber-btn sm green"
-              onClick={() => onJoinGame(joinToken)}
-              disabled={!joinToken || loading}
-              style={{ height: '32px', padding: '0 12px' }}
-            >
-              JOIN
-            </button>
-          </div>
-        </div>
+
       </motion.div>
     </div>
   );

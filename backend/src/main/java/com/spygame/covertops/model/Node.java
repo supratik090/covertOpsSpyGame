@@ -13,6 +13,7 @@ public class Node {
     private List<String> availableLogistics;
     private String defenses;
     private String counterEspionage;
+    private List<String> places;
 
     public Node() {}
 
@@ -42,4 +43,7 @@ public class Node {
 
     public String getCounterEspionage() { return counterEspionage; }
     public void setCounterEspionage(String counterEspionage) { this.counterEspionage = counterEspionage; }
+
+    public List<String> getPlaces() { return places; }
+    public void setPlaces(List<String> places) { this.places = places; }
 }

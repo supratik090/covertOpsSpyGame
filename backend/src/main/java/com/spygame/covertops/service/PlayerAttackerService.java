@@ -214,7 +214,11 @@ public class PlayerAttackerService {
         String code = String.valueOf(100 + rand.nextInt(900));
         
         // Save safehouse in list (owner is HOSTILE as seen by the Defender, i.e. the Attacker)
-        session.getSafehouses().add(new GameSession.Safehouse(cityNode, "HOSTILE", "PURCHASED", !isSecure, code));
+        String subLocality = com.spygame.covertops.util.SafehouseUtils.pickSubLocality(cityNode, config, session.getSafehouses());
+        GameSession.Safehouse sh = new GameSession.Safehouse(cityNode, "HOSTILE", "PURCHASED", false, code);
+        sh.setSubLocality(subLocality);
+        sh.setSecure(isSecure);
+        session.getSafehouses().add(sh);
 
         if (isSecure) {
             session.getSecureSafehouseTurns().put(cityNode, 5);
@@ -411,7 +415,9 @@ public class PlayerAttackerService {
             session.getDiscoveredClues().add(new GameSession.Clue(
                     session.getCurrentTurn(),
                     "STRIKE_EXECUTED",
-                    "💥 CRITICAL IMPACT: Strike successfully executed on Primary Target " + config.getTargetCity().toUpperCase() + "! Exfiltration protocol activated. Get back to home soil undetected."
+                    "💥 CRITICAL IMPACT: Strike successfully executed on Primary Target " + config.getTargetCity().toUpperCase() + "! Exfiltration protocol activated. Get back to home soil undetected.",
+                    config.getTargetCity(),
+                    "Field Operator"
             ));
         } else {
             // Secondary target strike triggers a partial win immediately
@@ -419,7 +425,9 @@ public class PlayerAttackerService {
             session.getDiscoveredClues().add(new GameSession.Clue(
                     session.getCurrentTurn(),
                     "STRIKE_EXECUTED",
-                    "💥 IMPACT: Strike executed on Secondary Target. Partial victory achieved. Mission complete."
+                    "💥 IMPACT: Strike executed on Secondary Target. Partial victory achieved. Mission complete.",
+                    session.getSuspectLocation(),
+                    "Field Operator"
             ));
         }
     }

@@ -1,0 +1,235 @@
+{
+  "scenarioId": "asean_defense_operation",
+  "attackingCountry": "Hostile Alliance (Myanmar, Cambodia, Vietnam)",
+  "defendingCountry": "ASEAN Coalition (Singapore, Indonesia, Malaysia, Thailand)",
+  "title": "Operation ASEAN Shield",
+  "briefing": "A highly coordinated hostile cell from the northern ASEAN region is planning an assassination strike on the ASEAN Supreme Headquarters in Singapore. Track the targets coming from Naypyidaw, Hanoi, and Phnom Penh across the defense lines in Bangkok, Kuala Lumpur, and Jakarta. Stop the threats: Min Aung, Vang Pao, and Nguyen Du before Turn 25.",
+  "attackerBriefing": "Infiltrate the ASEAN defense line, reach the Supreme Headquarters in Singapore, execute the strike on the targets, and exfiltrate back to northern territory.",
+  "targetCity": "singapore",
+  "targetVip": "ASEAN Supreme Commander",
+  "attackForm": "ASSASSINATION",
+  "maxTurns": 25,
+  "startingBudget": 5000000,
+  "mapBackground": "assets/maps/asean.svg",
+  "nodes": [
+    {
+      "id": "hanoi",
+      "name": "Hanoi HQ",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 80, "y": 20, "lat": 21.0285, "lng": 105.8542},
+      "connections": ["phnom_penh", "ho_chi_minh", "naypyidaw", "bangkok"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Old Quarter", "Tay Ho", "Ba Dinh", "Cau Giay", "Hoan Kiem"]
+    },
+    {
+      "id": "ho_chi_minh",
+      "name": "Ho Chi Minh Hub",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 85, "y": 35, "lat": 10.8231, "lng": 106.6297},
+      "connections": ["hanoi", "phnom_penh", "kuala_lumpur"],
+      "availableFinance": ["DRUG_SALES", "ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["District 1", "Thao Dien", "District 3", "Phu Nhuan", "Binh Thanh"]
+    },
+    {
+      "id": "phnom_penh",
+      "name": "Phnom Penh Outpost",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 75, "y": 32, "lat": 11.5564, "lng": 104.9282},
+      "connections": ["hanoi", "ho_chi_minh", "bangkok"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"],
+      "places": ["Boeung Keng Kang", "Daun Penh", "Toul Tom Poung", "7 Makara", "Chroy Changvar"]
+    },
+    {
+      "id": "naypyidaw",
+      "name": "Naypyidaw Command",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 50, "y": 22, "lat": 19.7633, "lng": 96.0785},
+      "connections": ["yangon", "hanoi", "bangkok"],
+      "availableFinance": ["HUNDI_HAWALA", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Zabuthiri", "Ottarathiri", "Dekkhinathiri", "Pobbathiri", "Pygimana"]
+    },
+    {
+      "id": "yangon",
+      "name": "Yangon Hub",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 48, "y": 28, "lat": 16.8409, "lng": 96.1735},
+      "connections": ["naypyidaw", "bangkok"],
+      "availableFinance": ["TRIBAL_TOLLS", "RANSOMWARE_HACK"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Dagon", "Bahan", "Kamayut", "Kyauktada", "Sanchaung"]
+    },
+    {
+      "id": "bangkok",
+      "name": "Bangkok Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 60, "y": 40, "lat": 13.7563, "lng": 100.5018},
+      "connections": ["yangon", "naypyidaw", "phnom_penh", "hanoi", "kuala_lumpur"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Sukhumvit", "Silom", "Sathorn", "Siam", "Chatuchak"]
+    },
+    {
+      "id": "kuala_lumpur",
+      "name": "Kuala Lumpur Hub",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 62, "y": 60, "lat": 3.1390, "lng": 101.6869},
+      "connections": ["bangkok", "ho_chi_minh", "singapore", "jakarta"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["KLCC", "Bukit Bintang", "Bangsar", "Mont Kiara", "Cheras"]
+    },
+    {
+      "id": "singapore",
+      "name": "Singapore Capital",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 65, "y": 66, "lat": 1.3521, "lng": 103.8198},
+      "connections": ["kuala_lumpur", "jakarta"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Orchard", "Marina Bay", "Bugis", "Tampines", "Jurong"]
+    },
+    {
+      "id": "jakarta",
+      "name": "Jakarta Base",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 70, "y": 80, "lat": -6.2088, "lng": 106.8456},
+      "connections": ["kuala_lumpur", "singapore", "bali"],
+      "defenses": "MEDIUM",
+      "counterEspionage": "MEDIUM",
+      "places": ["Menteng", "Kuningan", "SCBD", "Kemang", "Pondok Indah"]
+    },
+    {
+      "id": "bali",
+      "name": "Bali Outpost",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 88, "y": 85, "lat": -8.4095, "lng": 115.1889},
+      "connections": ["jakarta"],
+      "defenses": "MEDIUM",
+      "counterEspionage": "MEDIUM",
+      "places": ["Seminyak", "Canggu", "Ubud", "Sanur", "Nusa Dua"]
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "singapore"},
+    {"cityId": "kuala_lumpur"},
+    {"cityId": "jakarta"},
+    {"cityId": "bangkok"}
+  ],
+  "attackerNames": [
+    "Min Aung",
+    "Vang Pao",
+    "Nguyen Du"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Aero Swift",
+      "codename": "SWIFT",
+      "startingCity": "singapore",
+      "skills": {"humint": 85, "sigint": 85, "infiltration": 80, "survivability": 70}
+    },
+    {
+      "id": 2,
+      "name": "Elena Rostova",
+      "codename": "BLACKBIRD",
+      "startingCity": "bangkok",
+      "skills": {"humint": 75, "sigint": 70, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 3,
+      "name": "Karan Singha",
+      "codename": "TIGER",
+      "startingCity": "kuala_lumpur",
+      "skills": {"humint": 90, "sigint": 75, "infiltration": 60, "survivability": 80}
+    },
+    {
+      "id": 4,
+      "name": "Sarah Connor",
+      "codename": "TERMINATOR",
+      "startingCity": "jakarta",
+      "skills": {"humint": 60, "sigint": 85, "infiltration": 85, "survivability": 95}
+    },
+    {
+      "id": 5,
+      "name": "James Bond",
+      "codename": "007",
+      "startingCity": "singapore",
+      "skills": {"humint": 95, "sigint": 50, "infiltration": 90, "survivability": 95}
+    },
+    {
+      "id": 6,
+      "name": "Ethan Hunt",
+      "codename": "IMF",
+      "startingCity": "bali",
+      "skills": {"humint": 80, "sigint": 80, "infiltration": 95, "survivability": 90}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "Panther Strike",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "hanoi",
+      "skills": {"combat": 95, "stealth": 90, "mobility": 70}
+    },
+    {
+      "id": 2,
+      "name": "Viper unit",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "bangkok",
+      "skills": {"combat": 90, "stealth": 80, "mobility": 90}
+    },
+    {
+      "id": 3,
+      "name": "Cobra Squad",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "jakarta",
+      "skills": {"combat": 92, "stealth": 75, "mobility": 85}
+    },
+    {
+      "id": 4,
+      "name": "Shadow Ops",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "ho_chi_minh",
+      "skills": {"combat": 88, "stealth": 95, "mobility": 90}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 80000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 40000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 50000,
+    "HOSTILE_TERRITORY": 120000
+  },
+  "startingEspionageResources": [
+    {"type": "CCTV", "cityId": "bangkok"},
+    {"type": "WIRE_TAP", "cityId": "kuala_lumpur"}
+  ],
+  "logisticsMapping": {
+    "ASSASSINATION": {
+      "itemName": "High-velocity Sniper Rifle",
+      "cost": 120000,
+      "leadTime": 4,
+      "footprint": 25
+    }
+  },
+  "financeMapping": {
+    "ASSASSINATION": {
+      "itemName": "Encrypted Shadow Cash Drop",
+      "cost": 60000,
+      "leadTime": 4,
+      "footprint": 15
+    }
+  }
+}

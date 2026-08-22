@@ -170,7 +170,7 @@ public class CombatResolutionService {
                     // Check game over
                     boolean allEliminated = session.getAiAttackers().stream().allMatch(GameSession.AIAttacker::isEliminated);
                     if (allEliminated) {
-                        session.setStatus("SUCCESS");
+                        GameSession.applyDefenderVictoryStatus(session);
                     }
 
                     // Log outcomes
@@ -245,7 +245,9 @@ public class CombatResolutionService {
                         int currentCityHeat = session.getCityHeat().getOrDefault(city, 0);
                         session.getCityHeat().put(city, Math.min(100, currentCityHeat + 40));
                     }
-                    return repository.save(session);
+                    // FIX 4: Do NOT return early here — allow the loop to continue so a second
+                    // RAID_SAFEHOUSE from a second combat team in the same turn is also processed.
+                    continue;
                 } else {
                     // Intel breach / empty safehouse or wrong code
                     if (isCorrectCode) {
@@ -261,7 +263,8 @@ public class CombatResolutionService {
                     }
                     int currentCityHeat = session.getCityHeat().getOrDefault(city, 0);
                     session.getCityHeat().put(city, Math.min(100, currentCityHeat + 20));
-                    return repository.save(session);
+                    // FIX 4: Do NOT return early here — allow loop to continue for subsequent raids.
+                    continue;
                 }
             }
 
@@ -354,7 +357,6 @@ public class CombatResolutionService {
             }
 
             if (isMatch) {
-                session.setMaxTurns(session.getMaxTurns() + 3);
                 session.setSuspectEscapedBefore(true);
                 session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER",
                         "Alert! Operative " + session.getActualAttacker() + " path disrupted in " + city.toUpperCase() + ". Sourcing delayed. Timeline extended by 3 turns."));

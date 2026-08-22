@@ -198,6 +198,34 @@ public class SourcingMilestoneService {
             }
             session.setSecureSafehouseTurns(nextSecureSafehouses);
         }
+
+        // Tick down player attacker's finance collection
+        if (session.getRequestedFinanceCity() != null && !session.isFinanceCollected() && session.getFinanceCollectionTurnsRemaining() > 0) {
+            session.setFinanceCollectionTurnsRemaining(session.getFinanceCollectionTurnsRemaining() - 1);
+            if (session.getFinanceCollectionTurnsRemaining() == 0) {
+                GameSession.Clue clue = new GameSession.Clue(
+                        clueTurn,
+                        "FINANCE_COLLECTIBLE",
+                        "Finance collection channels are ready in " + session.getRequestedFinanceCity().toUpperCase() + ". Return here to claim your capital."
+                );
+                clue.setTurnOccurred(currentTurn);
+                session.getDiscoveredClues().add(clue);
+            }
+        }
+
+        // Tick down player attacker's logistics collection
+        if (session.getRequestedLogisticsCity() != null && !session.isLogisticsCollected() && session.getLogisticsCollectionTurnsRemaining() > 0) {
+            session.setLogisticsCollectionTurnsRemaining(session.getLogisticsCollectionTurnsRemaining() - 1);
+            if (session.getLogisticsCollectionTurnsRemaining() == 0) {
+                GameSession.Clue clue = new GameSession.Clue(
+                        clueTurn,
+                        "LOGISTICS_COLLECTIBLE",
+                        "Logistics collection channels are ready in " + session.getRequestedLogisticsCity().toUpperCase() + ". Return here to claim your gear."
+                );
+                clue.setTurnOccurred(currentTurn);
+                session.getDiscoveredClues().add(clue);
+            }
+        }
     }
 
     public void reallocateAiSourcing(GameSession session, String frozenCity, boolean isFinance, ScenarioConfig config) {
@@ -212,7 +240,6 @@ public class SourcingMilestoneService {
             session.setLogisticsCollected(false);
             session.setActiveAttackerPhase("LOGISTICS_SOURCING");
         }
-        session.setMaxTurns(session.getMaxTurns() + 5);
         if (session.getAiMasterPlan() != null && session.getAiMasterPlan().getFallbackPlan() != null && !session.getAiMasterPlan().getFallbackPlan().isEmpty()) {
             session.getAiMasterPlan().setPrimaryPlan(new ArrayList<>(session.getAiMasterPlan().getFallbackPlan()));
             session.getAiMasterPlan().getFallbackPlan().clear();

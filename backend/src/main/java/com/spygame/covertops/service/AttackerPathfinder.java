@@ -12,7 +12,8 @@ public class AttackerPathfinder {
 
     public String findOptimalPathNode(GameSession.AIAttacker attacker, GameSession session, String currentLoc, String targetDest, ScenarioConfig config, int turnsRemaining) {
         boolean isCurrentLocked = session.getHostilePatrolCities().contains(currentLoc) || session.getSurprisePatrolCities().contains(currentLoc);
-        if (isCurrentLocked) {
+        boolean isHailMary = turnsRemaining <= 5;
+        if ((!isHailMary && isCurrentLocked) || currentLoc.equalsIgnoreCase(targetDest)) {
             return currentLoc;
         }
 
@@ -26,11 +27,6 @@ public class AttackerPathfinder {
         double lowestThreat = Double.MAX_VALUE;
 
         for (String nextCity : options) {
-            boolean isTargetLocked = session.getHostilePatrolCities().contains(nextCity) || session.getSurprisePatrolCities().contains(nextCity);
-            if (isTargetLocked) {
-                continue;
-            }
-
             Node startNode = getNode(currentLoc, config);
             Node endNode = getNode(nextCity, config);
             if (startNode != null && endNode != null && !startNode.getTerritory().equals(endNode.getTerritory())) {
@@ -39,13 +35,85 @@ public class AttackerPathfinder {
                 }
             }
 
-            double threat = getThreatScore(attacker, session, nextCity, targetDest, config, turnsRemaining);
+            double threat;
+            if (isHailMary) {
+                // Hail Mary mode: ignore threats, strictly follow shortest path
+                threat = getShortestDistance(nextCity, targetDest, config);
+            } else {
+                double survival = calculateSurvivalChance(attacker, session, nextCity, config, turnsRemaining);
+                double threshold = 0.50;
+                if (survival < threshold) {
+                    continue;
+                }
+                threat = getThreatScore(attacker, session, nextCity, targetDest, config, turnsRemaining);
+                threat += (1.0 - survival) * 1000.0;
+            }
+
             if (threat < lowestThreat) {
                 lowestThreat = threat;
                 bestOption = nextCity;
             }
         }
         return bestOption != null ? bestOption : currentLoc;
+    }
+
+    public List<String> findFullRoute(GameSession.AIAttacker attacker, GameSession session, String currentLoc, String targetDest, ScenarioConfig config, int turnsRemaining) {
+        List<String> route = new ArrayList<>();
+        String curr = currentLoc;
+        Set<String> visited = new HashSet<>();
+        visited.add(curr);
+
+        while (curr != null && !curr.equalsIgnoreCase(targetDest) && visited.size() < config.getNodes().size()) {
+            String next = findOptimalPathNode(attacker, session, curr, targetDest, config, turnsRemaining);
+            if (next == null || next.equalsIgnoreCase(curr) || visited.contains(next)) {
+                break;
+            }
+            route.add(next);
+            visited.add(next);
+            curr = next;
+        }
+        return route;
+    }
+
+    public double calculateSurvivalChance(GameSession.AIAttacker attacker, GameSession session, String city, ScenarioConfig config, int turnsRemaining) {
+        double survivalChance = 1.0;
+
+        // 1. Detect border patrols (Hostile/Surprise patrols)
+        if (session.getHostilePatrolCities() != null && session.getHostilePatrolCities().contains(city)) {
+            survivalChance *= 0.60; // 40% risk from warned patrol
+        }
+        if (session.getSurprisePatrolCities() != null && session.getSurprisePatrolCities().contains(city)) {
+            survivalChance *= 0.70; // 30% risk from surprise patrol
+        }
+
+        // 2. Detect Border Guards
+        boolean hasBorderGuard = false;
+        boolean hasOtherScanners = false;
+        if (session.getEspionageResources() != null) {
+            for (GameSession.ActiveResource res : session.getEspionageResources()) {
+                if (res.getCityNode().equals(city)) {
+                    if ("BORDER_GUARD".equals(res.getType())) {
+                        hasBorderGuard = true;
+                    } else {
+                        hasOtherScanners = true;
+                    }
+                }
+            }
+        }
+        if (hasBorderGuard) {
+            survivalChance *= 0.75; // 25% risk from border guards
+        }
+
+        // 3. Estimated risk of combat teams (positions are NOT visible, but estimated via Heat & Scanners)
+        int heat = session.getCityHeat().getOrDefault(city, 0);
+        double heatRiskFactor = (heat / 100.0) * 0.30; // Max 30% risk factor at 100% heat
+        survivalChance *= (1.0 - heatRiskFactor);
+
+        if (hasOtherScanners) {
+            survivalChance *= 0.85; // 15% risk factor if defender has active scanners in city
+        }
+
+        return survivalChance;
     }
 
     public double getThreatScore(GameSession.AIAttacker attacker, GameSession session, String city, String destination, ScenarioConfig config, int turnsRemaining) {

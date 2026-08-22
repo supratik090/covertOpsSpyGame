@@ -81,7 +81,7 @@ public class GameSessionServiceTest {
     public void testCreateSession() {
         when(repository.save(any(GameSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        GameSession session = sessionService.createSession("operation_silent_edge");
+        GameSession session = createTestSession();
 
         assertNotNull(session);
         assertNotNull(session.getId());
@@ -100,7 +100,7 @@ public class GameSessionServiceTest {
     public void testProcessEndTurnWithFinancePivot() {
         when(repository.save(any(GameSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        GameSession session = sessionService.createSession("operation_silent_edge");
+        GameSession session = createTestSession();
         UUID sessionId = UUID.randomUUID();
         session.setId(sessionId);
 
@@ -154,7 +154,7 @@ public class GameSessionServiceTest {
 
         assertEquals(28, updatedSession.getAiMasterPlan().getPrimaryPlan().size());
         assertTrue(updatedSession.getAiMasterPlan().getFallbackPlan().isEmpty());
-        assertEquals(30, updatedSession.getMaxTurns());
+        assertEquals(25, updatedSession.getMaxTurns());
         
         boolean alertLogged = updatedSession.getDiscoveredClues().stream()
                 .anyMatch(c -> c.getClueText().contains("re-allocation") || c.getClueText().contains("fallback"));
@@ -165,7 +165,7 @@ public class GameSessionServiceTest {
     public void testProcessEndTurnWithCombatEncounter() {
         when(repository.save(any(GameSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        GameSession session = sessionService.createSession("operation_silent_edge");
+        GameSession session = createTestSession();
         UUID sessionId = UUID.randomUUID();
         session.setId(sessionId);
 
@@ -185,7 +185,10 @@ public class GameSessionServiceTest {
         session.getAiMasterPlan().setPrimaryPlan(primaryPlan);
 
         List<GameSession.AIAttacker> attackers = new ArrayList<>();
-        GameSession.AIAttacker attObj = new GameSession.AIAttacker("Tariq Mahmood", "islamabad", "Initial decoy");
+        GameSession.AIAttacker attObj = new GameSession.AIAttacker("Tariq Mahmood", "islamabad", "Request Finance");
+        attObj.setRequestedFinanceCity("islamabad");
+        attObj.setFinanceCollectionTurnsRemaining(5);
+        attObj.setBudget(300000);
         attackers.add(attObj);
         session.setAiAttackers(attackers);
 
@@ -221,8 +224,7 @@ public class GameSessionServiceTest {
                     .anyMatch(c -> c.getClueText().contains("neutralized"));
             assertTrue(successClue, "Capture announcement should be logged");
         } else {
-            assertEquals(9, result.getCurrentTurn(), "Escaping should rewind turn back to 8 and then advance to 9 (18 - 10 + 1)");
-            assertEquals(35, result.getMaxTurns(), "Max turns deadline should extend by +10 to 35");
+            assertEquals(19, result.getCurrentTurn(), "Turn should advance normally from 18 to 19 without rewinding current turn");
             boolean escapeClue = result.getDiscoveredClues().stream()
                     .anyMatch(c -> c.getClueText().contains("escaped"));
             assertTrue(escapeClue, "Escape announcement should be logged");
@@ -300,5 +302,39 @@ public class GameSessionServiceTest {
 
         assertEquals("PlayerA", afterDefender.getActivePlayer()); // Switches back to Player A
         assertEquals(2, afterDefender.getCurrentTurn()); // Turn advanced
+    }
+
+    private GameSession createTestSession() {
+        GameSession session = sessionService.createSession("operation_silent_edge");
+        session.setDeploymentPending(false);
+        if (parsedConfig.getAgents() != null) {
+            for (GameSession.Agent agent : session.getAgents()) {
+                java.util.Map<String, Object> aMap = parsedConfig.getAgents().stream()
+                        .filter(m -> ((Integer) m.get("id")).equals(agent.getId()))
+                        .findFirst()
+                        .orElse(null);
+                if (aMap != null) {
+                    agent.setCurrentCity((String) aMap.get("startingCity"));
+                }
+            }
+        }
+        if (parsedConfig.getTacticalTeams() != null) {
+            for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
+                java.util.Map<String, Object> tMap = parsedConfig.getTacticalTeams().stream()
+                        .filter(m -> ((Integer) m.get("id")).equals(team.getId()))
+                        .findFirst()
+                        .orElse(null);
+                if (tMap != null) {
+                    team.setCurrentCity((String) tMap.get("startingCity"));
+                }
+            }
+        }
+        if (parsedConfig.getStartingDefenderSafehouses() != null) {
+            java.util.List<GameSession.Safehouse> safehousesList = parsedConfig.getStartingDefenderSafehouses().stream()
+                    .map(sMap -> new GameSession.Safehouse(sMap.get("cityId"), "DEFENDER", "DEFAULT", true))
+                    .collect(java.util.stream.Collectors.toList());
+            session.setSafehouses(safehousesList);
+        }
+        return session;
     }
 }

@@ -83,14 +83,14 @@ public class SecuritySweepService {
             }
         }
 
-        // 2. Resolve Surprise Sweeps (surprisePatrolCities): 33% chance of capture/destruction for each resource independently
+        // 2. Resolve Surprise Sweeps (surprisePatrolCities): 50% chance for agents/combat teams, 70% chance for safehouses
         if (session.getSurprisePatrolCities() != null && !session.getSurprisePatrolCities().isEmpty()) {
             List<String> swept = session.getSurprisePatrolCities();
 
-            // Resolve surprise sweeps for agents
+            // Resolve surprise sweeps for agents (50% chance)
             List<GameSession.Agent> survivingAgents = new ArrayList<>();
             for (GameSession.Agent agent : session.getAgents()) {
-                if (swept.contains(agent.getCurrentCity()) && rollRand.nextDouble() < 0.33) {
+                if (swept.contains(agent.getCurrentCity()) && rollRand.nextDouble() < 0.50) {
                     session.getDiscoveredClues().add(new GameSession.Clue(
                             currentTurn,
                             "SECURITY_SWEEP_LOSS",
@@ -104,10 +104,10 @@ public class SecuritySweepService {
             }
             session.setAgents(survivingAgents);
 
-            // Resolve surprise sweeps for tactical teams
+            // Resolve surprise sweeps for tactical teams / combat force (50% chance)
             List<GameSession.TacticalTeam> survivingTeams = new ArrayList<>();
             for (GameSession.TacticalTeam team : session.getTacticalTeams()) {
-                if (swept.contains(team.getCurrentCity()) && rollRand.nextDouble() < 0.33) {
+                if (swept.contains(team.getCurrentCity()) && rollRand.nextDouble() < 0.50) {
                     session.getDiscoveredClues().add(new GameSession.Clue(
                             currentTurn,
                             "SECURITY_SWEEP_LOSS",
@@ -121,10 +121,10 @@ public class SecuritySweepService {
             }
             session.setTacticalTeams(survivingTeams);
 
-            // Resolve surprise sweeps for safehouses
+            // Resolve surprise sweeps for safehouses (70% chance)
             List<GameSession.Safehouse> safehousesLeft = new ArrayList<>();
             for (GameSession.Safehouse sh : session.getSafehouses()) {
-                if (swept.contains(sh.getCityNode()) && "DEFENDER".equals(sh.getOwnerFaction()) && rollRand.nextDouble() < 0.33) {
+                if (swept.contains(sh.getCityNode()) && "DEFENDER".equals(sh.getOwnerFaction()) && rollRand.nextDouble() < 0.70) {
                     session.getDiscoveredClues().add(new GameSession.Clue(
                             currentTurn,
                             "SECURITY_SWEEP_LOSS",
@@ -162,6 +162,16 @@ public class SecuritySweepService {
             }
         }
 
+        if (session.getDroneBaseCooldowns() != null && !session.getDroneBaseCooldowns().isEmpty()) {
+            Map<String, Integer> updatedCooldowns = new HashMap<>();
+            for (Map.Entry<String, Integer> entry : session.getDroneBaseCooldowns().entrySet()) {
+                if (entry.getValue() > 1) {
+                    updatedCooldowns.put(entry.getKey(), entry.getValue() - 1);
+                }
+            }
+            session.setDroneBaseCooldowns(updatedCooldowns);
+        }
+
         // Update Heat Percentage and COBRA Alert Level
         updateHeatLevel(session, currentStep, config);
 
@@ -174,7 +184,7 @@ public class SecuritySweepService {
         // Check Defeat / Victory on Turn Limit: if currentTurn exceeds deadline limit
         if (session.getCurrentTurn() > session.getMaxTurns()) {
             if ("DEFENDER".equals(session.getPlayerRole())) {
-                session.setStatus("SUCCESS");
+                GameSession.applyDefenderVictoryStatus(session);
                 session.getDiscoveredClues().add(new GameSession.Clue(
                         session.getCurrentTurn(),
                         "TACTICAL_FORCE",

@@ -23,23 +23,29 @@ public class GameSessionLobbyService {
     private ScenarioConfigRepository scenarioConfigRepository;
 
     public List<GameSession> listSessions() {
-        return repository.findAll();
+        return repository.findAll().stream()
+                .filter(s -> !"INACTIVE".equals(s.getStatus()))
+                .collect(Collectors.toList());
     }
 
     public List<GameSession> listSessions(String username) {
+        List<GameSession> activeList = repository.findAll().stream()
+                .filter(s -> !"INACTIVE".equals(s.getStatus()))
+                .collect(Collectors.toList());
         if (username == null) {
-            return repository.findAll();
+            return activeList;
         }
-        return repository.findAll().stream()
+        return activeList.stream()
                 .filter(s -> username.equals(s.getOwnerUsername()) || username.equals(s.getPlayerB()) || (s.getOwnerUsername() == null && s.getPlayerB() == null))
                 .collect(Collectors.toList());
     }
 
     public void deleteSession(UUID sessionId) {
-        if (!repository.existsById(sessionId)) {
-            throw new IllegalArgumentException("Session not found with ID: " + sessionId);
+        GameSession session = repository.findById(sessionId).orElse(null);
+        if (session != null) {
+            session.setStatus("INACTIVE");
+            repository.save(session);
         }
-        repository.deleteById(sessionId);
     }
 
     public GameSession createSession(String scenarioId) {
@@ -143,7 +149,7 @@ public class GameSessionLobbyService {
                     agent.setCodename((String) aMap.get("codename"));
                     // DEFENDER players choose starting city during deployment screen
                     agent.setCurrentCity(isDefender ? null : (String) aMap.get("startingCity"));
-                    agent.setActiveTask("FIND_SUSPECT");
+                    agent.setActiveTask("UNCOVER_SAFEHOUSE");
                     agent.setSkills((Map<String, Integer>) aMap.get("skills"));
                     agent.setCooldownRemaining(0);
                     return agent;
@@ -173,6 +179,14 @@ public class GameSessionLobbyService {
                         .map(sMap -> new GameSession.Safehouse(sMap.get("cityId"), "DEFENDER", "DEFAULT", true))
                         .collect(Collectors.toList());
             }
+            if (!isDefender && session.getSuspectLocation() != null) {
+                String spawnLoc = session.getSuspectLocation();
+                boolean exists = safehousesList.stream()
+                        .anyMatch(s -> s.getCityNode().equals(spawnLoc) && "HOSTILE".equals(s.getOwnerFaction()));
+                if (!exists) {
+                    safehousesList.add(new GameSession.Safehouse(spawnLoc, "HOSTILE", "DEFAULT", false));
+                }
+            }
             // DEFENDER session: no pre-placed safehouses — player places them in deployment screen
 
             List<PlanStep> allSteps = new ArrayList<>();
@@ -196,6 +210,27 @@ public class GameSessionLobbyService {
                 }
             }
             session.setSafehouses(safehousesList);
+            com.spygame.covertops.util.SafehouseUtils.ensureAllSafehousesHavePlaces(session, config);
+
+            // Initialize drones
+            String defaultHomeCity = "amritsar"; // fallback
+            if (config.getNodes() != null) {
+                for (com.spygame.covertops.model.Node node : config.getNodes()) {
+                    if ("HOME_TERRITORY".equals(node.getTerritory())) {
+                        defaultHomeCity = node.getId();
+                        break;
+                    }
+                }
+            }
+
+            List<GameSession.Drone> initialDrones = new ArrayList<>();
+            initialDrones.add(new GameSession.Drone(1, defaultHomeCity, "ACTIVE", "1-HOP", 1));
+            initialDrones.add(new GameSession.Drone(2, defaultHomeCity, "ACTIVE", "2-HOP", 2));
+            session.setDrones(initialDrones);
+
+            List<String> initialDroneBases = new ArrayList<>();
+            initialDroneBases.add(defaultHomeCity);
+            session.setDroneBases(initialDroneBases);
 
             // Mark deployment pending for DEFENDER — player must place assets before turn 1
             if (isDefender) {
@@ -281,7 +316,7 @@ public class GameSessionLobbyService {
                     agent.setName((String) aMap.get("name"));
                     agent.setCodename((String) aMap.get("codename"));
                     agent.setCurrentCity(isDefenderMP ? null : (String) aMap.get("startingCity"));
-                    agent.setActiveTask("FIND_SUSPECT");
+                    agent.setActiveTask("UNCOVER_SAFEHOUSE");
                     agent.setSkills((Map<String, Integer>) aMap.get("skills"));
                     agent.setCooldownRemaining(0);
                     return agent;
@@ -309,6 +344,14 @@ public class GameSessionLobbyService {
                         .map(sMap -> new GameSession.Safehouse(sMap.get("cityId"), "DEFENDER", "DEFAULT", true))
                         .collect(Collectors.toList());
             }
+            if (!isDefenderMP && session.getSuspectLocation() != null) {
+                String startLoc = session.getSuspectLocation();
+                boolean exists = safehousesList.stream()
+                        .anyMatch(s -> s.getCityNode().equals(startLoc) && "HOSTILE".equals(s.getOwnerFaction()));
+                if (!exists) {
+                    safehousesList.add(new GameSession.Safehouse(startLoc, "HOSTILE", "DEFAULT", false));
+                }
+            }
 
             List<PlanStep> allSteps = new ArrayList<>();
             if (session.getSuspectPlans() != null) {
@@ -331,6 +374,27 @@ public class GameSessionLobbyService {
                 }
             }
             session.setSafehouses(safehousesList);
+            com.spygame.covertops.util.SafehouseUtils.ensureAllSafehousesHavePlaces(session, config);
+
+            // Initialize drones
+            String defaultHomeCityMP = "amritsar"; // fallback
+            if (config.getNodes() != null) {
+                for (com.spygame.covertops.model.Node node : config.getNodes()) {
+                    if ("HOME_TERRITORY".equals(node.getTerritory())) {
+                        defaultHomeCityMP = node.getId();
+                        break;
+                    }
+                }
+            }
+
+            List<GameSession.Drone> initialDronesMP = new ArrayList<>();
+            initialDronesMP.add(new GameSession.Drone(1, defaultHomeCityMP, "ACTIVE", "1-HOP", 1));
+            initialDronesMP.add(new GameSession.Drone(2, defaultHomeCityMP, "ACTIVE", "2-HOP", 2));
+            session.setDrones(initialDronesMP);
+
+            List<String> initialDroneBasesMP = new ArrayList<>();
+            initialDroneBasesMP.add(defaultHomeCityMP);
+            session.setDroneBases(initialDroneBasesMP);
 
             // Mark deployment pending for DEFENDER — player must place assets before turn 1
             if (isDefenderMP) {

@@ -19,7 +19,8 @@
       "coordinates": {"x": 30, "y": 90, "lat": 24.8607, "lng": 67.0011},
       "connections": ["quetta", "lahore"],
       "availableFinance": ["DRUG_SALES", "ILLICIT_ARMS_SALES"],
-      "availableLogistics": ["BLACK_MARKET_IMPORT"]
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Clifton", "Saddar", "Lyari", "Defense Housing", "Korangi"]
     },
     {
       "id": "quetta",
@@ -28,7 +29,8 @@
       "coordinates": {"x": 32, "y": 45, "lat": 30.1798, "lng": 66.9750},
       "connections": ["karachi", "peshawar"],
       "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
-      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"]
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"],
+      "places": ["Zarghun Road", "Jinnah Road", "Satellite Town", "Chaman Border Post", "Cantonment"]
     },
     {
       "id": "peshawar",
@@ -37,7 +39,8 @@
       "coordinates": {"x": 45, "y": 25, "lat": 34.0151, "lng": 71.5249},
       "connections": ["quetta", "lahore", "islamabad"],
       "availableFinance": ["TRIBAL_TOLLS", "RANSOMWARE_HACK"],
-      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"]
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Qissa Khwani", "Hayatabad", "University Town", "Karkhano Bazaar", "Bara Gate"]
     },
     {
       "id": "islamabad",
@@ -46,7 +49,8 @@
       "coordinates": {"x": 52, "y": 20, "lat": 33.6844, "lng": 73.0479},
       "connections": ["peshawar", "lahore"],
       "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
-      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"]
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Blue Area", "F-6 Sector", "G-9 Sector", "F-7 Markaz", "Centaurus Environs"]
     },
     {
       "id": "lahore",
@@ -55,7 +59,8 @@
       "coordinates": {"x": 60, "y": 40, "lat": 31.5204, "lng": 74.3587},
       "connections": ["karachi", "peshawar", "islamabad", "srinagar", "jammu", "amritsar"],
       "availableFinance": ["HUNDI_HAWALA", "COMMERCIAL_FRONT_LOAN"],
-      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"]
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Gulberg", "Model Town", "DHA Phase 5", "Anarkali Bazaar", "Johar Town"]
     },
     {
       "id": "srinagar",
@@ -64,7 +69,8 @@
       "coordinates": {"x": 65, "y": 18, "lat": 34.0837, "lng": 74.7973},
       "connections": ["lahore", "jammu"],
       "defenses": "VERY_HIGH",
-      "counterEspionage": "HIGH"
+      "counterEspionage": "HIGH",
+      "places": ["Lal Chowk", "Dal Gate", "Nishat", "Rajbagh", "Soura"]
     },
     {
       "id": "jammu",
@@ -73,7 +79,8 @@
       "coordinates": {"x": 65, "y": 27, "lat": 32.7266, "lng": 74.8570},
       "connections": ["lahore", "srinagar", "amritsar"],
       "defenses": "HIGH",
-      "counterEspionage": "HIGH"
+      "counterEspionage": "HIGH",
+      "places": ["Gandhi Nagar", "Trikuta Nagar", "Bahu Fort Area", "Janipur", "Channi Himmat"]
     },
     {
       "id": "amritsar",
@@ -82,7 +89,8 @@
       "coordinates": {"x": 60, "y": 38, "lat": 31.6340, "lng": 74.8723},
       "connections": ["lahore", "jammu", "chandigarh"],
       "defenses": "MEDIUM",
-      "counterEspionage": "MEDIUM"
+      "counterEspionage": "MEDIUM",
+      "places": ["Golden Temple Environs", "Ranjit Avenue", "Civil Lines", "Chheharta", "Model Town"]
     },
     {
       "id": "chandigarh",
@@ -91,7 +99,8 @@
       "coordinates": {"x": 75, "y": 45, "lat": 30.7333, "lng": 76.7794},
       "connections": ["amritsar", "new_delhi"],
       "defenses": "MEDIUM",
-      "counterEspionage": "MEDIUM"
+      "counterEspionage": "MEDIUM",
+      "places": ["Sector 17", "Sector 35", "Elante District", "Sector 22", "Manimajra"]
     },
     {
       "id": "new_delhi",
@@ -100,7 +109,8 @@
       "coordinates": {"x": 75, "y": 55, "lat": 28.6139, "lng": 77.2090},
       "connections": ["chandigarh"],
       "defenses": "EXTREME",
-      "counterEspionage": "EXTREME"
+      "counterEspionage": "EXTREME",
+      "places": ["Connaught Place", "Lajpat Nagar", "Hauz Khas", "Dwarka", "Karol Bagh"]
     }
   ],
   "startingDefenderSafehouses": [
