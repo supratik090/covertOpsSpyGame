@@ -187,6 +187,27 @@ export default function EndTurnReportModal({ report, onClose, isAttacker }) {
             </div>
           )}
 
+          {/* Drone Interdiction & Anti-Air Damage Reports */}
+          {report.droneInterdictionAlerts?.length > 0 && (
+            <div className="report-card" style={{
+              border: '1px solid rgba(245, 158, 11, 0.45)',
+              background: 'rgba(245, 158, 11, 0.08)',
+              padding: '14px',
+              borderRadius: '6px',
+              boxShadow: '0 0 16px rgba(245, 158, 11, 0.2)',
+              animationDelay: '140ms'
+            }}>
+              <span style={{ color: '#f59e0b', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', letterSpacing: '0.05em' }}>
+                <Siren size={14} /> ⚡ DRONE INTERDICTION & DAMAGE REPORT
+              </span>
+              <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: '#fbbf24', lineHeight: '1.6', fontWeight: 'bold' }}>
+                {report.droneInterdictionAlerts.map((clue, idx) => (
+                  <li key={idx} style={{ color: clue.source === 'DRONE_SHOT_DOWN' ? '#ff3b30' : '#f59e0b' }}>{clue.clueText}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Drone Base Maintenance Alerts & Advance Warnings */}
           {report.droneMaintenanceAlerts?.length > 0 && (
             <div className="report-card" style={{

@@ -417,7 +417,7 @@ public class HintGenerationService {
         }
         if (!deployedTypes.contains("SATELLITE") && turn >= 5) {
             hints.add(new Hint("SURVEILLANCE", "DEPLOY SATELLITE COVERAGE",
-                "Satellite (USD80K) provides wide-area suspect tracking AND boosts Border Guard interdiction to 50%, Drone Recon & Drone Attacks in covered cities.",
+                "Satellite (USD50K) provides wide-area suspect tracking AND boosts Border Guard interdiction to 50%, Drone Recon & Drone Attacks in covered cities.",
                 turn, P_MEDIUM));
         }
         if (session.getDroneBases() != null && !session.getDroneBases().isEmpty()) {
@@ -451,7 +451,7 @@ public class HintGenerationService {
         }
         if (!deployedTypes.contains("PHONE_TAP") && turn >= 3 && suspectLoc != null) {
             hints.add(new Hint("SURVEILLANCE", "PHONE TAP - " + getNodeName(suspectLoc, config).toUpperCase(),
-                "PHONE_TAP (USD40K) provides always-truthful confirmation when suspect is in a city. Cannot be fabricated. Deploy in suspected operating city.",
+                "PHONE_TAP (USD20K) provides always-truthful confirmation when suspect is in a city. Cannot be fabricated. Deploy in suspected operating city.",
                 turn, P_LOW));
         }
         if (!deployedTypes.contains("SIGNAL_JAMMER") && turn >= 8) {

@@ -133,15 +133,19 @@ public class AIAttackerService {
 
             if (attacker.getHealingTurnsRemaining() <= 0) {
 
+            boolean isUrgentOrPostHealing = "Healing_Recovered".equals(attacker.getState()) || currentTurn >= 10;
+
             // 2. Finance sourcing
-            if ("Initial decoy".equals(attacker.getState())) {
-                String requested = config.getNodes().stream()
-                        .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()) && !n.getId().equals(attacker.getCurrentLocation()))
-                        .map(Node::getId)
-                        .findFirst()
-                        .orElse(attacker.getCurrentLocation());
+            if ("Initial decoy".equals(attacker.getState()) || "Healing_Recovered".equals(attacker.getState())) {
+                String requested = isUrgentOrPostHealing
+                        ? (attacker.getCurrentLocation() != null ? attacker.getCurrentLocation() : "karachi")
+                        : config.getNodes().stream()
+                                .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()) && !n.getId().equals(attacker.getCurrentLocation()))
+                                .map(Node::getId)
+                                .findFirst()
+                                .orElse(attacker.getCurrentLocation());
                 attacker.setRequestedFinanceCity(requested);
-                attacker.setFinanceCollectionTurnsRemaining(2);
+                attacker.setFinanceCollectionTurnsRemaining(isUrgentOrPostHealing ? 1 : 2);
                 attacker.setState("Request Finance");
             }
             if ("Request Finance".equals(attacker.getState())) {
@@ -153,30 +157,35 @@ public class AIAttackerService {
 
             // 3. Logistics sourcing
             if ("Request Logistic".equals(attacker.getState()) && attacker.isFinanceCollected()) {
-                String requestedLogistics = config.getNodes().stream()
-                        .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()) && !n.getId().equals(attacker.getCurrentLocation()))
-                        .map(Node::getId)
-                        .findFirst()
-                        .orElse(attacker.getCurrentLocation());
+                String requestedLogistics = isUrgentOrPostHealing
+                        ? (attacker.getCurrentLocation() != null ? attacker.getCurrentLocation() : "karachi")
+                        : config.getNodes().stream()
+                                .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()) && !n.getId().equals(attacker.getCurrentLocation()))
+                                .map(Node::getId)
+                                .findFirst()
+                                .orElse(attacker.getCurrentLocation());
                 attacker.setRequestedLogisticsCity(requestedLogistics);
-                attacker.setLogisticsCollectionTurnsRemaining(3);
+                attacker.setLogisticsCollectionTurnsRemaining(isUrgentOrPostHealing ? 1 : 3);
                 attacker.setState("Requesting Sourcing");
             }
             if ("Requesting Sourcing".equals(attacker.getState())) {
                 if (loc.equalsIgnoreCase(attacker.getRequestedLogisticsCity()) && attacker.getLogisticsCollectionTurnsRemaining() <= 0) {
                     attacker.setLogisticsCollected(true);
                     
-                    List<String> friendlyCities = config.getNodes().stream()
-                            .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
-                            .map(Node::getId)
-                            .collect(Collectors.toList());
-                    if (friendlyCities.isEmpty()) {
-                        friendlyCities = config.getNodes().stream().map(Node::getId).collect(Collectors.toList());
+                    String chosen = isUrgentOrPostHealing ? attacker.getCurrentLocation() : null;
+                    if (chosen == null || chosen.isEmpty()) {
+                        List<String> friendlyCities = config.getNodes().stream()
+                                .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                                .map(Node::getId)
+                                .collect(Collectors.toList());
+                        if (friendlyCities.isEmpty()) {
+                            friendlyCities = config.getNodes().stream().map(Node::getId).collect(Collectors.toList());
+                        }
+                        chosen = friendlyCities.get(random.nextInt(friendlyCities.size()));
                     }
-                    String chosen = friendlyCities.get(random.nextInt(friendlyCities.size()));
                     
                     attacker.setHandoverCity(chosen);
-                    attacker.setHandoverTurnsRemaining(2);
+                    attacker.setHandoverTurnsRemaining(isUrgentOrPostHealing ? 1 : 2);
                     attacker.setState("Handover pending");
                 }
             }

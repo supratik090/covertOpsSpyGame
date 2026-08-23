@@ -130,8 +130,13 @@ export default function MapView({
     // Only show strike effects for the MOST RECENT TURN — clears after each turn
     const lastTurn = session.currentTurn - 1;
     return session.discoveredClues
-      .filter(c => (c.source === 'STRIKE_EXECUTED' || c.source === 'SAFEHOUSE_ATTACK') && c.cityName && c.turnDiscovered === lastTurn)
-      .map(c => c.cityName.toLowerCase());
+      .filter(c => {
+        const isStrike = c.source === 'STRIKE_EXECUTED' || c.source === 'SAFEHOUSE_ATTACK' || c.source === 'DRONE_ATTACK';
+        const city = c.location || c.cityName;
+        const clueTurn = c.turnDiscovered !== undefined ? c.turnDiscovered : c.turn;
+        return isStrike && city && clueTurn === lastTurn;
+      })
+      .map(c => (c.location || c.cityName).toLowerCase());
   }, [session]);
 
   const CONNECTIONS = React.useMemo(() => {
@@ -441,12 +446,12 @@ export default function MapView({
       const isFriendly = isAttacker ? !isFriendlyRaw : isFriendlyRaw;
       const isTarget = activeScenario?.targetCity ? cityId === activeScenario.targetCity : cityId === 'new_delhi';
       
-      const hasDefenderSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'DEFENDER');
-      const hasHostileSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE');
-      const hasExposedNormalSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered && !s.secure);
-      const hasExposedSecureSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered && s.secure);
+      const hasDefenderSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'DEFENDER' && s.status !== 'DESTROYED');
+      const hasHostileSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.status !== 'DESTROYED');
+      const hasExposedNormalSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && (s.uncovered || s.exposed) && !s.secure && s.status !== 'DESTROYED');
+      const hasExposedSecureSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && (s.uncovered || s.exposed) && s.secure && s.status !== 'DESTROYED');
       
-      const isSecureSafehouse = hasHostileSafehouse && session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.secure);
+      const isSecureSafehouse = hasHostileSafehouse && session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.secure && s.status !== 'DESTROYED');
       // Build safehouse icon HTML string for Leaflet markers (SVG from GameSymbols)
       const shColor = isAttacker ? (isSecureSafehouse ? '#ffcc00' : '#ff3b30') : '#00f0ff';
       const showSafehouseIconHtml = isAttacker
@@ -456,6 +461,7 @@ export default function MapView({
       const showExposedSecureIcon = !isAttacker && hasExposedSecureSH;
       
       const isSweptZone = sweepCities.includes(cityId);
+      const isDroneDefenseActive = Boolean(session?.activeDroneDefenseCity && session.activeDroneDefenseCity.toLowerCase() === cityId.toLowerCase());
 
       // Render suspect if we are Attacker, or if God Mode is on for Defender
       const isSuspectHere = isAttacker 
@@ -516,12 +522,9 @@ export default function MapView({
       const isSelected = selectedCityNode === cityId;
 
       // Determine if any agent at this city is idle (no task or NONE)
-      const cityAgents = session.agents.filter(a => {
-        const plannedDest = localAgentMoves[a.id];
-        if (plannedDest) return plannedDest === cityId;
-        return a.currentCity === cityId;
-      });
-      const hasIdleAgent = !isAttacker && cityAgents.some(a => {
+      const hasIdleAgent = !isAttacker && session.agents.some(a => {
+        const currentLoc = localAgentMoves[a.id] || a.currentCity;
+        if (currentLoc !== cityId) return false;
         const effectiveTask = localAgentTasks[a.id] || a.activeTask;
         return !effectiveTask || effectiveTask === 'NONE' || effectiveTask === '';
       });
@@ -536,18 +539,12 @@ export default function MapView({
        }).length;
 
        const droneBaseHtml = hasDroneBase ? `
-         <div class="city-marker-drone-base" title="Drone Base" style="position: absolute; bottom: -18px; left: -18px; background: rgba(0, 240, 255, 0.15); border: 1px solid #00f0ff; border-radius: 4px; padding: 2px; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; z-index: 10;">
-           ${droneBaseIconHtml({ size: 12, color: '#00f0ff' })}
+         <div class="city-marker-drone-base" title="Drone Base Stationed" style="position: absolute; bottom: -18px; left: -18px; background: rgba(0, 240, 255, 0.15); border: 1px solid var(--cyan); border-radius: 4px; padding: 2px; display: flex; align-items: center; justify-content: center; z-index: 10;">
+           ${droneBaseIconHtml({ size: 11, color: 'var(--cyan)' })}
          </div>
        ` : '';
 
-       const droneHtml = cityDronesCount > 0 ? `
-         <div class="drone-orbit-container" style="position: absolute; top: 50%; left: 50%; width: 46px; height: 46px; margin-top: -23px; margin-left: -23px; pointer-events: none; animation: drone-circular-orbit 4.5s linear infinite; z-index: 12;">
-           <div style="position: absolute; inset: 0; border: 1px dashed rgba(16, 185, 129, 0.45); border-radius: 50%;"></div>
-           <div style="position: absolute; top: -6px; left: 16px; width: 14px; height: 14px;">
-             ${droneIconHtml({ size: 14, color: '#10b981' })}
-           </div>
-         </div>
+       const droneHtml = (hasDroneBase && cityDronesCount > 0) ? `
          <div class="city-marker-drone-count" title="${cityDronesCount} Drone(s) stationed" style="position: absolute; bottom: -18px; right: -18px; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 4px; padding: 2px; height: 16px; display: flex; align-items: center; justify-content: center; gap: 2px; padding-left: 3px; padding-right: 4px; z-index: 10;">
            ${droneIconHtml({ size: 11, color: '#10b981' })}
            <span style="font-size: 8px; font-weight: bold; color: #10b981;">${cityDronesCount}</span>
@@ -558,11 +555,12 @@ export default function MapView({
        const markerHtml = `
          <div class="city-marker-wrapper ${isSelected ? 'selected' : ''} ${hasIdleAgent ? 'has-idle' : ''} ${isSweptZone ? 'swept-zone' : ''} ${isSuspectHere ? 'suspect-here-wrapper' : ''} ${isStruck ? 'city-struck' : ''}">
            ${isSweptZone ? '<div class="city-marker-sweep-ring"></div>' : ''}
+           ${isDroneDefenseActive ? '<div class="city-marker-drone-defense-ring"></div>' : ''}
            ${isSuspectHere ? '<div class="suspect-radar-ring"></div>' : ''}
            ${destroyedFriendlyCities.includes(cityId) ? '<div class="safehouse-alert-badge compromised">🚨 SAFEHOUSE COMPROMISED</div>' : ''}
-           ${destroyedEnemyCities.includes(cityId) ? '<div class="safehouse-alert-badge neutralized">🎯 ENEMY SAFEHOUSE NEUTRALIZED</div>' : ''}
+           ${destroyedEnemyCities.some(c => (typeof c === 'string' ? c : c.cityId) === cityId) ? `<div class="safehouse-alert-badge neutralized">🎯 ${destroyedEnemyCities.find(c => (typeof c === 'string' ? c : c.cityId) === cityId)?.isElimination ? 'ENEMY ELIMINATED' : 'SAFEHOUSE DESTROYED'}</div>` : ''}
            ${isStruck ? '<div class="smoke-fumes-container"><div class="fume-particle" style="--wind: -3px; --wind-far: -8px"></div><div class="fume-particle" style="--wind: 4px; --wind-far: 9px"></div><div class="fume-particle" style="--wind: -1px; --wind-far: -3px"></div></div><div class="fire-flame">🔥</div>' : ''}
-           <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''}"></div>
+           <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''} ${isDroneDefenseActive ? 'drone-defense-alert' : ''}"></div>
            <div class="city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}"></div>
            ${showSafehouseIconHtml ? `<div class="city-marker-safehouse" style="display: flex; align-items: center; justify-content: center;">${showSafehouseIconHtml}</div>` : ''}
            ${showExposedNormalIcon ? `<div class="city-marker-exposed-hostile">${safehouseIconHtml({ size: 11, color: '#f59e0b' })}👁️</div>` : ''}
@@ -575,6 +573,7 @@ export default function MapView({
            ${droneHtml}
            ${hasIdleAgent ? `<div class="city-marker-idle">⚠</div>` : ''}
            ${isSweptZone ? '<div class="city-marker-sweep-label">⚠ SWEEP</div>' : ''}
+           ${isDroneDefenseActive ? '<div class="city-marker-drone-defense-label">🛡️ AIR DEFENSE ACTIVE</div>' : ''}
             <div class="city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}">${cityId.replace('_', ' ').toUpperCase()}</div>
           </div>
         `;
@@ -583,10 +582,19 @@ export default function MapView({
        let tooltipContent = `<div class="city-tooltip-card">`;
        tooltipContent += `<div class="city-tooltip-header ${isFriendly ? 'friendly' : 'hostile'}">
          <span class="city-tooltip-title">${cityId.replace('_', ' ').toUpperCase()}</span>
-         <span class="city-tooltip-tag">${isFriendly ? 'FRIENDLY' : 'HOSTILE'}</span>
+       </div>`;
+       if (isDroneDefenseActive) {
+         tooltipContent += `<div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); padding: 4px 8px; margin: 4px 8px; border-radius: 4px; font-size: 8.5px; font-weight: bold; color: #ef4444; font-family: monospace;">🛡️ HOSTILE SAM AIR DEFENSE ACTIVE (24H)</div>`;
+       }
+       tooltipContent += `<span class="city-tooltip-tag">${isFriendly ? 'FRIENDLY' : 'HOSTILE'}</span>
        </div>`;
 
        // 1. Agents section
+       const cityAgents = session.agents.filter(a => {
+         const plannedDest = localAgentMoves[a.id];
+         if (plannedDest) return plannedDest === cityId;
+         return a.currentCity === cityId;
+       });
        if (cityAgents.length > 0) {
          tooltipContent += `<div class="city-tooltip-section">
            <div class="city-tooltip-section-title">🕵️ FIELD AGENTS (${cityAgents.length})</div>`;
@@ -660,22 +668,32 @@ export default function MapView({
          tooltipContent += `</div>`;
        }
 
-       // 5. Safehouses & Suspect section
-       const citySafehouses = (session.safehouses || []).filter(s => s.cityNode?.toLowerCase() === cityId.toLowerCase());
-       if (citySafehouses.length > 0 || isSuspectHere) {
-         tooltipContent += `<div class="city-tooltip-section">
-           <div class="city-tooltip-section-title">🏠 SAFEHOUSE / TARGET INTEL</div>`;
-         if (isSuspectHere) {
-           tooltipContent += `<div class="city-tooltip-item"><span class="item-name" style="color:#ff3b30; font-weight:800;">🎯 TARGET SUSPECT DETECTED</span></div>`;
-         }
-         citySafehouses.forEach(s => {
-           tooltipContent += `<div class="city-tooltip-item">
-             <span class="item-name">${s.ownerFaction} SAFEHOUSE</span>
-             <span class="item-task ${s.exposed ? 'compromised' : 'active'}">${s.exposed ? 'EXPOSED' : 'SECURE'}</span>
-           </div>`;
-         });
-         tooltipContent += `</div>`;
-       }
+       // 5. Safehouses & Suspect section (Only show exposed hostile safehouses and non-destroyed safehouses)
+        const citySafehouses = (session.safehouses || []).filter(s => {
+          if (!s.cityNode || s.cityNode.toLowerCase() !== cityId.toLowerCase()) return false;
+          if (s.status === 'DESTROYED') return false;
+          const isFriendly = isAttacker ? s.ownerFaction === 'HOSTILE' : s.ownerFaction === 'DEFENDER';
+          if (isFriendly) return true;
+          return Boolean(s.uncovered || s.exposed || showGodMode);
+        });
+
+        if (citySafehouses.length > 0 || isSuspectHere) {
+          tooltipContent += `<div class="city-tooltip-section">
+            <div class="city-tooltip-section-title">🏠 SAFEHOUSE / TARGET INTEL</div>`;
+          if (isSuspectHere) {
+            tooltipContent += `<div class="city-tooltip-item"><span class="item-name" style="color:#ff3b30; font-weight:800;">🎯 TARGET SUSPECT DETECTED</span></div>`;
+          }
+          citySafehouses.forEach(s => {
+            const isFriendly = isAttacker ? s.ownerFaction === 'HOSTILE' : s.ownerFaction === 'DEFENDER';
+            const factionLabel = isFriendly ? 'FRIENDLY SAFEHOUSE' : 'HOSTILE SAFEHOUSE';
+            const isCompromised = s.exposed || s.uncovered;
+            tooltipContent += `<div class="city-tooltip-item">
+              <span class="item-name">${factionLabel}</span>
+              <span class="item-task ${isCompromised ? 'compromised' : 'active'}">${isCompromised ? 'EXPOSED' : 'SECURE'}</span>
+            </div>`;
+          });
+          tooltipContent += `</div>`;
+        }
 
        if (cityAgents.length === 0 && cityTeams.length === 0 && cityDrones.length === 0 && !hasDroneBase && cityTechs.length === 0 && citySafehouses.length === 0 && !isSuspectHere) {
          tooltipContent += `<div class="city-tooltip-empty">No field assets stationed</div>`;
@@ -857,7 +875,7 @@ export default function MapView({
         if (text.includes('repelled') || text.includes('secure') || text.includes('defended')) return 'SAFEHOUSE_DEFENDED';
         return 'SAFEHOUSE_RAIDED';
       }
-      if (src === 'BORDER_GUARD' || src === 'BORDER_INCIDENT' || text.includes('BORDER')) return 'BORDER_INTERCEPTED';
+      if (src === 'BORDER_GUARD' || src === 'BORDER_INCIDENT' || text.includes('Relocation blocked') || text.includes('INTERCEPTION') || text.includes('INTERCEPTED') || text.includes('interdicted') || text.includes('Infiltration foiled')) return 'BORDER_INTERCEPTED';
       if (src === 'COMMAND_CENTER' && text.includes('RAID LOGISTICS')) return 'LOGISTICS_RAIDED';
       if (text.includes('COMBAT')) return 'COMBAT_PARTIAL';
       return null;
@@ -926,18 +944,25 @@ export default function MapView({
     };
 
     lastTurnClues.forEach(c => {
-      if (c.source === 'DRONE_RECON' || c.source === 'DRONE_ATTACK' || c.source === 'DRONE_DAMAGED') {
+      const isDamagedClue = c.source === 'DRONE_DAMAGED' || (c.clueText && c.clueText.includes('DRONE DAMAGED'));
+      const isShotDownClue = c.source === 'DRONE_SHOT_DOWN' || (c.clueText && c.clueText.includes('DRONE DOWN'));
+      if (c.source === 'DRONE_RECON' || c.source === 'DRONE_ATTACK' || isDamagedClue || isShotDownClue) {
         const droneMatch = c.clueText?.match(/Drone #?(\d+)/i);
         if (droneMatch) {
           const droneId = parseInt(droneMatch[1]);
-          const targetNode = activeScenario?.nodes?.find(n => c.clueText?.toLowerCase().includes(n.id.toLowerCase()) || (n.name && c.clueText?.toLowerCase().includes(n.name.toLowerCase())));
-          if (targetNode) {
-            const toCity = targetNode.id;
+          let toCity = c.location;
+          if (!toCity) {
+            const targetNode = activeScenario?.nodes?.find(n => c.clueText?.toLowerCase().includes(n.id.toLowerCase()) || (n.name && c.clueText?.toLowerCase().includes(n.name.toLowerCase())));
+            toCity = targetNode?.id;
+          }
+          if (toCity) {
             const prevDrone = prevSession.drones?.find(d => d.id === droneId);
-            const fromCity = prevDrone ? prevDrone.currentCity : null;
+            const currentDrone = session.drones?.find(d => d.id === droneId);
+            const fromCity = prevDrone ? prevDrone.currentCity : (currentDrone ? currentDrone.currentCity : toCity);
             if (fromCity) {
-              const droneAction = c.source === 'DRONE_RECON' ? 'RECON' : 'ATTACK';
-              const outcome = c.source === 'DRONE_DAMAGED' ? 'DAMAGED' : detectDroneOutcome(c, droneAction);
+              const isRecon = c.clueText?.toLowerCase().includes('recon') || c.source === 'DRONE_RECON';
+              const droneAction = isRecon ? 'RECON' : 'ATTACK';
+              const outcome = isShotDownClue ? 'SHOT_DOWN' : (isDamagedClue ? 'DAMAGED' : detectDroneOutcome(c, droneAction));
               const isDestroyed = outcome === 'SHOT_DOWN';
 
               // Color-code by outcome
@@ -955,7 +980,7 @@ export default function MapView({
                 fromCity,
                 toCity,
                 baseCity: fromCity,
-                droneAction: c.source === 'DRONE_DAMAGED' ? 'ATTACK' : droneAction,
+                droneAction,
                 outcome,
                 isDestroyed,
                 phase: 0,
@@ -1042,7 +1067,17 @@ export default function MapView({
       if (friendlyCount === 0 && enemyCount === 0) { finishAll(); return; }
       // Use progress-driven animation instead of a static timeout
       if (friendlyCount > 0) setDestroyedFriendlyCities(loss.friendly.map(c => ({ cityId: c, progress: 0 })));
-      if (enemyCount > 0) setDestroyedEnemyCities(loss.enemy.map(c => ({ cityId: c, progress: 0 })));
+      if (enemyCount > 0) {
+        const recentClues = session?.discoveredClues || [];
+        setDestroyedEnemyCities(loss.enemy.map(cId => {
+          const isElim = recentClues.some(clue => 
+            clue.turn === session.currentTurn && 
+            clue.location?.toLowerCase() === cId.toLowerCase() && 
+            (clue.text?.includes("NEUTRALIZED") || clue.text?.includes("ELIMINATED") || clue.text?.includes("SUSPECT NEUTRALIZED") || clue.type === 'SUSPECT_NEUTRALIZED')
+          );
+          return { cityId: cId, isElimination: isElim, progress: 0 };
+        }));
+      }
       const start = performance.now(); const dur = 2200;
       const loop = (t) => {
         const p = Math.min((t - start) / dur, 1.0);
@@ -2155,11 +2190,20 @@ export default function MapView({
             ))}
             {/* Core white flash */}
             <circle cx={tx} cy={ty} r={(isTacticalView?2:8)*Math.max(0,1-phA*1.6)} fill="#ffffff" opacity={flk*0.8} />
-            {/* Floating ELIMINATED label */}
-            <g transform={`translate(${tx},${textY})`} opacity={textOp}>
-              <rect x={isTacticalView?-15:-60} y={isTacticalView?-3.5:-14} width={isTacticalView?30:120} height={isTacticalView?7:24} fill="rgba(0,20,10,0.92)" stroke="#10b981" strokeWidth={isTacticalView?0.35:1.2} rx="3" />
-              <text x="0" y={isTacticalView?1.8:2} textAnchor="middle" fill="#10b981" fontSize={isTacticalView?'2.1':'9'} fontFamily="monospace" fontWeight="bold">✓ ELIMINATED</text>
-            </g>
+            {/* Floating DESTROYED / ELIMINATED label */}
+            {(() => {
+              const labelText = item.isElimination ? '✓ ENEMY ELIMINATED' : '✓ SAFEHOUSE DESTROYED';
+              const rectW = isTacticalView ? (item.isElimination ? 30 : 38) : (item.isElimination ? 120 : 150);
+              const rectX = -rectW / 2;
+              return (
+                <g transform={`translate(${tx},${textY})`} opacity={textOp}>
+                  <rect x={rectX} y={isTacticalView ? -3.5 : -14} width={rectW} height={isTacticalView ? 7 : 24} fill="rgba(0,20,10,0.92)" stroke="#10b981" strokeWidth={isTacticalView ? 0.35 : 1.2} rx="3" />
+                  <text x="0" y={isTacticalView ? 1.8 : 2} textAnchor="middle" fill="#10b981" fontSize={isTacticalView ? '2.1' : '9'} fontFamily="monospace" fontWeight="bold">
+                    {labelText}
+                  </text>
+                </g>
+              );
+            })()}
           </g>
         );
       })}
@@ -2805,13 +2849,13 @@ export default function MapView({
               const isFriendly = isAttacker ? !isFriendlyRaw : isFriendlyRaw;
               const isTarget = activeScenario?.targetCity ? cityId === activeScenario.targetCity : cityId === 'new_delhi';
               
-              const hasDefenderSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'DEFENDER');
-              const hasHostileSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE');
-              const hasExposedNormalSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered && !s.secure);
-              const hasExposedSecureSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.uncovered && s.secure);
+              const hasDefenderSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'DEFENDER' && s.status !== 'DESTROYED');
+              const hasHostileSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.status !== 'DESTROYED');
+              const hasExposedNormalSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && (s.uncovered || s.exposed) && !s.secure && s.status !== 'DESTROYED');
+              const hasExposedSecureSH = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && (s.uncovered || s.exposed) && s.secure && s.status !== 'DESTROYED');
               
               const isBuildingHere = buildingSafehouses.some(b => b.cityId === cityId);
-              const isSecureSafehouse = hasHostileSafehouse && session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.secure);
+              const isSecureSafehouse = hasHostileSafehouse && session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'HOSTILE' && s.secure && s.status !== 'DESTROYED');
               const showSafehouseIcon = !isBuildingHere && (isAttacker ? hasHostileSafehouse : hasDefenderSafehouse);
               const shColorT = isAttacker ? (isSecureSafehouse ? '#ffcc00' : '#ff3b30') : '#00f0ff';
               const showExposedNormalIcon = !isAttacker && hasExposedNormalSH;
@@ -2922,7 +2966,7 @@ export default function MapView({
                 return d.currentCity === cityId && d.status !== 'SHOT_DOWN';
               }).length;
 
-              const isDroneDefenseActive = session.activeDroneDefenseCity && session.activeDroneDefenseCity.equalsIgnoreCase(cityId);
+              const isDroneDefenseActive = Boolean(session?.activeDroneDefenseCity && session.activeDroneDefenseCity.toLowerCase() === cityId.toLowerCase());
 
               return (
                 <div
@@ -2948,7 +2992,9 @@ export default function MapView({
                       <div className="loss-pill loss-pill--friendly">SAFEHOUSE LOST</div>
                     )}
                     {destroyedEnemyCities.some(c => c.cityId === cityId) && (
-                      <div className="loss-pill loss-pill--enemy">ENEMY NEUTRALIZED</div>
+                      <div className="loss-pill loss-pill--enemy">
+                        {destroyedEnemyCities.find(c => c.cityId === cityId)?.isElimination ? 'ENEMY ELIMINATED' : 'SAFEHOUSE DESTROYED'}
+                      </div>
                     )}
                     {confettiCities.includes(cityId) && (
                       <div className="expose-glow expose-glow--tactical" />

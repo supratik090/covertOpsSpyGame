@@ -73,6 +73,37 @@ export default function App() {
   const [localCollectLogistics, setLocalCollectLogistics] = useState(false);
   const [localBeginHandover, setLocalBeginHandover] = useState(false);
 
+  // Helper to reset all local turn states (covert actions, moves, builds, drone purchases, etc.)
+  const resetTurnStates = () => {
+    setCovertActions([]);
+    setLocalAgentMoves({});
+    setLocalTeamMoves({});
+    setLocalAgentTasks({});
+    setLocalSafehouseBuilds([]);
+    setLocalTechDeploys([]);
+    setLocalDroneBaseBuilds([]);
+    setLocalDroneDeployments({});
+    setLocalDroneOperations([]);
+    setLocalDronesToBuy([]);
+    setLocalServicedDrones([]);
+
+    // Reset Attacker states
+    setLocalSuspectMove('');
+    setLocalTargetSafehouseCode('');
+    setLocalBuiltSafehouses([]);
+    setLocalBuiltSecureSafehouses([]);
+    setLocalDecoyDeployments([]);
+    setLocalActiveJammerTarget('');
+    setLocalSeekPermissionType('');
+    setLocalTriggerStrike(false);
+    setLocalTriggerExfiltration(false);
+    setLocalRequestFinance(false);
+    setLocalCollectFinance(false);
+    setLocalRequestLogistics(false);
+    setLocalCollectLogistics(false);
+    setLocalBeginHandover(false);
+  };
+
   // God Mode Replay
   const [replayPlan, setReplayPlan] = useState(null);
   const [replayTurn, setReplayTurn] = useState(1);
@@ -275,27 +306,8 @@ export default function App() {
       setSession(data);
       localStorage.setItem('spy_game_session_id', data.id);
       setLocalAssessments({});
-      setCovertActions([]);
-      setLocalAgentTasks({});
-      setLocalSafehouseBuilds([]);
-      setLocalTechDeploys([]);
+      resetTurnStates();
       setLostAgentsList([]);
-
-      // Clear Attacker states
-      setLocalSuspectMove('');
-      setLocalTargetSafehouseCode('');
-      setLocalBuiltSafehouses([]);
-      setLocalBuiltSecureSafehouses([]);
-      setLocalDecoyDeployments([]);
-      setLocalActiveJammerTarget('');
-      setLocalSeekPermissionType('');
-      setLocalTriggerStrike(false);
-      setLocalTriggerExfiltration(false);
-      setLocalRequestFinance(false);
-      setLocalCollectFinance(false);
-      setLocalRequestLogistics(false);
-      setLocalCollectLogistics(false);
-      setLocalBeginHandover(false);
 
       setActiveTab(getInitialTab());
       setScreen('GAME');
@@ -331,27 +343,8 @@ export default function App() {
       setSession(data);
       localStorage.setItem('spy_game_session_id', data.id);
       setLocalAssessments({});
-      setCovertActions([]);
-      setLocalAgentTasks({});
-      setLocalSafehouseBuilds([]);
-      setLocalTechDeploys([]);
+      resetTurnStates();
       setLostAgentsList([]);
-
-      // Clear Attacker states
-      setLocalSuspectMove('');
-      setLocalTargetSafehouseCode('');
-      setLocalBuiltSafehouses([]);
-      setLocalBuiltSecureSafehouses([]);
-      setLocalDecoyDeployments([]);
-      setLocalActiveJammerTarget('');
-      setLocalSeekPermissionType('');
-      setLocalTriggerStrike(false);
-      setLocalTriggerExfiltration(false);
-      setLocalRequestFinance(false);
-      setLocalCollectFinance(false);
-      setLocalRequestLogistics(false);
-      setLocalCollectLogistics(false);
-      setLocalBeginHandover(false);
 
       setActiveTab(getInitialTab());
       setScreen('GAME');
@@ -391,10 +384,7 @@ export default function App() {
         loadedAssessments[idx] = c.assessment || 'UNASSESSED';
       });
       setLocalAssessments(loadedAssessments);
-      setCovertActions([]);
-      setLocalAgentTasks({});
-      setLocalSafehouseBuilds([]);
-      setLocalTechDeploys([]);
+      resetTurnStates();
       setLostAgentsList([]);
       setActiveTab(getInitialTab());
       setScreen('GAME');
@@ -424,10 +414,7 @@ export default function App() {
         loadedAssessments[idx] = c.assessment || 'UNASSESSED';
       });
       setLocalAssessments(loadedAssessments);
-      setCovertActions([]);
-      setLocalAgentTasks({});
-      setLocalSafehouseBuilds([]);
-      setLocalTechDeploys([]);
+      resetTurnStates();
       setLostAgentsList([]);
       setActiveTab(getInitialTab());
       setScreen('GAME');
@@ -474,8 +461,8 @@ export default function App() {
     addToast(`${agent.codename} directive queued: ${task.replace(/_/g, ' ')}`, "success");
   };
 
-  // Buy a new drone for a drone base city
-  const handleBuyDrone = async (cityNode, type) => {
+  // Buy a new drone for a drone base city (Queued locally to prevent screen freeze & state out-of-sync)
+  const handleBuyDrone = (cityNode, type) => {
     if (checkWaiting()) {
       addToast("It is not your turn.", "warning");
       return;
@@ -491,66 +478,71 @@ export default function App() {
     }
 
     const cost = type === '2-HOP' ? 400000 : 200000;
-    if (session.budget < cost) {
+
+    // Check station capacity (Max 2 drones per base including queued purchases)
+    const existingStationedCount = (session.drones || []).filter(d => {
+      const plannedBase = localDroneDeployments[d.id];
+      if (plannedBase) return plannedBase === cityNode;
+      return d.currentCity === cityNode && d.status !== 'SHOT_DOWN';
+    }).length;
+    const queuedCount = localDronesToBuy.filter(b => b.cityNode === cityNode).length;
+
+    if (existingStationedCount + queuedCount >= 2) {
+      addToast(`Drone Base in ${cityNode.toUpperCase()} has reached max capacity (2 drones max).`, "error");
+      return;
+    }
+
+    // Compute effective budget accounting for all local pending actions
+    const pendingTechCost = (localTechDeploys || []).reduce((sum, t) => sum + (session.defensiveAssetCosts?.[t.type] || 30000), 0);
+    const pendingSHCost = (localSafehouseBuilds || []).length * 40000;
+    const pendingBaseCost = (localDroneBaseBuilds || []).length * 300000;
+    const pendingDroneBuyCost = (localDronesToBuy || []).reduce((sum, d) => sum + (d.type === '2-HOP' ? 400000 : 200000), 0);
+    const pendingServicingCost = (localServicedDrones || []).length * 10000;
+    const totalPendingCost = pendingTechCost + pendingSHCost + pendingBaseCost + pendingDroneBuyCost + pendingServicingCost;
+
+    const effectiveBudget = session.budget - totalPendingCost;
+
+    if (effectiveBudget < cost) {
       addToast(`Insufficient budget ($${(cost / 1000).toFixed(0)}K required) to purchase ${type} Drone.`, "error");
       return;
     }
 
-    if (isBaseQueued) {
-      setLocalDronesToBuy(prev => [...prev, { cityNode, type }]);
-      addToast(`Queued ${type} Drone purchase for new base in ${cityNode.toUpperCase()}`, "success");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await fetchWithRetry(`${GAME_API_BASE}/${session.id}/defender/buy-drone?cityNode=${encodeURIComponent(cityNode)}&type=${encodeURIComponent(type)}`, {
-        method: 'POST'
-      }, (a, m) => setRetryState({ attempt: a, max: m }));
-      setRetryState(null);
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || 'Failed to purchase drone.');
-      }
-      const updated = await res.json();
-      setSession(updated);
-      addToast(`Purchased ${type} Drone for base in ${cityNode.toUpperCase()}`, "success");
-    } catch (err) {
-      setLocalDronesToBuy(prev => [...prev, { cityNode, type }]);
-      addToast(`Queued ${type} Drone purchase for ${cityNode.toUpperCase()}`, "success");
-    } finally {
-      setLoading(false);
-    }
+    setLocalDronesToBuy(prev => [...prev, { cityNode, type }]);
+    addToast(`Queued ${type} Drone purchase for base in ${cityNode.toUpperCase()} (-$${(cost / 1000).toFixed(0)}K)`, "success");
   };
 
   const [localServicedDrones, setLocalServicedDrones] = useState([]);
 
-  const handleServiceDrone = async (droneId) => {
+  // Queue drone technical servicing locally (committed on turn end)
+  const handleServiceDrone = (droneId) => {
+    if (checkWaiting()) {
+      addToast("It is not your turn.", "warning");
+      return;
+    }
     if (!session) return;
-    if (session.budget < 10000) {
+
+    if (localServicedDrones.includes(droneId)) {
+      setLocalServicedDrones(prev => prev.filter(id => id !== droneId));
+      addToast(`Cancelled servicing order for Drone #${droneId}`, "info");
+      return;
+    }
+
+    const pendingTechCost = (localTechDeploys || []).reduce((sum, t) => sum + (session.defensiveAssetCosts?.[t.type] || 30000), 0);
+    const pendingSHCost = (localSafehouseBuilds || []).length * 40000;
+    const pendingBaseCost = (localDroneBaseBuilds || []).length * 300000;
+    const pendingDroneBuyCost = (localDronesToBuy || []).reduce((sum, d) => sum + (d.type === '2-HOP' ? 400000 : 200000), 0);
+    const pendingServicingCost = (localServicedDrones || []).length * 10000;
+    const totalPendingCost = pendingTechCost + pendingSHCost + pendingBaseCost + pendingDroneBuyCost + pendingServicingCost;
+
+    const effectiveBudget = session.budget - totalPendingCost;
+
+    if (effectiveBudget < 10000) {
       addToast("Insufficient budget ($10K required) to service drone.", "error");
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetchWithRetry(`${GAME_API_BASE}/${session.id}/defender/service-drone?droneId=${droneId}`, {
-        method: 'POST'
-      }, (a, m) => setRetryState({ attempt: a, max: m }));
-      setRetryState(null);
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || 'Failed to initiate drone servicing.');
-      }
-      const updated = await res.json();
-      setSession(updated);
-      addToast(`Servicing initiated for Drone #${droneId} ($10K paid). 2-turn repair in progress.`, "success");
-    } catch (err) {
-      setLocalServicedDrones(prev => [...prev, droneId]);
-      addToast(`Queued technical servicing for Drone #${droneId} ($10K)`, "success");
-    } finally {
-      setLoading(false);
-    }
+    setLocalServicedDrones(prev => [...prev, droneId]);
+    addToast(`Queued technical servicing for Drone #${droneId} ($10K). 2-turn repair starts on turn end.`, "success");
   };
 
   // Local states to buffer agent and team relocation choices during the turn
@@ -873,8 +865,13 @@ export default function App() {
       const droneMaintenanceClues = newClues.filter(c => c.source === 'DRONE_MAINTENANCE' || (c.source === 'ADVANCE_WARNING' && c.clueText && c.clueText.includes('Drone Base')));
       const droneServicedClues = newClues.filter(c => c.source === 'DRONE_SERVICED');
       const droneDefenseClues = newClues.filter(c => c.source === 'DRONE_DEFENSE_ACTIVATED' || c.source === 'DRONE_DEFENSE_STRIKE');
+      const droneInterdictionClues = newClues.filter(c =>
+        c.source === 'DRONE_DAMAGED' ||
+        c.source === 'DRONE_SHOT_DOWN' ||
+        (c.clueText && (c.clueText.includes('DRONE DAMAGED') || c.clueText.includes('DRONE DOWN')))
+      );
 
-      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0 || permissionClues.length > 0 || handoverClues.length > 0 || strikeClues.length > 0 || droneMaintenanceClues.length > 0 || droneServicedClues.length > 0 || droneDefenseClues.length > 0) {
+      if (newFinance.length > 0 || newLogistics.length > 0 || newSafehouses.length > 0 || newTech.length > 0 || lostAgents.length > 0 || lostTeams.length > 0 || lostSafehouses.length > 0 || newExposedHostileSH.length > 0 || sweepAlertClues.length > 0 || sweepLossClues.length > 0 || combatOpClues.length > 0 || permissionClues.length > 0 || handoverClues.length > 0 || strikeClues.length > 0 || droneMaintenanceClues.length > 0 || droneServicedClues.length > 0 || droneDefenseClues.length > 0 || droneInterdictionClues.length > 0) {
         setPendingEndTurnReport({
           newFinance,
           newLogistics,
@@ -892,37 +889,13 @@ export default function App() {
           strikeEvents: strikeClues,
           droneMaintenanceAlerts: droneMaintenanceClues,
           droneServicedAlerts: droneServicedClues,
-          droneDefenseAlerts: droneDefenseClues
+          droneDefenseAlerts: droneDefenseClues,
+          droneInterdictionAlerts: droneInterdictionClues
         });
       }
 
       setSession(updated);
-      setCovertActions([]);
-      setLocalAgentMoves({});
-      setLocalTeamMoves({});
-      setLocalAgentTasks({});
-      setLocalSafehouseBuilds([]);
-      setLocalTechDeploys([]);
-      setLocalDroneBaseBuilds([]);
-      setLocalDroneDeployments({});
-      setLocalDroneOperations([]);
-      setLocalServicedDrones([]);
-
-      // Reset Attacker states
-      setLocalSuspectMove('');
-      setLocalTargetSafehouseCode('');
-      setLocalBuiltSafehouses([]);
-      setLocalBuiltSecureSafehouses([]);
-      setLocalDecoyDeployments([]);
-      setLocalActiveJammerTarget('');
-      setLocalSeekPermissionType('');
-      setLocalTriggerStrike(false);
-      setLocalTriggerExfiltration(false);
-      setLocalRequestFinance(false);
-      setLocalCollectFinance(false);
-      setLocalRequestLogistics(false);
-      setLocalCollectLogistics(false);
-      setLocalBeginHandover(false);
+      resetTurnStates();
 
       setLostAgentsList(prev => [...prev, ...lostAgents]);
       
@@ -1139,6 +1112,8 @@ export default function App() {
                 setLocalDroneDeployments={setLocalDroneDeployments}
                 localDroneOperations={localDroneOperations}
                 setLocalDroneOperations={setLocalDroneOperations}
+                localDronesToBuy={localDronesToBuy}
+                setLocalDronesToBuy={setLocalDronesToBuy}
                 onBuyDrone={handleBuyDrone}
                 onServiceDrone={handleServiceDrone}
                 addToast={addToast}
@@ -1195,6 +1170,8 @@ export default function App() {
                 session={session}
                 localAssessments={localAssessments}
                 onSetClueAssessment={setClueAssessment}
+                lastTurnReport={endTurnReport || pendingEndTurnReport}
+                onReopenReport={(rpt) => setPendingEndTurnReport(rpt || endTurnReport || pendingEndTurnReport)}
               />
             )}
 

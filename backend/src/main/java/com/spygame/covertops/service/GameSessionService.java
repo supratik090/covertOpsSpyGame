@@ -330,8 +330,7 @@ public class GameSessionService {
                 session.setActiveDroneDefenseCity(chosenDefenseCity);
                 int cityHeat = session.getCityHeat() != null ? session.getCityHeat().getOrDefault(chosenDefenseCity.toLowerCase(), 0) : 0;
                 session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_DEFENSE_ACTIVATED",
-                        "🚨 DRONE DEFENSE ACTIVATED: Hostile SAM air defense batteries activated in " + chosenDefenseCity.toUpperCase() +
-                        " for 24h (Current Heat: " + cityHeat + "%). Repeated drone strikes trigger +25% Heat increase (Capped Interdiction: 10% Shot Down / 15% Damaged).",
+                        "🚨 DRONE DEFENSE ACTIVATED: Hostile SAM air defense batteries activated in " + chosenDefenseCity.toUpperCase() + " for 24h",
                         chosenDefenseCity,
                         "SIGINT Advisory"));
             }
@@ -452,8 +451,10 @@ public class GameSessionService {
                         drone.setAssignedActionType(null);
                         drone.setAssignedTargetCity(null);
                         String defenseType = isDroneDefenseActive ? "active SAM air defense battery" : (isCityUnderSweep ? "heightened security sweep air defenses" : "hostile air defenses");
-                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
-                                "DRONE DOWN: Drone #" + droneId + " was SHOT DOWN by " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + shotDownChance + "% shot down risk, " + totalRisk + "% total interdiction risk)"));
+                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_SHOT_DOWN",
+                                "DRONE DOWN: Drone #" + droneId + " was SHOT DOWN by " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + shotDownChance + "% shot down risk, " + totalRisk + "% total interdiction risk)",
+                                targetCity,
+                                "Drone Operations"));
                         continue;
                     } else if (roll < totalRisk) {
                         drone.setStatus("DAMAGED");
@@ -462,7 +463,9 @@ public class GameSessionService {
                         drone.setAssignedTargetCity(null);
                         String defenseType = isDroneDefenseActive ? "active SAM anti-air missile fire" : (isCityUnderSweep ? "heightened security sweep AA fire" : "hostile anti-air fire");
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_DAMAGED",
-                                "DRONE DAMAGED: Drone #" + droneId + " sustained anti-aircraft damage from " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + damagedChance + "% damage risk) Requires $10K technical servicing (2-turn repair)."));
+                                "DRONE DAMAGED: Drone #" + droneId + " sustained anti-aircraft damage from " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + damagedChance + "% damage risk) Requires $10K technical servicing (2-turn repair).",
+                                targetCity,
+                                "Drone Operations"));
                         continue;
                     }
 

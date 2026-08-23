@@ -1,0 +1,247 @@
+{
+  "scenarioId": "operation_cartel_border_strike",
+  "attackingCountry": "Transnational Cartel Syndicate",
+  "defendingCountry": "USA & DEA Alliance",
+  "title": "Operation Border Vanguard",
+  "briefing": "Intelligence intercepts confirm a transnational cartel syndicate is planning a massive DRUG CONSIGNMENT strike targeting Houston / South Texas. Intercept cartel financial transfers and arms logistics across staging hubs in Chile (Santiago), Colombia (Bogotá, Medellín), and Mexico (Culiacán, Tijuana), neutralize cartel operatives, and secure US border entry corridors before Turn 25.",
+  "attackerBriefing": "Execute a multi-ton high-value DRUG CONSIGNMENT infiltration targeting Houston, Texas. Evade DEA surveillance and US Border Patrol sweeps, acquire illicit financing and logistics across South/Central American cartel strongholds, infiltrate the border via Tijuana or El Paso, and deliver the consignment to the South USA hub.",
+  "targetCity": "houston",
+  "targetVip": "South Texas Intermodal Distribution Hub",
+  "attackForm": "SMUGGLING",
+  "maxTurns": 25,
+  "startingBudget": 5000000,
+  "mapBackground": "satellite",
+  "nodes": [
+    {
+      "id": "santiago",
+      "name": "Santiago Financial Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 82, "y": 94, "lat": -33.4489, "lng": -70.6693},
+      "connections": ["bogota", "medellin"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Las Condes", "Providencia", "Santiago Centro", "Vitacura", "San Ramon"]
+    },
+    {
+      "id": "bogota",
+      "name": "Bogotá Syndicate Command",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 74, "y": 72, "lat": 4.7110, "lng": -74.0721},
+      "connections": ["santiago", "medellin", "culiacan"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Chapinero", "Zona Rosa", "Usaquén", "Kennedy Sector", "Engativá"]
+    },
+    {
+      "id": "medellin",
+      "name": "Medellín Operations Base",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 70, "y": 68, "lat": 6.2442, "lng": -75.5812},
+      "connections": ["santiago", "bogota", "culiacan"],
+      "availableFinance": ["DRUG_SALES", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["El Poblado", "La Laureles", "Envigado", "Comuna 13", "Bello"]
+    },
+    {
+      "id": "culiacan",
+      "name": "Culiacán Cartel Citadel",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 28, "y": 52, "lat": 24.8091, "lng": -107.3940},
+      "connections": ["bogota", "medellin", "tijuana"],
+      "availableFinance": ["ILLICIT_ARMS_SALES", "HUNDI_HAWALA"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Tres Ríos", "Centro Historico", "Chapultepec", "Las Quintas", "El Mirador"]
+    },
+    {
+      "id": "tijuana",
+      "name": "Tijuana Border Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 12, "y": 36, "lat": 32.5149, "lng": -117.0382},
+      "connections": ["culiacan", "san_diego", "el_paso"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "RANSOMWARE_HACK"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Zona Norte", "Playas de Tijuana", "Otay Mesa Corridor", "Rio Tijuana", "San Ysidro Border Gate"]
+    },
+    {
+      "id": "san_diego",
+      "name": "San Diego Coastal Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 10, "y": 32, "lat": 32.7157, "lng": -117.1611},
+      "connections": ["tijuana", "el_paso", "houston"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["San Ysidro Port of Entry", "Coronado Naval Base", "Chula Vista", "Mission Valley", "Gaslamp Quarter"]
+    },
+    {
+      "id": "el_paso",
+      "name": "El Paso Border Garrison",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 30, "y": 34, "lat": 31.7619, "lng": -106.4850},
+      "connections": ["tijuana", "san_diego", "san_antonio", "houston"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Bridge of the Americas", "Fort Bliss Sector", "Downtown El Paso", "Mission Valley", "Ysleta"]
+    },
+    {
+      "id": "san_antonio",
+      "name": "San Antonio Command Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 42, "y": 38, "lat": 29.4241, "lng": -98.4936},
+      "connections": ["el_paso", "houston", "washington_dc"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Lackland Security Zone", "River Walk Sector", "Alamo Heights", "Stone Oak", "Southtown"]
+    },
+    {
+      "id": "houston",
+      "name": "Houston Intermodal Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 48, "y": 36, "lat": 29.7604, "lng": -95.3698},
+      "connections": ["san_diego", "el_paso", "san_antonio", "washington_dc"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Port of Houston", "Intermodal Rail Hub", "Downtown Core", "Energy Corridor", "Galleria"]
+    },
+    {
+      "id": "washington_dc",
+      "name": "Washington DEA HQ",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 78, "y": 15, "lat": 38.9072, "lng": -77.0369},
+      "connections": ["houston", "san_antonio", "san_diego"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["DEA Headquarters", "Homeland Security Command", "Pentagon Corridor", "FBI Academy Base", "Georgetown"]
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "houston"},
+    {"cityId": "washington_dc"},
+    {"cityId": "tijuana"},
+    {"cityId": "bogota"}
+  ],
+  "attackerNames": [
+    "Mateo Guzman",
+    "Alejandro Morales",
+    "Santiago Reyes"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Jack Miller",
+      "codename": "VANGUARD",
+      "startingCity": "washington_dc",
+      "skills": {"humint": 85, "sigint": 90, "infiltration": 70, "survivability": 65}
+    },
+    {
+      "id": 2,
+      "name": "Elena Rodriguez",
+      "codename": "TRACKER",
+      "startingCity": "houston",
+      "skills": {"humint": 75, "sigint": 60, "infiltration": 90, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "Marcus Vance",
+      "codename": "SHADOW",
+      "startingCity": "san_diego",
+      "skills": {"humint": 90, "sigint": 80, "infiltration": 50, "survivability": 50}
+    },
+    {
+      "id": 4,
+      "name": "Carlos Santos",
+      "codename": "RICOCHET",
+      "startingCity": "tijuana",
+      "skills": {"humint": 70, "sigint": 50, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "Gabriel Thorne",
+      "codename": "SPECTRE",
+      "startingCity": "bogota",
+      "skills": {"humint": 85, "sigint": 40, "infiltration": 80, "survivability": 95}
+    },
+    {
+      "id": 6,
+      "name": "Diego Navarro",
+      "codename": "OUTLAW",
+      "startingCity": "tijuana",
+      "skills": {"humint": 50, "sigint": 50, "infiltration": 85, "survivability": 95}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "DEA FAST Strike Team",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "washington_dc",
+      "skills": {"combat": 90, "stealth": 80, "mobility": 80}
+    },
+    {
+      "id": 2,
+      "name": "Homeland Security Investigations (HSI)",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "houston",
+      "skills": {"combat": 85, "stealth": 75, "mobility": 80}
+    },
+    {
+      "id": 3,
+      "name": "Border Patrol Tactical Unit (BORTAC)",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "el_paso",
+      "skills": {"combat": 90, "stealth": 85, "mobility": 85}
+    },
+    {
+      "id": 4,
+      "name": "San Diego Interdiction Taskforce",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "san_diego",
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 50000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 20000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "CCTV", "cityId": "houston"},
+    {"type": "WIRE_TAP", "cityId": "tijuana"}
+  ],
+  "logisticsMapping": {
+    "SMUGGLING": {
+      "itemName": "Multi-Ton Consignment Package",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    },
+    "BOMB_BLAST": {
+      "itemName": "Tactical Detonation Payload",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "SMUGGLING": {
+      "itemName": "Cartel Syndicate Transfer",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    },
+    "BOMB_BLAST": {
+      "itemName": "Cryptographic Transfer",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}

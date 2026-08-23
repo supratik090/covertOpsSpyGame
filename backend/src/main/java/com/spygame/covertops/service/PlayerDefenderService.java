@@ -224,8 +224,8 @@ public class PlayerDefenderService {
         } else {
             if ("CCTV".equals(type)) cost = 30000;
             else if ("WIRE_TAP".equals(type)) cost = 20000;
-            else if ("PHONE_TAP".equals(type)) cost = 40000;
-            else if ("SATELLITE".equals(type)) cost = 80000;
+            else if ("PHONE_TAP".equals(type)) cost = 20000;
+            else if ("SATELLITE".equals(type)) cost = 50000;
             else if ("FINANCE_MONITOR".equals(type)) cost = 50000;
             else if ("BIOMETRIC_SCAN".equals(type)) cost = 35000;
             else if ("BORDER_GUARD".equals(type)) cost = 70000;

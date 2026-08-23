@@ -37,7 +37,11 @@ export default function CIAIntelBox({
   onDeployDrone,
   localDroneOperations = [],
   onToggleDroneOperation,
-  onBuyDrone
+  onBuyDrone,
+  localDronesToBuy = [],
+  setLocalDronesToBuy,
+  onServiceDrone,
+  addToast
 }) {
   if (!cityId || !session) return null;
 
@@ -106,7 +110,7 @@ export default function CIAIntelBox({
   };
 
   const renderSafehouseButton = () => {
-    const hasDefenderSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'DEFENDER');
+    const hasDefenderSafehouse = session.safehouses.some(s => s.cityNode === cityId && s.ownerFaction === 'DEFENDER' && s.status !== 'DESTROYED');
     if (hasDefenderSafehouse) return null; // already exists, hide option
 
     const isQueued = localSafehouseBuilds.includes(cityId);
@@ -164,10 +168,10 @@ export default function CIAIntelBox({
 
   const localTech = session.espionageResources.filter(r => r.cityNode === cityId);
 
-  // Safehouses
-  const safehouseList = session.safehouses.filter(s => s.cityNode === cityId);
-  const friendlySafehouses = safehouseList.filter(s => s.ownerFaction === 'DEFENDER');
-  const hostileSafehouses = safehouseList.filter(s => s.ownerFaction === 'HOSTILE' && s.uncovered);
+  // Safehouses (Exclude DESTROYED safehouses from CIAIntelBox status and raid options)
+  const safehouseList = session.safehouses.filter(s => s.cityNode === cityId && s.status !== 'DESTROYED');
+  const friendlySafehouses = safehouseList.filter(s => s.ownerFaction === 'DEFENDER' && s.status !== 'DESTROYED');
+  const hostileSafehouses = safehouseList.filter(s => s.ownerFaction === 'HOSTILE' && (s.uncovered || s.exposed) && s.status !== 'DESTROYED');
 
   // Build allConnections dynamically from scenario nodesData (bi-directional graph)
   const allConnections = React.useMemo(() => {
@@ -270,6 +274,19 @@ export default function CIAIntelBox({
             </span>
           </div>
         </div>
+
+        {/* Hostile SAM Air Defense Active Warning Banner */}
+        {session?.activeDroneDefenseCity && session.activeDroneDefenseCity.toLowerCase() === cityId.toLowerCase() && (
+          <div className="p-2.5 my-2.5 rounded border font-mono text-[9.5px] font-bold bg-[rgba(239,68,68,0.14)] border-[rgba(239,68,68,0.5)] text-[#ef4444] flex items-center justify-between animate-pulse" style={{ boxShadow: '0 0 16px rgba(239, 68, 68, 0.25)', letterSpacing: '0.04em' }}>
+            <div className="flex items-center gap-1.5">
+              <span className="text-base">🛡️</span>
+              <span>HOSTILE SAM AIR DEFENSE ACTIVE (24H)</span>
+            </div>
+            <span className="text-[8.5px] px-2 py-0.5 rounded bg-[rgba(239,68,68,0.25)] text-[#fca5a5] border border-[rgba(239,68,68,0.4)]">
+              HIGH RISK
+            </span>
+          </div>
+        )}
 
         {/* Safehouses Status */}
         <div className="cia-section">
@@ -593,8 +610,8 @@ export default function CIAIntelBox({
                     <div className="flex flex-col gap-2 mt-2">
                       {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'CCTV') && renderTechButton('CCTV', 'CCTV MONITOR', 30000)}
                       {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'WIRE_TAP') && renderTechButton('WIRE_TAP', 'WIRE TAP', 20000)}
-                      {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'PHONE_TAP') && renderTechButton('PHONE_TAP', 'PHONE TAP', 40000)}
-                      {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'SATELLITE') && renderTechButton('SATELLITE', 'SATELLITE VIEW', 80000)}
+                      {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'PHONE_TAP') && renderTechButton('PHONE_TAP', 'PHONE TAP', 20000)}
+                      {!session.espionageResources.some(r => r.cityNode === cityId && r.type === 'SATELLITE') && renderTechButton('SATELLITE', 'SATELLITE VIEW', 50000)}
                       {isFriendly && !session.espionageResources.some(r => r.cityNode === cityId && r.type === 'FINANCE_MONITOR') && renderTechButton('FINANCE_MONITOR', 'FINANCE MONITOR', 50000)}
                       {isFriendly && !session.espionageResources.some(r => r.cityNode === cityId && r.type === 'BIOMETRIC_SCAN') && renderTechButton('BIOMETRIC_SCAN', 'BIOMETRIC SCAN GRID', 35000)}
                       {isFriendlyBorder && !session.espionageResources.some(r => r.cityNode === cityId && r.type === 'BORDER_GUARD') && renderTechButton('BORDER_GUARD', 'BORDER GUARD MOBILIZATION', 40000)}
@@ -682,6 +699,11 @@ export default function CIAIntelBox({
 
                   return (
                     <div className="cia-list">
+                      {session?.activeDroneDefenseCity && session.activeDroneDefenseCity.toLowerCase() === cityId.toLowerCase() && (
+                        <div className="p-2 mb-2 rounded border font-mono text-[9.5px] font-bold bg-[rgba(239,68,68,0.12)] border-[rgba(239,68,68,0.5)] text-[#ef4444] flex items-center gap-1.5">
+                          <span>🛡️ WARNING: HOSTILE SAM AIR DEFENSES ACTIVE IN THIS SECTOR — STRIKES IN THIS SECTOR INCREASE HEAT +25%</span>
+                        </div>
+                      )}
                       {isCurrentUnderMaint && (
                         <div className="p-2 mb-2 rounded border font-mono text-[9.5px] font-bold bg-[rgba(245,158,11,0.12)] border-[rgba(245,158,11,0.5)] text-[#f59e0b] flex items-center gap-1.5">
                           <span>🛠️ DRONE BASE UNDER 24H MAINTENANCE — LAUNCHES SUSPENDED THIS TURN</span>
@@ -884,71 +906,109 @@ export default function CIAIntelBox({
                       )}
 
                       {/* Buy New Drone Section (Max 2 Drones per Base limit) */}
-                      <div className="cia-sub-item mt-3 pt-2.5" style={{ borderTop: '1px solid rgba(0, 240, 255, 0.15)' }}>
-                        <div className="flex justify-between items-center mb-3.5">
-                          <span className="cia-controls-label" style={{ marginBottom: 0, borderLeftColor: 'var(--cyan)' }}>
-                            SQUADRON CAPACITY
-                          </span>
-                          <span 
-                            className="font-mono text-[9px] font-bold px-2 py-0.5 rounded"
-                            style={{
-                              background: localDrones.length >= 2 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 255, 102, 0.12)',
-                              border: localDrones.length >= 2 ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(0, 255, 102, 0.35)',
-                              color: localDrones.length >= 2 ? '#ef4444' : '#00ff66',
-                              letterSpacing: '0.04em'
-                            }}
-                          >
-                            {localDrones.length} / 2 STATIONED {localDrones.length >= 2 ? '(MAX CAPACITY)' : ''}
-                          </span>
-                        </div>
+                      {(() => {
+                        const queuedBuys = (localDronesToBuy || []).filter(b => b.cityNode === cityId);
+                        const totalStationedPlusQueued = localDrones.length + queuedBuys.length;
 
-                        {localDrones.length < 2 && (
-                          <div className="flex flex-col gap-2 mt-4 mb-2">
-                            <span className="text-[8.5px] font-mono text-dim block my-2" style={{ letterSpacing: '0.04em' }}>
-                              PROCURE & DEPLOY AIRCRAFT TO BASE:
-                            </span>
-                            <div className="grid grid-cols-2 gap-2.5">
-                              <button
-                                onClick={() => onBuyDrone?.(cityId, '1-HOP')}
-                                disabled={session.budget < 200000}
-                                className="cia-dispatch-btn font-mono"
+                        return (
+                          <div className="cia-sub-item mt-3 pt-2.5" style={{ borderTop: '1px solid rgba(0, 240, 255, 0.15)' }}>
+                            <div className="flex justify-between items-center mb-3.5">
+                              <span className="cia-controls-label" style={{ marginBottom: 0, borderLeftColor: 'var(--cyan)' }}>
+                                SQUADRON CAPACITY
+                              </span>
+                              <span 
+                                className="font-mono text-[9px] font-bold px-2 py-0.5 rounded"
                                 style={{
-                                  padding: '8px 10px',
-                                  justifyContent: 'center',
-                                  alignItems: 'center',
-                                  background: session.budget >= 200000 ? 'rgba(0, 240, 255, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                                  borderColor: session.budget >= 200000 ? 'rgba(0, 240, 255, 0.35)' : 'rgba(255, 255, 255, 0.08)',
-                                  opacity: session.budget >= 200000 ? 1 : 0.45,
-                                  cursor: session.budget >= 200000 ? 'pointer' : 'not-allowed',
-                                  whiteSpace: 'nowrap'
+                                  background: totalStationedPlusQueued >= 2 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 255, 102, 0.12)',
+                                  border: totalStationedPlusQueued >= 2 ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(0, 255, 102, 0.35)',
+                                  color: totalStationedPlusQueued >= 2 ? '#ef4444' : '#00ff66',
+                                  letterSpacing: '0.04em'
                                 }}
                               >
-                                <span className="text-cyber font-bold text-[9px]">+ 1-HOP RECON</span>
-                                <span className="text-[#00ff66] text-[9px] font-mono font-bold" style={{ marginLeft: '4px' }}>- $200K</span>
-                              </button>
-
-                              <button
-                                onClick={() => onBuyDrone?.(cityId, '2-HOP')}
-                                disabled={session.budget < 400000}
-                                className="cia-dispatch-btn font-mono"
-                                style={{
-                                  padding: '8px 10px',
-                                  justifyContent: 'center',
-                                  alignItems: 'center',
-                                  background: session.budget >= 400000 ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                                  borderColor: session.budget >= 400000 ? 'rgba(168, 85, 247, 0.38)' : 'rgba(255, 255, 255, 0.08)',
-                                  opacity: session.budget >= 400000 ? 1 : 0.45,
-                                  cursor: session.budget >= 400000 ? 'pointer' : 'not-allowed',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                <span className="font-bold text-[9px]" style={{ color: '#c084fc' }}>+ 2-HOP LR</span>
-                                <span className="text-[#00ff66] text-[9px] font-mono font-bold" style={{ marginLeft: '4px' }}>- $400K</span>
-                              </button>
+                                {totalStationedPlusQueued} / 2 STATIONED {totalStationedPlusQueued >= 2 ? '(MAX CAPACITY)' : ''}
+                              </span>
                             </div>
+
+                            {/* Render Locally Queued Drone Purchases */}
+                            {queuedBuys.length > 0 && (
+                              <div className="flex flex-col gap-1.5 mb-3">
+                                {queuedBuys.map((buy, idx) => (
+                                  <div key={idx} className="flex justify-between items-center bg-[rgba(0,255,102,0.06)] border border-[rgba(0,255,102,0.3)] p-2 rounded">
+                                    <span className="text-[#00ff66] font-mono text-[9px] font-bold">
+                                      ✈️ QUEUED: {buy.type} DRONE (${buy.type === '2-HOP' ? '400K' : '200K'})
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        setLocalDronesToBuy?.(prev => {
+                                          let removed = false;
+                                          return prev.filter(b => {
+                                            if (!removed && b.cityNode === cityId) {
+                                              removed = true;
+                                              return false;
+                                            }
+                                            return true;
+                                          });
+                                        });
+                                        addToast?.(`Cancelled queued ${buy.type} Drone purchase for ${cityId.toUpperCase()}`, "info");
+                                      }}
+                                      className="text-red-400 text-[8px] font-mono font-bold underline hover:text-red-300 transition-colors"
+                                    >
+                                      [CANCEL]
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {totalStationedPlusQueued < 2 && (
+                              <div className="flex flex-col gap-2 mt-2 mb-2">
+                                <span className="text-[8.5px] font-mono text-dim block my-2" style={{ letterSpacing: '0.04em' }}>
+                                  PROCURE & DEPLOY AIRCRAFT TO BASE:
+                                </span>
+                                <div className="grid grid-cols-2 gap-2.5">
+                                  <button
+                                    onClick={() => onBuyDrone?.(cityId, '1-HOP')}
+                                    disabled={session.budget < 200000}
+                                    className="cia-dispatch-btn font-mono"
+                                    style={{
+                                      padding: '8px 10px',
+                                      justifyContent: 'center',
+                                      alignItems: 'center',
+                                      background: session.budget >= 200000 ? 'rgba(0, 240, 255, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                                      borderColor: session.budget >= 200000 ? 'rgba(0, 240, 255, 0.35)' : 'rgba(255, 255, 255, 0.08)',
+                                      opacity: session.budget >= 200000 ? 1 : 0.45,
+                                      cursor: session.budget >= 200000 ? 'pointer' : 'not-allowed',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    <span className="text-cyber font-bold text-[9px]">+ 1-HOP RECON</span>
+                                    <span className="text-[#00ff66] text-[9px] font-mono font-bold" style={{ marginLeft: '4px' }}>- $200K</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => onBuyDrone?.(cityId, '2-HOP')}
+                                    disabled={session.budget < 400000}
+                                    className="cia-dispatch-btn font-mono"
+                                    style={{
+                                      padding: '8px 10px',
+                                      justifyContent: 'center',
+                                      alignItems: 'center',
+                                      background: session.budget >= 400000 ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                                      borderColor: session.budget >= 400000 ? 'rgba(168, 85, 247, 0.38)' : 'rgba(255, 255, 255, 0.08)',
+                                      opacity: session.budget >= 400000 ? 1 : 0.45,
+                                      cursor: session.budget >= 400000 ? 'pointer' : 'not-allowed',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    <span className="font-bold text-[9px]" style={{ color: '#c084fc' }}>+ 2-HOP LR</span>
+                                    <span className="text-[#00ff66] text-[9px] font-mono font-bold" style={{ marginLeft: '4px' }}>- $400K</span>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        );
+                      })()}
                     </div>
                   );
                 })()}

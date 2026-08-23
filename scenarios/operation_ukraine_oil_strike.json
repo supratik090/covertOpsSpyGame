@@ -1,0 +1,247 @@
+{
+  "scenarioId": "operation_ukraine_oil_strike",
+  "attackingCountry": "Ukraine",
+  "defendingCountry": "Russia",
+  "title": "Operation Dnieper Shield",
+  "briefing": "Intelligence reports indicate Ukrainian Covert Ops units are planning a high-yield SABOTAGE strike targeting the Ryazan Oil Refinery Complex in Russia. Intercept signals across non-occupied Ukrainian staging cities (Kyiv, Lviv, Dnipro, Odesa, Kharkiv), neutralize hostile operatives, and secure the border corridors before Turn 25.",
+  "attackerBriefing": "Major strategic SABOTAGE strike targeting the Ryazan Oil Refinery Complex in Russia. Execute attack with precision. Evade active security patrols, acquire logistical and financial assets in non-occupied Ukrainian cities, infiltrate the border via Belgorod or Rostov, and neutralize the oil refinery facility.",
+  "targetCity": "ryazan",
+  "targetVip": "Ryazan Oil Refinery Complex",
+  "attackForm": "SABOTAGE",
+  "maxTurns": 25,
+  "startingBudget": 5000000,
+  "mapBackground": "satellite",
+  "nodes": [
+    {
+      "id": "kyiv",
+      "name": "Kyiv Capital Hub",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 32, "y": 62, "lat": 50.4501, "lng": 30.5234},
+      "connections": ["lviv", "odesa", "dnipro", "kharkiv"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Pechersk", "Khreshchatyk", "Podil", "Obolon", "Shevchenko"]
+    },
+    {
+      "id": "lviv",
+      "name": "Lviv Western Garrison",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 10, "y": 70, "lat": 49.8397, "lng": 24.0297},
+      "connections": ["kyiv", "odesa"],
+      "availableFinance": ["ILLICIT_ARMS_SALES", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Rynok Square", "Lychakiv", "Sykhiv", "Frankivskyi", "Zamarstyniv"]
+    },
+    {
+      "id": "dnipro",
+      "name": "Dnipro Central Base",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 52, "y": 78, "lat": 48.4647, "lng": 35.0462},
+      "connections": ["kyiv", "odesa", "kharkiv", "rostov"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Sobornyi", "Central Prospect", "Amur-Nyzhnodniprovskyi", "Chechelivskyi", "Industrialnyi"]
+    },
+    {
+      "id": "odesa",
+      "name": "Odesa Maritime Port",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 30, "y": 92, "lat": 46.4825, "lng": 30.7233},
+      "connections": ["lviv", "kyiv", "dnipro"],
+      "availableFinance": ["DRUG_SALES", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Deribasivska", "Arcadia", "Prymorskyi", "Suvorovskyi", "Moldavanka"]
+    },
+    {
+      "id": "kharkiv",
+      "name": "Kharkiv Frontier Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 58, "y": 64, "lat": 49.9935, "lng": 36.2304},
+      "connections": ["kyiv", "dnipro", "belgorod"],
+      "availableFinance": ["HUNDI_HAWALA", "RANSOMWARE_HACK"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Freedom Square", "Saltivka", "Kholodna Hora", "Oleksiyivka", "Novobavarskyi"]
+    },
+    {
+      "id": "belgorod",
+      "name": "Belgorod Border Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 62, "y": 58, "lat": 50.5997, "lng": 36.5986},
+      "connections": ["kharkiv", "voronezh", "moscow"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Sobornaya Square", "Kharkovskaya Gora", "Kreida", "Veshnyaki", "Severny"]
+    },
+    {
+      "id": "voronezh",
+      "name": "Voronezh Command Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 75, "y": 46, "lat": 51.6755, "lng": 39.2089},
+      "connections": ["belgorod", "ryazan", "rostov"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Tsentralny District", "Leninsky", "Levoberezhny", "Soviet District", "Severny District"]
+    },
+    {
+      "id": "rostov",
+      "name": "Rostov Garrison Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 76, "y": 88, "lat": 47.2357, "lng": 39.7015},
+      "connections": ["dnipro", "voronezh"],
+      "defenses": "HIGH",
+      "counterEspionage": "MEDIUM",
+      "places": ["Bolshaya Sadovaya", "Voroshilovsky", "Zapadny", "Sazhelnyi", "Nakhichevan"]
+    },
+    {
+      "id": "ryazan",
+      "name": "Ryazan Oil Refinery Sector",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 78, "y": 22, "lat": 54.6269, "lng": 39.7348},
+      "connections": ["voronezh", "moscow"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Refinery Complex Area", "Moskovsky District", "Sovetsky District", "Prioksky", "Pobeda Park"]
+    },
+    {
+      "id": "moscow",
+      "name": "Moscow Capital Command",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 68, "y": 12, "lat": 55.7558, "lng": 37.6173},
+      "connections": ["ryazan", "belgorod"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Lubyanka Square", "Arbat", "Tverskaya", "Kitay-Gorod", "Presnensky"]
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "ryazan"},
+    {"cityId": "moscow"},
+    {"cityId": "kharkiv"},
+    {"cityId": "kyiv"}
+  ],
+  "attackerNames": [
+    "Artem Bondarenko",
+    "Taras Shevchenko",
+    "Mykola Kovalenko"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Dmitry Orlov",
+      "codename": "FALCON",
+      "startingCity": "moscow",
+      "skills": {"humint": 85, "sigint": 90, "infiltration": 70, "survivability": 65}
+    },
+    {
+      "id": 2,
+      "name": "Anna Petrova",
+      "codename": "SIREN",
+      "startingCity": "ryazan",
+      "skills": {"humint": 75, "sigint": 60, "infiltration": 90, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "Victor Romanov",
+      "codename": "SENTINEL",
+      "startingCity": "moscow",
+      "skills": {"humint": 90, "sigint": 80, "infiltration": 50, "survivability": 50}
+    },
+    {
+      "id": 4,
+      "name": "Sergei Volkov",
+      "codename": "HUNTER",
+      "startingCity": "kharkiv",
+      "skills": {"humint": 70, "sigint": 50, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "Igor Morozov",
+      "codename": "PHANTOM",
+      "startingCity": "kyiv",
+      "skills": {"humint": 85, "sigint": 40, "infiltration": 80, "survivability": 95}
+    },
+    {
+      "id": 6,
+      "name": "Nikolai Smirnov",
+      "codename": "GHOST",
+      "startingCity": "kharkiv",
+      "skills": {"humint": 50, "sigint": 50, "infiltration": 85, "survivability": 95}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "FSB Alpha Group",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "moscow",
+      "skills": {"combat": 90, "stealth": 80, "mobility": 80}
+    },
+    {
+      "id": 2,
+      "name": "Rosgvardia Special Forces",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "ryazan",
+      "skills": {"combat": 85, "stealth": 75, "mobility": 80}
+    },
+    {
+      "id": 3,
+      "name": "Border Patrol Directorate",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "kharkiv",
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
+    },
+    {
+      "id": 4,
+      "name": "Southern Military Police",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "kyiv",
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 50000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 20000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "CCTV", "cityId": "kyiv"},
+    {"type": "WIRE_TAP", "cityId": "kharkiv"}
+  ],
+  "logisticsMapping": {
+    "SABOTAGE": {
+      "itemName": "Thermite Demolition Charge",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    },
+    "BOMB_BLAST": {
+      "itemName": "Tactical Detonation Payload",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "SABOTAGE": {
+      "itemName": "Covert Sabotage Fund",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    },
+    "BOMB_BLAST": {
+      "itemName": "Cryptographic Transfer",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}

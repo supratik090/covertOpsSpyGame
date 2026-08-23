@@ -166,8 +166,12 @@ export default function GameOverModal({ session, onConfirm, lastTurnReport }) {
     ? '#f59e0b' 
     : '#ff3b30';
 
+  const allNeutralized = session?.aiAttackers && session.aiAttackers.length > 0 && session.aiAttackers.every(a => a.eliminated);
+
   const subtitleText = isFullSuccess
-    ? 'All threat agents neutralized prior to any target strike. Target cell fully dismantled and national security preserved.'
+    ? (allNeutralized
+        ? 'All threat agents neutralized prior to any target strike. Target cell fully dismantled and national security preserved.'
+        : 'Operation successfully defended. Threat cell failed to execute target strike prior to turn deadline. Sector secured.')
     : isPartialSuccess
     ? 'Target strike was executed in friendly territory, but all hostile threat agents were subsequently neutralized by Defender forces.'
     : 'The target attack was executed and hostile operatives exfiltrated. Intelligence gaps allowed the cell to complete their mission.';
