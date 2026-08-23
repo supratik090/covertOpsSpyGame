@@ -198,6 +198,12 @@ public class GameSessionController {
         return sessionService.revertTurn(id);
     }
 
+    // POST /api/game/{id}/extend
+    @PostMapping("/{id}/extend")
+    public GameSession extendSession(@PathVariable UUID id) {
+        return sessionService.extendSession(id);
+    }
+
     // POST /api/game/{id}/deploy
     // Accepts the initial DEFENDER deployment: safehouse cities, agent cities, team cities
     @PostMapping("/{id}/deploy")

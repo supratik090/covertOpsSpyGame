@@ -945,6 +945,27 @@ export default function App() {
     }
   };
 
+  const handleExtendGame = async () => {
+    if (!session) return;
+    setLoading(true);
+    try {
+      const res = await fetchWithRetry(`${GAME_API_BASE}/${session.id}/extend`, {
+        method: 'POST'
+      }, (a, m) => setRetryState({ attempt: a, max: m }));
+      setRetryState(null);
+      if (!res.ok) throw new Error('Failed to extend game session.');
+      const updated = await res.json();
+      setSession(updated);
+      setShowGameOver(false);
+      setLostAgentsList([]);
+      addToast("Operation extended! Additional budget granted, forces reinstated, and hostile threat monitoring active.", "success");
+    } catch (err) {
+      addToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleExit = () => {
     setSession(null);
     setScreen('SELECT');
@@ -1230,6 +1251,7 @@ export default function App() {
             handleExit();
             fetchScenarios();
           }}
+          onExtendGame={handleExtendGame}
           onViewReplay={() => {
             setShowGameOver(false);
             setShowGodMode(true);

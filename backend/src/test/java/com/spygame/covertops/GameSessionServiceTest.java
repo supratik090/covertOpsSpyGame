@@ -304,6 +304,63 @@ public class GameSessionServiceTest {
         assertEquals(2, afterDefender.getCurrentTurn()); // Turn advanced
     }
 
+    @Test
+    public void testExtendSession_FullDefenderVictory() {
+        when(repository.save(any(GameSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        GameSession session = createTestSession();
+        UUID sessionId = session.getId();
+        when(repository.findById(sessionId)).thenReturn(java.util.Optional.of(session));
+
+        // Simulate game end full defender victory at turn 25
+        session.setCurrentTurn(25);
+        session.setMaxTurns(25);
+        session.setBudget(500000);
+        session.setStatus("SUCCESS");
+
+        // Kill 1 agent and 1 team
+        session.getAgents().remove(0); // Remove Agent 1
+        session.getTacticalTeams().remove(0); // Remove Team 1
+
+        // Kill 1 attacker, keep 1 attacker active
+        session.getAiAttackers().get(0).setEliminated(true);
+        session.getAiAttackers().get(1).setEliminated(false);
+        session.getAiAttackers().get(1).setCurrentLocation("lahore");
+
+        // Extend session
+        GameSession extended = sessionService.extendSession(sessionId);
+
+        assertNotNull(extended);
+        assertEquals("ACTIVE", extended.getStatus());
+        assertEquals(25, extended.getCurrentTurn()); // turn preserved!
+        assertEquals(50, extended.getMaxTurns()); // 25 + 25 = 50 max turns!
+        assertEquals(500000 + parsedConfig.getStartingBudget(), extended.getBudget()); // budget topped up!
+
+        // Dead agent restored
+        assertTrue(extended.getAgents().stream().anyMatch(a -> a.getId() == 1));
+
+        // Dead team restored
+        assertTrue(extended.getTacticalTeams().stream().anyMatch(t -> t.getId() == 1));
+
+        // Dead attacker 0 revived
+        assertFalse(extended.getAiAttackers().get(0).isEliminated());
+
+        // Active attacker 1 remains active in lahore
+        assertFalse(extended.getAiAttackers().get(1).isEliminated());
+        assertEquals("lahore", extended.getAiAttackers().get(1).getCurrentLocation());
+    }
+
+    @Test
+    public void testExtendSession_FailsIfNotSuccess() {
+        when(repository.save(any(GameSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        GameSession session = createTestSession();
+        UUID sessionId = session.getId();
+        session.setStatus("COMPROMISED");
+        when(repository.findById(sessionId)).thenReturn(java.util.Optional.of(session));
+
+        assertThrows(IllegalStateException.class, () -> sessionService.extendSession(sessionId));
+    }
+
     private GameSession createTestSession() {
         GameSession session = sessionService.createSession("operation_silent_edge");
         session.setDeploymentPending(false);
