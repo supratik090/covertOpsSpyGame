@@ -1,6 +1,6 @@
-# Protocol Nightfall — Cyber-Espionage Tactical Simulator
+# Shadow Protocol — Cyber-Espionage Tactical Simulator
 
-Protocol Nightfall is an immersive, cyber-espionage tactical HUD simulator depicting an operative tracking scenario across a contested border region. You play as the **Defender**, coordinating intelligence sweeps, deploying surveillance resources, building friendly safehouses, and commanding tactical teams to intercept and neutralize AI threat agents before they execute a target strike in your capital city.
+Shadow Protocol is an immersive, cyber-espionage tactical HUD simulator depicting an operative tracking scenario across a contested border region. You play as the **Defender**, coordinating intelligence sweeps, deploying surveillance resources, building friendly safehouses, and commanding tactical teams to intercept and neutralize AI threat agents before they execute a target strike in your capital city.
 
 ---
 

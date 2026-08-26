@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wrench, Navigation, AlertTriangle } from 'lucide-react';
+import { Navigation } from 'lucide-react';
 import { DroneIcon } from './GameSymbols';
 
 export default function DroneCard({ drone, session, onNavigate }) {
@@ -21,95 +21,72 @@ export default function DroneCard({ drone, session, onNavigate }) {
     a => (a.actionType === 'DRONE_RECON' || a.actionType === 'DRONE_ATTACK') && a.droneId === drone.id
   );
 
-  let statusBadge = { label: 'READY', color: '#00ff66', bg: 'rgba(0,255,102,0.1)', border: 'rgba(0,255,102,0.3)' };
+  let statusLabel = 'READY';
+  let statusColor = '#00ff66';
   if (drone.status === 'SERVICING') {
-    statusBadge = { 
-      label: `SERVICING (${drone.serviceCooldown || 2}T)`, 
-      color: '#f59e0b', 
-      bg: 'rgba(245,158,11,0.12)', 
-      border: 'rgba(245,158,11,0.4)' 
-    };
+    statusLabel = `SERVICING (${drone.serviceCooldown || 2}T)`;
+    statusColor = '#f59e0b';
   } else if (drone.status === 'SHOT_DOWN') {
-    statusBadge = { label: 'SHOT DOWN', color: '#ff3b30', bg: 'rgba(255,59,48,0.12)', border: 'rgba(255,59,48,0.4)' };
+    statusLabel = 'SHOT DOWN';
+    statusColor = '#ff3b30';
   }
 
   return (
-    <div 
-      className="agent-card drone-card" 
-      style={{ 
-        background: 'rgba(0,240,255,0.02)', 
-        border: '1px solid rgba(0,240,255,0.18)',
-        borderRadius: '6px',
-        padding: '12px 14px',
-        marginBottom: '10px',
-        transition: 'all 0.2s'
-      }}
+    <div
+      className="card"
+      onClick={baseCity && drone.status !== 'SHOT_DOWN' ? onNavigate : undefined}
+      style={{ cursor: baseCity && drone.status !== 'SHOT_DOWN' ? 'pointer' : 'default' }}
     >
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex items-center gap-2">
-          <div dangerouslySetInnerHTML={{ __html: DroneIcon({ size: 16, color: typeColor }) }} />
-          <div>
-            <h3 className="font-mono text-[13px] font-bold text-white uppercase tracking-wider m-0">
-              {getDroneName(drone.id)}
-            </h3>
-            <span 
-              className="font-mono text-[8.5px] font-bold px-1.5 py-0.5 rounded inline-block mt-0.5"
-              style={{ background: `${typeColor}15`, color: typeColor, border: `1px solid ${typeColor}40` }}
-            >
-              {typeLabel}
-            </span>
-          </div>
+      <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <DroneIcon size={14} color={typeColor} />
+          <span className="cyan" style={{ color: typeColor }}>{getDroneName(drone.id).toUpperCase()}</span>
         </div>
-
-        <span 
-          className="font-mono text-[9px] font-bold px-2 py-0.5 rounded uppercase"
-          style={{
-            background: statusBadge.bg,
-            color: statusBadge.color,
-            border: `1px solid ${statusBadge.border}`
-          }}
-        >
-          {statusBadge.label}
-        </span>
       </div>
 
-      <div className="agent-details font-mono text-[10px] space-y-1.5 my-2.5" style={{ color: 'var(--text-secondary)' }}>
-        <div className="flex justify-between">
-          <span className="text-dim">STATIONED BASE:</span>
-          <span className="font-bold text-white">
-            {baseCity ? baseCity.replace('_', ' ').toUpperCase() : 'UNASSIGNED'}
-          </span>
-        </div>
+      <div className="card-meta">
+        <span>TYPE: {typeLabel}</span>
+      </div>
 
-        {isBaseUnderMaint && (
-          <div className="flex items-center gap-1 text-[#f59e0b] text-[9px] font-bold bg-[rgba(245,158,11,0.1)] p-1 rounded">
-            <AlertTriangle size={11} /> BASE MAINTENANCE IN PROGRESS (INACTIVE)
-          </div>
-        )}
+      <div className="card-meta" style={{ marginTop: '-2px' }}>
+        <span>STATUS: <span style={{ color: statusColor, fontWeight: 'bold' }}>{statusLabel}</span></span>
+      </div>
 
-        <div className="flex justify-between">
-          <span className="text-dim">PLANNED MISSION:</span>
-          <span className="font-bold" style={{ color: plannedOp ? 'var(--cyan)' : 'var(--text-dim)' }}>
-            {plannedOp 
-              ? `${plannedOp.actionType === 'DRONE_RECON' ? '🔍 RECON' : '🚀 ATTACK'} → ${plannedOp.targetCity.replace('_', ' ').toUpperCase()}`
-              : 'IDLE (NO ORDERS)'}
-          </span>
+      <div className="card-meta" style={{ marginTop: '-2px' }}>
+        <span>STATIONED BASE: {baseCity ? baseCity.replace(/_/g, ' ').toUpperCase() : 'UNASSIGNED'}</span>
+      </div>
+
+      {isBaseUnderMaint && (
+        <div className="card-meta" style={{ marginTop: '-2px', color: '#f59e0b', fontWeight: 'bold' }}>
+          <span>⚠️ BASE MAINTENANCE IN PROGRESS</span>
         </div>
+      )}
+
+      <div className="card-meta" style={{ marginTop: '-2px', marginBottom: '8px' }}>
+        <span>PLANNED MISSION: {plannedOp 
+          ? `${plannedOp.actionType === 'DRONE_RECON' ? 'RECON' : 'ATTACK'} → ${plannedOp.targetCity.replace(/_/g, ' ').toUpperCase()}`
+          : 'IDLE (NO ORDERS)'}</span>
       </div>
 
       {baseCity && drone.status !== 'SHOT_DOWN' && (
         <button
-          onClick={onNavigate}
-          className="cia-dispatch-btn font-mono w-full mt-2"
+          onClick={(e) => { e.stopPropagation(); onNavigate?.(); }}
+          className="cia-dispatch-btn font-mono w-full mt-1"
           style={{
             padding: '6px 10px',
             justifyContent: 'center',
-            fontSize: '9px',
-            borderColor: 'rgba(0,240,255,0.3)',
-            background: 'rgba(0,240,255,0.06)',
+            fontSize: '10px',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            fontFamily: "var(--font-mono)",
+            borderColor: 'rgba(0,240,255,0.35)',
+            background: 'rgba(0,240,255,0.08)',
+            color: '#00f0ff',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px'
+            gap: '6px',
+            cursor: 'pointer',
+            borderRadius: '4px'
           }}
         >
           <Navigation size={11} /> NAVIGATE TO BASE

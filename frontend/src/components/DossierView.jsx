@@ -287,7 +287,9 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
             CASE FILE & TURN DOSSIER
           </h2>
           <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: 'var(--text-dim)', fontFamily: 'monospace' }}>
-            Inspect suspect intelligence timelines and review past turn resolution reports
+            {dossierSubTab === 'SUSPECTS'
+              ? 'Select a suspect to view their confirmed intelligence timeline'
+              : 'Review all intelligence, combat, sweep, and asset updates from the last turn resolution'}
           </p>
         </div>
 
@@ -633,16 +635,6 @@ export default function DossierView({ session, localAssessments, onSetClueAssess
           }
         }
       `}</style>
-
-      {/* ── Header ── */}
-      <div className="dossier-header-container">
-        <h2 className="dossier-header-title">
-          CASE FILE DOSSIER
-        </h2>
-        <p className="dossier-header-subtitle">
-          Select a suspect to view their confirmed intelligence timeline
-        </p>
-      </div>
 
       {/* ── Suspect selector ── */}
       <div className="suspect-selector-container">

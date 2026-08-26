@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import VerticalTabBar from './components/VerticalTabBar';
 import StatusBar from './components/StatusBar';
+import HomeScreen from './components/HomeScreen';
 import LoginScreen from './components/LoginScreen';
 import ScenarioSelect from './components/ScenarioSelect';
 import MapView from './components/MapView';
@@ -8,7 +9,6 @@ import AgentsView from './components/AgentsView';
 import CluesView from './components/CluesView';
 import DossierView from './components/DossierView';
 import GodModeView from './components/GodModeView';
-import ResourcesView from './components/ResourcesView';
 import ObjectiveBoardView from './components/ObjectiveBoardView';
 import HintsView from './components/HintsView';
 import CellHqView from './components/CellHqView';
@@ -28,7 +28,9 @@ const getDefaultMapTab = () =>
   typeof window !== 'undefined' && window.innerWidth <= 768 ? 'TACTICAL' : 'MAP';
 
 export default function App() {
-  const [screen, setScreen] = useState('LOGIN'); // 'LOGIN', 'SELECT', 'GAME'
+  // Check if user is already authenticated; skip HOME if so
+  const isAlreadyAuthed = typeof window !== 'undefined' && !!localStorage.getItem('spy_game_token');
+  const [screen, setScreen] = useState(isAlreadyAuthed ? 'SELECT' : 'HOME'); // 'HOME', 'LOGIN', 'SELECT', 'GAME'
   const [activeTab, setActiveTab] = useState('MAP'); // 'MAP', 'AGENTS', 'CLUES', 'RESOURCES'
   const [scenarios, setScenarios] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -995,7 +997,7 @@ export default function App() {
     localStorage.removeItem('spy_game_token');
     localStorage.removeItem('covert_ops_operator_user');
     localStorage.removeItem('spy_game_session_id');
-    setScreen('LOGIN');
+    setScreen('HOME');
     setSession(null);
     setSessions([]);
     addToast("Logged out successfully.", "info");
@@ -1023,6 +1025,10 @@ export default function App() {
       <div className="crt-overlay"></div>
       <Toast toasts={toasts} removeToast={removeToast} />
       {retryState && <RetrySpinner attempt={retryState.attempt} max={retryState.max} />}
+
+      {screen === 'HOME' && (
+        <HomeScreen onPlay={() => setScreen('LOGIN')} />
+      )}
 
       {screen === 'LOGIN' && (
         <LoginScreen onLoginSuccess={onLoginSuccess} />
@@ -1193,16 +1199,6 @@ export default function App() {
                 onSetClueAssessment={setClueAssessment}
                 lastTurnReport={endTurnReport || pendingEndTurnReport}
                 onReopenReport={(rpt) => setPendingEndTurnReport(rpt || endTurnReport || pendingEndTurnReport)}
-              />
-            )}
-
-            {activeTab === 'RESOURCES' && (
-              <ResourcesView
-                session={session}
-                nodes={activeScenario?.nodes || []}
-                onBuildSafehouse={handleBuildSafehouse}
-                onDeployTech={handleDeployTech}
-                addToast={addToast}
               />
             )}
 

@@ -54,8 +54,8 @@ const ScenarioSelect = ({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div className="auth-brand" style={{ margin: 0 }}>
-            <span className="auth-brand-line">PROTOCOL</span>
-            <span className="auth-brand-name">NIGHTFALL</span>
+            <span className="auth-brand-line">SHADOW</span>
+            <span className="auth-brand-name">PROTOCOL</span>
           </div>
           {onLogout && (
             <button

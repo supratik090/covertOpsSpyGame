@@ -363,7 +363,7 @@ export default function MapView({
       minZoom: 4
     }).addTo(map);
 
-    const gridCanvas = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{y}/{x}.png', {
+    const gridCanvas = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png', {
       opacity: 0.5
     }).addTo(map);
 
