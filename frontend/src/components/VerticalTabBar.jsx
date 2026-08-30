@@ -49,8 +49,7 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, hin
     { id: 'OBJECTIVES', label: 'OBJECTIVES', icon: BookOpen, badge: 0 },
     { id: 'HINTS', label: 'HINTS', icon: Lightbulb, badge: hintCount, flash: flashHint },
     { id: 'CELL_HQ', label: 'CELL HQ', icon: Users, badge: 0 },
-    { id: 'CLUES', label: 'CLUES', icon: Search, badge: clueCount },
-    { id: 'GOD_MODE', label: 'GOD MODE', icon: Eye, badge: 0 }
+    { id: 'CLUES', label: 'CLUES', icon: Search, badge: clueCount }
   ] : [
     { id: 'MAP', label: 'MAP', icon: Map, badge: 0 },
     { id: 'TACTICAL', label: 'TACTICAL', icon: Shield, badge: 0 },
@@ -58,8 +57,7 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, hin
     { id: 'HINTS', label: 'HINTS', icon: Lightbulb, badge: hintCount, flash: flashHint },
     { id: 'AGENTS', label: 'AGENTS', icon: Users, badge: 0 },
     { id: 'CLUES', label: 'CLUES', icon: Search, badge: clueCount },
-    { id: 'DOSSIER', label: 'DOSSIER', icon: FolderOpen, badge: acceptedCount, flash: flashDossier },
-    { id: 'GOD_MODE', label: 'GOD MODE', icon: Eye, badge: 0 }
+    { id: 'DOSSIER', label: 'DOSSIER', icon: FolderOpen, badge: acceptedCount, flash: flashDossier }
   ];
 
   if (isMobile) {
