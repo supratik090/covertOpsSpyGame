@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Shield, Users, MapPin, CheckCircle, ChevronRight, AlertTriangle, X, List, Cpu } from 'lucide-react';
+import { Shield, Users, MapPin, CheckCircle, ChevronRight, AlertTriangle, X, List, Cpu, Globe } from 'lucide-react';
 import { GAME_API_BASE } from '../config';
+import DeploymentTacticalMap from './DeploymentTacticalMap';
 
 const PHASES = [
   { id: 1, key: 'safehouses', label: 'SAFEHOUSES', icon: Shield,  color: '#00f0ff' },
@@ -28,7 +29,8 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
   const [selected, setSelected] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-  const [mobilePanel, setMobilePanel] = useState('cities');
+  const [mobilePanel, setMobilePanel] = useState('map');
+  const [centerViewMode, setCenterViewMode] = useState('map');
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -153,7 +155,7 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
       setSelected(null);
     } else {
       setSelected({ type, id, label });
-      if (isMobile) setMobilePanel('cities'); // Auto-switch to CITIES tab when asset selected
+      if (isMobile) setMobilePanel('map'); // Auto-switch to MAP tab when asset selected
     }
   };
   const handleCityTap = (cityId) => { if (selected) handleCityDrop(cityId); };
@@ -469,6 +471,32 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
 
 
 
+  const renderTacticalMap = () => (
+    <DeploymentTacticalMap
+      nodes={nodes}
+      phase={phase}
+      currentPhase={currentPhase}
+      safehouseCities={safehouseCities}
+      safehouseCount={safehouseCount}
+      agentPlacements={agentPlacements}
+      teamPlacements={teamPlacements}
+      droneBaseCity={droneBaseCity}
+      agents={agents}
+      teams={teams}
+      selected={selected}
+      dragging={dragging}
+      dragOver={dragOver}
+      setDragOver={setDragOver}
+      onCityDrop={handleCityDrop}
+      onCityTap={handleCityTap}
+      onRemoveSafehouse={removeSafehouse}
+      onRemoveAgent={removeAgent}
+      onRemoveTeam={removeTeam}
+      onRemoveDroneBase={removeDroneBase}
+      isMobile={isMobile}
+    />
+  );
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,4,12,0.95)', backdropFilter: 'blur(3px)', display: 'flex', flexDirection: 'column', fontFamily: "'Share Tech Mono','Courier New',monospace", overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,240,255,0.015) 2px,rgba(0,240,255,0.015) 4px)' }} />
@@ -525,38 +553,43 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
       {isMobile ? (
         <>
           {/* Mobile: scrollable content panel */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
-            <div style={{ padding: '8px 12px', borderRadius: 4, marginBottom: 10, background: `${currentPhase.color}0e`, border: `1px solid ${currentPhase.color}30`, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: 10, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '6px 10px', borderRadius: 4, marginBottom: 8, background: `${currentPhase.color}0e`, border: `1px solid ${currentPhase.color}30`, display: 'flex', alignItems: 'flex-start', gap: 6, flexShrink: 0 }}>
               <AlertTriangle size={11} style={{ color: currentPhase.color, flexShrink: 0, marginTop: 1 }} />
               <span style={{ fontSize: 9, color: currentPhase.color, letterSpacing: '0.07em' }}>
-                {phase === 1 && `Tap ASSETS tab → select a safehouse → CITIES tab → tap a city. Repeat ${safehouseCount}x.`}
-                {phase === 2 && 'Tap ASSETS tab → select an agent → CITIES tab → tap a safehouse city.'}
-                {phase === 3 && 'Tap ASSETS tab → select a team → CITIES tab → tap a safehouse city.'}
+                {phase === 1 && `Tap ASSETS → select safehouse → tap MAP / GRID → tap a city.`}
+                {phase === 2 && 'Tap ASSETS → select agent → tap MAP / GRID → tap safehouse city.'}
+                {phase === 3 && 'Tap ASSETS → select team → tap MAP / GRID → tap safehouse city.'}
+                {phase === 4 && 'Tap ASSETS → select drone hangar → tap MAP / GRID → tap home city.'}
               </span>
             </div>
             {selected && (
-              <div style={{ padding: '8px 12px', marginBottom: 10, background: `${currentPhase.color}18`, border: `1px solid ${currentPhase.color}`, borderRadius: 4, fontSize: 10, color: currentPhase.color, textAlign: 'center', letterSpacing: '0.08em' }}>
-                ✓ SELECTED: {selected.label} — NOW TAP A CITY
+              <div style={{ padding: '6px 10px', marginBottom: 8, background: `${currentPhase.color}18`, border: `1px solid ${currentPhase.color}`, borderRadius: 4, fontSize: 9, color: currentPhase.color, textAlign: 'center', letterSpacing: '0.08em', flexShrink: 0 }}>
+                ✓ SELECTED: {selected.label} — NOW TAP A CITY ON MAP
               </div>
             )}
-            {mobilePanel === 'assets'  && renderAssets()}
-            {mobilePanel === 'cities'  && renderCities()}
-            {mobilePanel === 'summary' && renderSummary()}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              {mobilePanel === 'assets'  && renderAssets()}
+              {mobilePanel === 'map'     && renderTacticalMap()}
+              {mobilePanel === 'cities'  && renderCities()}
+              {mobilePanel === 'summary' && renderSummary()}
+            </div>
           </div>
           {/* Phase nav */}
           <div style={{ padding: '8px 12px', borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
             {renderPhaseNav()}
           </div>
           {/* Bottom tab bar */}
-          <div style={{ display: 'flex', borderTop: '1px solid rgba(0,240,255,0.15)', background: 'rgba(0,0,0,0.8)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', borderTop: '1px solid rgba(0,240,255,0.15)', background: 'rgba(0,0,0,0.9)', flexShrink: 0 }}>
             {[
               { id: 'assets',  label: 'ASSETS',  Icon: PhaseIcon },
-              { id: 'cities',  label: 'CITIES',  Icon: MapPin },
+              { id: 'map',     label: 'MAP',     Icon: Globe },
+              { id: 'cities',  label: 'GRID',    Icon: MapPin },
               { id: 'summary', label: 'SUMMARY', Icon: List },
             ].map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setMobilePanel(id)}
-                style={{ flex: 1, padding: '10px 0 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: mobilePanel === id ? `${currentPhase.color}18` : 'transparent', border: 'none', borderTop: mobilePanel === id ? `2px solid ${currentPhase.color}` : '2px solid transparent', color: mobilePanel === id ? currentPhase.color : '#555', cursor: 'pointer', transition: 'all 0.2s', fontFamily: "'Share Tech Mono','Courier New',monospace" }}>
-                <Icon size={16} />
+                style={{ flex: 1, padding: '9px 0 7px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, background: mobilePanel === id ? `${currentPhase.color}18` : 'transparent', border: 'none', borderTop: mobilePanel === id ? `2px solid ${currentPhase.color}` : '2px solid transparent', color: mobilePanel === id ? currentPhase.color : '#555', cursor: 'pointer', transition: 'all 0.2s', fontFamily: "'Share Tech Mono','Courier New',monospace" }}>
+                <Icon size={14} />
                 <span style={{ fontSize: 8, letterSpacing: '0.08em' }}>{label}</span>
                 {id === 'assets' && selected && <span style={{ fontSize: 7, color: currentPhase.color }}>●</span>}
               </button>
@@ -587,17 +620,65 @@ export default function DeploymentScreen({ session, activeScenario, onDeployment
             </div>
           </div>
 
-          {/* CENTER: Cities */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ padding: '8px 14px', borderRadius: 4, marginBottom: 4, background: `${currentPhase.color}0e`, border: `1px solid ${currentPhase.color}30`, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AlertTriangle size={12} style={{ color: currentPhase.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 9, color: currentPhase.color, letterSpacing: '0.1em' }}>
-                {phase === 1 && `DRAG SAFEHOUSE TOKENS ONTO CITIES — SELECT ${safehouseCount} OUT OF ${nodes.length} CITIES`}
-                {phase === 2 && 'DRAG FIELD AGENTS ONTO HIGHLIGHTED SAFEHOUSE CITIES'}
-                {phase === 3 && 'STATION COMBAT TEAMS IN SAFEHOUSE CITIES'}
-              </span>
+          {/* CENTER: Tactical Map / Cities */}
+          <div style={{ flex: 1, overflow: 'hidden', padding: '14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ padding: '6px 12px', borderRadius: 4, flex: 1, marginRight: 10, background: `${currentPhase.color}0e`, border: `1px solid ${currentPhase.color}30`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertTriangle size={12} style={{ color: currentPhase.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 9, color: currentPhase.color, letterSpacing: '0.1em' }}>
+                  {phase === 1 && `CLICK CITIES ON MAP TO PLACE SAFHOUSES — SELECT ${safehouseCount} OUT OF ${nodes.length} CITIES`}
+                  {phase === 2 && 'SELECT AGENT → CLICK SAFEHOUSE CITIES ON MAP'}
+                  {phase === 3 && 'SELECT COMBAT TEAM → CLICK SAFEHOUSE CITIES ON MAP'}
+                  {phase === 4 && 'SELECT DRONE HANGAR → CLICK FRIENDLY HOME CITY ON MAP'}
+                </span>
+              </div>
+
+              {/* View Toggle Buttons */}
+              <div style={{ display: 'flex', gap: 2, background: 'rgba(0,0,0,0.6)', padding: 3, borderRadius: 6, border: '1px solid rgba(0,240,255,0.2)' }}>
+                <button
+                  onClick={() => setCenterViewMode('map')}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: 4,
+                    border: 'none',
+                    background: centerViewMode === 'map' ? `${currentPhase.color}30` : 'transparent',
+                    color: centerViewMode === 'map' ? currentPhase.color : '#666',
+                    fontSize: 9,
+                    fontWeight: 'bold',
+                    letterSpacing: '0.08em',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <Globe size={11} /> MAP VIEW
+                </button>
+                <button
+                  onClick={() => setCenterViewMode('grid')}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: 4,
+                    border: 'none',
+                    background: centerViewMode === 'grid' ? `${currentPhase.color}30` : 'transparent',
+                    color: centerViewMode === 'grid' ? currentPhase.color : '#666',
+                    fontSize: 9,
+                    fontWeight: 'bold',
+                    letterSpacing: '0.08em',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <MapPin size={11} /> GRID VIEW
+                </button>
+              </div>
             </div>
-            {renderCities()}
+
+            <div style={{ flex: 1, overflowY: centerViewMode === 'grid' ? 'auto' : 'hidden', minHeight: 0 }}>
+              {centerViewMode === 'map' ? renderTacticalMap() : renderCities()}
+            </div>
           </div>
 
           {/* RIGHT: Summary */}

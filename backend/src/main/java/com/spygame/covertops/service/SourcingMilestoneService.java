@@ -111,11 +111,17 @@ public class SourcingMilestoneService {
                                 soughtClue.setTurnOccurred(currentTurn);
                                 session.getDiscoveredClues().add(soughtClue);
                             } else if (attacker.isFinanceCollected() && attacker.isLogisticsCollected()) {
+                                attacker.setHandoverCity(attacker.getCurrentLocation());
+                                attacker.setHandoverTurnsRemaining(1);
                                 attacker.setState("Handover pending");
                             } else if (attacker.isFinanceCollected()) {
+                                attacker.setRequestedLogisticsCity(attacker.getCurrentLocation());
+                                attacker.setLogisticsCollectionTurnsRemaining(1);
                                 attacker.setState("Request Logistic");
                             } else {
-                                attacker.setState("Initial decoy");
+                                attacker.setRequestedFinanceCity(attacker.getCurrentLocation());
+                                attacker.setFinanceCollectionTurnsRemaining(1);
+                                attacker.setState("Healing_Recovered");
                             }
                         }
                     }

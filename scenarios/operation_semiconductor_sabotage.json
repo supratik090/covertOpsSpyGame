@@ -1,0 +1,247 @@
+{
+  "scenarioId": "operation_semiconductor_sabotage",
+  "attackingCountry": "China",
+  "defendingCountry": "East Asia Alliance (Taiwan/Japan/South Korea)",
+  "title": "Operation Silicon Shield",
+  "briefing": "Intelligence alerts confirm Ministry of State Security (MSS) covert ops units are planning a high-yield SABOTAGE strike targeting the TSMC Semiconductor Fabrication Foundry in Hsinchu / Taipei. Intercept signals across MSS staging cities (Beijing, Shanghai, Fuzhou, Qingdao, Guangzhou), neutralize hostile operatives, and secure the East Asian semiconductor corridor before Turn 25.",
+  "attackerBriefing": "Major strategic SABOTAGE strike targeting the TSMC Semiconductor Fabrication Foundry in Taipei / Hsinchu. Execute attack with precision. Evade Allied SIGINT surveillance, acquire financial and cyber assets across Chinese staging hubs, infiltrate the Taiwan Strait, and disable the fabrication facility.",
+  "targetCity": "taipei",
+  "targetVip": "TSMC Semiconductor Fabrication Foundry",
+  "attackForm": "SABOTAGE",
+  "maxTurns": 25,
+  "startingBudget": 5000000,
+  "mapBackground": "satellite",
+  "nodes": [
+    {
+      "id": "beijing",
+      "name": "Beijing MSS Command",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 38, "y": 25, "lat": 39.9042, "lng": 116.4074},
+      "connections": ["qingdao", "shanghai"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Haidian Cyber Tech Sector", "Chaoyang District", "Dongcheng", "Xicheng", "Fengtai"]
+    },
+    {
+      "id": "qingdao",
+      "name": "Qingdao Maritime Base",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 46, "y": 38, "lat": 36.0671, "lng": 120.3826},
+      "connections": ["beijing", "shanghai", "seoul"],
+      "availableFinance": ["COMMERCIAL_FRONT_LOAN", "ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Southeastern Port", "Shinan District", "Laoshan", "Shibei", "Huangdao"]
+    },
+    {
+      "id": "shanghai",
+      "name": "Shanghai Financial Hub",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 48, "y": 55, "lat": 31.2304, "lng": 121.4737},
+      "connections": ["beijing", "qingdao", "fuzhou", "fukuoka"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Lujiazui Financial Zone", "Pudong New Area", "Huangpu", "Jing'an", "Minhang"]
+    },
+    {
+      "id": "fuzhou",
+      "name": "Fuzhou Strait Command",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 42, "y": 72, "lat": 26.0745, "lng": 119.2965},
+      "connections": ["shanghai", "guangzhou", "taipei", "kaohsiung"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Gulou District", "Mawei Port Zone", "Cangshan", "Taijiang", "Jin'an"]
+    },
+    {
+      "id": "guangzhou",
+      "name": "Guangzhou Industrial Base",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 32, "y": 82, "lat": 23.1291, "lng": 113.2644},
+      "connections": ["fuzhou", "taipei"],
+      "availableFinance": ["HUNDI_HAWALA", "RANSOMWARE_HACK"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Tianhe Tech District", "Yuexiu", "Haizhu", "Huangpu High-Tech", "Panyu"]
+    },
+    {
+      "id": "seoul",
+      "name": "Seoul Defense Headquarters",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 68, "y": 34, "lat": 37.5665, "lng": 126.9780},
+      "connections": ["qingdao", "tokyo", "fukuoka"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Yongsan Defense Hub", "Gangnam Tech Sector", "Jongno", "Yeouido Financial Center", "Songpa"]
+    },
+    {
+      "id": "fukuoka",
+      "name": "Fukuoka Alliance Garrison",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 74, "y": 58, "lat": 33.5904, "lng": 130.4017},
+      "connections": ["shanghai", "seoul", "tokyo", "taipei"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Hakata Port", "Chuo Ward", "Tenjin District", "Higashi Ward", "Sawara"]
+    },
+    {
+      "id": "tokyo",
+      "name": "Tokyo Supreme Command",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 90, "y": 48, "lat": 35.6762, "lng": 139.6503},
+      "connections": ["seoul", "fukuoka", "taipei"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Chiyoda Defense Complex", "Shinjuku Command", "Minato Sector", "Shibuya", "Ginza Center"]
+    },
+    {
+      "id": "taipei",
+      "name": "Taipei Semiconductor Foundry",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 58, "y": 80, "lat": 25.0330, "lng": 121.5654},
+      "connections": ["fuzhou", "guangzhou", "kaohsiung", "fukuoka", "tokyo"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Hsinchu Science Park", "Neihu Tech Sector", "Xinyi Center", "Zhongshan", "Daan"]
+    },
+    {
+      "id": "kaohsiung",
+      "name": "Kaohsiung Maritime Base",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 54, "y": 92, "lat": 22.6273, "lng": 120.3014},
+      "connections": ["taipei", "fuzhou"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Kaohsiung Naval Port", "Lingya Sector", "Cinjin Island", "Qianzhen", "Zuoying Naval Base"]
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "taipei"},
+    {"cityId": "tokyo"},
+    {"cityId": "fuzhou"},
+    {"cityId": "shanghai"}
+  ],
+  "attackerNames": [
+    "Wei Zhang",
+    "Chen Wei",
+    "Lin Feng"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Kenji Sato",
+      "codename": "RONIN",
+      "startingCity": "tokyo",
+      "skills": {"humint": 85, "sigint": 90, "infiltration": 70, "survivability": 65}
+    },
+    {
+      "id": 2,
+      "name": "Min-Jae Park",
+      "codename": "TIGER",
+      "startingCity": "seoul",
+      "skills": {"humint": 75, "sigint": 60, "infiltration": 90, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "Chen-Wei Lin",
+      "codename": "VIPER",
+      "startingCity": "taipei",
+      "skills": {"humint": 90, "sigint": 80, "infiltration": 50, "survivability": 50}
+    },
+    {
+      "id": 4,
+      "name": "Hiroshi Tanaka",
+      "codename": "SAMURAI",
+      "startingCity": "fukuoka",
+      "skills": {"humint": 70, "sigint": 50, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "Sheng Wu",
+      "codename": "SPECTRE",
+      "startingCity": "fuzhou",
+      "skills": {"humint": 85, "sigint": 40, "infiltration": 80, "survivability": 95}
+    },
+    {
+      "id": 6,
+      "name": "Ji-Hoon Kim",
+      "codename": "SHADOW",
+      "startingCity": "shanghai",
+      "skills": {"humint": 50, "sigint": 50, "infiltration": 85, "survivability": 95}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "Tokyo Cyber Defense Command",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "tokyo",
+      "skills": {"combat": 90, "stealth": 80, "mobility": 80}
+    },
+    {
+      "id": 2,
+      "name": "Taiwan Defense Security Force",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "taipei",
+      "skills": {"combat": 85, "stealth": 75, "mobility": 80}
+    },
+    {
+      "id": 3,
+      "name": "ROK 707th Special Mission Group",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "seoul",
+      "skills": {"combat": 90, "stealth": 85, "mobility": 85}
+    },
+    {
+      "id": 4,
+      "name": "Kaohsiung Coastal Defense Team",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "kaohsiung",
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 50000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 20000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "CCTV", "cityId": "taipei"},
+    {"type": "WIRE_TAP", "cityId": "fuzhou"}
+  ],
+  "logisticsMapping": {
+    "SABOTAGE": {
+      "itemName": "Thermite Demolition Charge",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    },
+    "BOMB_BLAST": {
+      "itemName": "Tactical Detonation Payload",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "SABOTAGE": {
+      "itemName": "Covert Sabotage Fund",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    },
+    "BOMB_BLAST": {
+      "itemName": "Cryptographic Transfer",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}

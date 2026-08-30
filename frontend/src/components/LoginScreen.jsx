@@ -72,7 +72,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
       >
         <div className="auth-header">
           <Key className="auth-icon" size={48} />
-          <h1 className="auth-title">PROTOCOL NIGHTFALL</h1>
+          <h1 className="auth-title">SHADOW PROTOCOL</h1>
           <p className="auth-subtitle">CLEARANCE TERMINAL — AUTHENTICATE TO OPERATE</p>
         </div>
 

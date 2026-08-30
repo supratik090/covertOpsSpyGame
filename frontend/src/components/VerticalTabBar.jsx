@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Shield, Map, BookOpen, Lightbulb, Users, Search, FolderOpen, Package, Eye } from 'lucide-react';
+import { Shield, Map, BookOpen, Lightbulb, Users, Search, FolderOpen, Eye } from 'lucide-react';
 
 const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, hintCount = 0, actionCount, playerRole }) => {
   const [isMobile, setIsMobile] = useState(false);
@@ -11,9 +11,9 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, hin
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  // On mobile, MAP, CLUES, GOD_MODE, RESOURCES tabs are not available — redirect to TACTICAL automatically
+  // On mobile, MAP, CLUES, GOD_MODE tabs are not available — redirect to TACTICAL automatically
   useEffect(() => {
-    if (isMobile && ['MAP', 'CLUES', 'GOD_MODE', 'RESOURCES'].includes(activeTab)) {
+    if (isMobile && ['MAP', 'CLUES', 'GOD_MODE'].includes(activeTab)) {
       setActiveTab('TACTICAL');
     }
   }, [isMobile, activeTab, setActiveTab]);
@@ -59,12 +59,11 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, hin
     { id: 'AGENTS', label: 'AGENTS', icon: Users, badge: 0 },
     { id: 'CLUES', label: 'CLUES', icon: Search, badge: clueCount },
     { id: 'DOSSIER', label: 'DOSSIER', icon: FolderOpen, badge: acceptedCount, flash: flashDossier },
-    { id: 'RESOURCES', label: 'RESOURCES', icon: Package, badge: 0 },
     { id: 'GOD_MODE', label: 'GOD MODE', icon: Eye, badge: 0 }
   ];
 
   if (isMobile) {
-    tabs = tabs.filter(t => !['MAP', 'CLUES', 'GOD_MODE', 'RESOURCES'].includes(t.id));
+    tabs = tabs.filter(t => !['MAP', 'CLUES', 'GOD_MODE'].includes(t.id));
   }
 
   return (

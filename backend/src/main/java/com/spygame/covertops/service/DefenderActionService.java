@@ -91,8 +91,8 @@ public class DefenderActionService {
         }
 
         // 1.7. Apply persistent drone operations
+        Set<Integer> specifiedDroneIds = new HashSet<>();
         if (request.getDroneOperations() != null) {
-            Set<Integer> specifiedDroneIds = new HashSet<>();
             for (Map<String, Object> op : request.getDroneOperations()) {
                 try {
                     Integer droneIdObj = (Integer) op.get("droneId");
@@ -113,13 +113,13 @@ public class DefenderActionService {
                     System.err.println("Failed drone operation setting: " + e.getMessage());
                 }
             }
-            // Clear assigned ops for active drones explicitly omitted by player in UI
-            if (session.getDrones() != null) {
-                for (GameSession.Drone drone : session.getDrones()) {
-                    if ("ACTIVE".equals(drone.getStatus()) && !specifiedDroneIds.contains(drone.getId())) {
-                        drone.setAssignedActionType(null);
-                        drone.setAssignedTargetCity(null);
-                    }
+        }
+        // Clear assigned ops for active drones explicitly omitted by player in UI
+        if (session.getDrones() != null) {
+            for (GameSession.Drone drone : session.getDrones()) {
+                if ("ACTIVE".equals(drone.getStatus()) && !specifiedDroneIds.contains(drone.getId())) {
+                    drone.setAssignedActionType(null);
+                    drone.setAssignedTargetCity(null);
                 }
             }
         }

@@ -19,26 +19,41 @@ public class ScenarioDatabaseSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        File scenariosDir = new File("../scenarios");
-        
-        if (scenariosDir.exists() && scenariosDir.isDirectory()) {
-            File[] jsonFiles = scenariosDir.listFiles((dir, name) -> name.endsWith(".json"));
-            
-            if (jsonFiles != null) {
-                for (File file : jsonFiles) {
-                    try {
-                        ScenarioConfig config = mapper.readValue(file, ScenarioConfig.class);
-                        String sId = config.getScenarioId();
-                        
-                        scenarioRepository.save(config);
-                        System.out.println("Seeder Success: Imported/Updated scenario config '" + sId + "' in MongoDB.");
-                    } catch (Exception e) {
-                        System.err.println("Seeder Error: Failed to parse scenario config from file: " + file.getName() + " - " + e.getMessage());
+        String[] candidateDirs = {
+            "../scenarios",
+            "scenarios",
+            "./scenarios",
+            System.getProperty("user.dir") + "/scenarios",
+            System.getProperty("user.dir") + "/../scenarios"
+        };
+
+        boolean foundAny = false;
+        java.util.Set<String> processedFiles = new java.util.HashSet<>();
+
+        for (String dirPath : candidateDirs) {
+            File scenariosDir = new File(dirPath);
+            if (scenariosDir.exists() && scenariosDir.isDirectory()) {
+                File[] jsonFiles = scenariosDir.listFiles((dir, name) -> name.endsWith(".json"));
+                if (jsonFiles != null && jsonFiles.length > 0) {
+                    for (File file : jsonFiles) {
+                        if (processedFiles.contains(file.getName())) continue;
+                        try {
+                            ScenarioConfig config = mapper.readValue(file, ScenarioConfig.class);
+                            String sId = config.getScenarioId();
+                            scenarioRepository.save(config);
+                            processedFiles.add(file.getName());
+                            foundAny = true;
+                            System.out.println("Seeder Success: Imported scenario '" + sId + "' (" + file.getName() + ") into DB.");
+                        } catch (Exception e) {
+                            System.err.println("Seeder Error: Failed parsing " + file.getName() + " - " + e.getMessage());
+                        }
                     }
                 }
             }
-        } else {
-            System.err.println("Seeder Warning: Scenarios root folder scenarios/ not found at path: " + scenariosDir.getAbsolutePath());
+        }
+
+        if (!foundAny) {
+            System.err.println("Seeder Warning: Could not locate scenarios directory in candidate paths.");
         }
     }
 }

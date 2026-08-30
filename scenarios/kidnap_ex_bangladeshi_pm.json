@@ -199,11 +199,11 @@
     }
   ],
   "defensiveAssetCosts": {
-    "SATELLITE": 80000,
+    "SATELLITE": 50000,
     "CCTV": 30000,
     "WIRE_TAP": 20000,
     "FINANCE_MONITOR": 50000,
-    "PHONE_TAP": 40000,
+    "PHONE_TAP": 20000,
     "BIOMETRIC_SCAN": 35000,
     "BORDER_GUARD": 40000,
     "SIGNAL_JAMMER": 25000

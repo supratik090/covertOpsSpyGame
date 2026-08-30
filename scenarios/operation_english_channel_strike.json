@@ -1,0 +1,247 @@
+{
+  "scenarioId": "operation_english_channel_strike",
+  "attackingCountry": "Russia",
+  "defendingCountry": "UK & France Alliance",
+  "title": "Operation Channel Fortress",
+  "briefing": "Intelligence alerts confirm Russian Covert Ops units are planning a major SABOTAGE strike on the Channel Tunnel Undersea Link / Dover Port in the English Channel. Intercept signals across Russian-friendly staging cities in Europe (Minsk, Kaliningrad, Tiraspol, Belgrade, Latakia), neutralize hostile operatives, and secure Western Europe's transit corridors before Turn 25.",
+  "attackerBriefing": "Major strategic SABOTAGE strike targeting the Channel Tunnel Infrastructure Link in Dover. Execute attack with precision. Evade NATO air defenses, acquire financial and military assets in allied staging bases, breach border checkpoints, and neutralize the target installation.",
+  "targetCity": "dover",
+  "targetVip": "Channel Tunnel Infrastructure Link",
+  "attackForm": "SABOTAGE",
+  "maxTurns": 25,
+  "startingBudget": 5000000,
+  "mapBackground": "satellite",
+  "nodes": [
+    {
+      "id": "minsk",
+      "name": "Minsk Allied Command",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 78, "y": 24, "lat": 53.9006, "lng": 27.5590},
+      "connections": ["kaliningrad", "tiraspol"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Independence Avenue", "Nemiga", "Kastrychnitskaya", "Tsentralny", "Zavodskoy"]
+    },
+    {
+      "id": "kaliningrad",
+      "name": "Kaliningrad Baltic Garrison",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 64, "y": 20, "lat": 54.7104, "lng": 20.4522},
+      "connections": ["minsk", "belgrade"],
+      "availableFinance": ["ILLICIT_ARMS_SALES", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Victory Square", "Kant Island", "Amber Museum District", "Leningradsky", "Baltiysky"]
+    },
+    {
+      "id": "tiraspol",
+      "name": "Tiraspol Transnistria Base",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 82, "y": 68, "lat": 46.8403, "lng": 29.6433},
+      "connections": ["minsk", "belgrade", "latakia"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["October Street", "Kirov Park", "Dniester Embankment", "Balkansky", "Central Plaza"]
+    },
+    {
+      "id": "belgrade",
+      "name": "Belgrade Balkan Hub",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 62, "y": 78, "lat": 44.7866, "lng": 20.4489},
+      "connections": ["kaliningrad", "tiraspol", "paris", "calais"],
+      "availableFinance": ["HUNDI_HAWALA", "RANSOMWARE_HACK"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Knez Mihailova", "Kalemegdan", "Novi Beograd", "Dorcol", "Vracar"]
+    },
+    {
+      "id": "latakia",
+      "name": "Latakia Naval Outpost",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 94, "y": 92, "lat": 35.5317, "lng": 35.7915},
+      "connections": ["tiraspol", "paris"],
+      "availableFinance": ["DRUG_SALES", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Port District", "Corniche", "Al-Zahra", "Al-Slaibeh", "Southern Harbor"]
+    },
+    {
+      "id": "portsmouth",
+      "name": "Portsmouth Naval Command",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 8, "y": 35, "lat": 50.8198, "lng": -1.0880},
+      "connections": ["london", "dover"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Historic Dockyard", "Gunwharf Quays", "Southsea", "Fratton", "Portsea"]
+    },
+    {
+      "id": "london",
+      "name": "London MI5 Headquarters",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 14, "y": 25, "lat": 51.5074, "lng": -0.1278},
+      "connections": ["dover", "portsmouth", "paris"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Thames House", "Westminster", "Canary Wharf", "City of London", "Whitehall"]
+    },
+    {
+      "id": "dover",
+      "name": "Dover Channel Terminal",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 20, "y": 32, "lat": 51.1279, "lng": 1.3134},
+      "connections": ["calais", "london", "portsmouth"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Tunnel Terminal Complex", "White Cliffs Security Zone", "Dover Castle Sector", "Port Gate A", "Western Docks"]
+    },
+    {
+      "id": "calais",
+      "name": "Calais Eurotunnel Garrison",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 24, "y": 36, "lat": 50.9513, "lng": 1.8587},
+      "connections": ["dover", "paris", "belgrade"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Coquelles Terminal", "Port of Calais", "Centre-Ville", "Cité Europe", "Fort Nieulay"]
+    },
+    {
+      "id": "paris",
+      "name": "Paris DGSI Headquarters",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 22, "y": 55, "lat": 48.8566, "lng": 2.3522},
+      "connections": ["calais", "london", "belgrade", "latakia"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Levallois-Perret", "La Défense", "Le Marais", "Montparnasse", "Champs-Élysées"]
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "dover"},
+    {"cityId": "london"},
+    {"cityId": "calais"},
+    {"cityId": "minsk"}
+  ],
+  "attackerNames": [
+    "Viktor Petrov",
+    "Sergei Sokolov",
+    "Mikhail Kozlov"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Arthur Pendelton",
+      "codename": "FALCON",
+      "startingCity": "london",
+      "skills": {"humint": 85, "sigint": 90, "infiltration": 70, "survivability": 65}
+    },
+    {
+      "id": 2,
+      "name": "Camille Laurent",
+      "codename": "SIREN",
+      "startingCity": "paris",
+      "skills": {"humint": 75, "sigint": 60, "infiltration": 90, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "Charles Kingsley",
+      "codename": "SENTINEL",
+      "startingCity": "dover",
+      "skills": {"humint": 90, "sigint": 80, "infiltration": 50, "survivability": 50}
+    },
+    {
+      "id": 4,
+      "name": "Jean-Luc Picard",
+      "codename": "HUNTER",
+      "startingCity": "calais",
+      "skills": {"humint": 70, "sigint": 50, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "Nigel Thornberry",
+      "codename": "PHANTOM",
+      "startingCity": "minsk",
+      "skills": {"humint": 85, "sigint": 40, "infiltration": 80, "survivability": 95}
+    },
+    {
+      "id": 6,
+      "name": "Henri Moreau",
+      "codename": "GHOST",
+      "startingCity": "belgrade",
+      "skills": {"humint": 50, "sigint": 50, "infiltration": 85, "survivability": 95}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "MI5 Counter-Terror Unit",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "london",
+      "skills": {"combat": 90, "stealth": 80, "mobility": 80}
+    },
+    {
+      "id": 2,
+      "name": "DGSI Rapid Intervention Force",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "paris",
+      "skills": {"combat": 85, "stealth": 75, "mobility": 80}
+    },
+    {
+      "id": 3,
+      "name": "Special Boat Service (SBS)",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "portsmouth",
+      "skills": {"combat": 90, "stealth": 85, "mobility": 85}
+    },
+    {
+      "id": 4,
+      "name": "Channel Border Security Taskforce",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "dover",
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 50000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 20000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "CCTV", "cityId": "dover"},
+    {"type": "WIRE_TAP", "cityId": "calais"}
+  ],
+  "logisticsMapping": {
+    "SABOTAGE": {
+      "itemName": "Thermite Demolition Charge",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    },
+    "BOMB_BLAST": {
+      "itemName": "Tactical Detonation Payload",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "SABOTAGE": {
+      "itemName": "Covert Sabotage Fund",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    },
+    "BOMB_BLAST": {
+      "itemName": "Cryptographic Transfer",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}

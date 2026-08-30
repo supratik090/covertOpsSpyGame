@@ -32,6 +32,9 @@ public class GameSessionController {
     @Autowired
     private DeploymentService deploymentService;
 
+    @Autowired
+    private com.spygame.covertops.repository.ScenarioConfigRepository scenarioConfigRepository;
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     // POST /api/game/create?scenarioId=operation_silent_edge&playerRole=DEFENDER
@@ -195,6 +198,12 @@ public class GameSessionController {
         return sessionService.revertTurn(id);
     }
 
+    // POST /api/game/{id}/extend
+    @PostMapping("/{id}/extend")
+    public GameSession extendSession(@PathVariable UUID id) {
+        return sessionService.extendSession(id);
+    }
+
     // POST /api/game/{id}/deploy
     // Accepts the initial DEFENDER deployment: safehouse cities, agent cities, team cities
     @PostMapping("/{id}/deploy")
@@ -212,7 +221,48 @@ public class GameSessionController {
     }
 
     private ScenarioConfig loadConfig(String scenarioId) throws Exception {
-        File configFile = new File("../scenarios/" + scenarioId + ".json");
-        return mapper.readValue(configFile, ScenarioConfig.class);
+        if (scenarioId == null) throw new IllegalArgumentException("scenarioId cannot be null");
+
+        // 1. Primary DB lookup
+        if (scenarioConfigRepository != null) {
+            java.util.Optional<ScenarioConfig> fromDb = scenarioConfigRepository.findById(scenarioId);
+            if (fromDb.isPresent()) {
+                return fromDb.get();
+            }
+        }
+
+        // 2. Multi-path file resolution fallback
+        String[] candidateDirs = {
+            "../scenarios",
+            "scenarios",
+            "./scenarios",
+            System.getProperty("user.dir") + "/scenarios",
+            System.getProperty("user.dir") + "/../scenarios"
+        };
+
+        for (String dirPath : candidateDirs) {
+            File dir = new File(dirPath);
+            if (!dir.exists() || !dir.isDirectory()) continue;
+
+            File directFile = new File(dir, scenarioId + ".json");
+            if (directFile.exists() && directFile.isFile()) {
+                return mapper.readValue(directFile, ScenarioConfig.class);
+            }
+
+            // Scan directory for matching JSON scenarioId
+            File[] jsonFiles = dir.listFiles((d, name) -> name.endsWith(".json"));
+            if (jsonFiles != null) {
+                for (File f : jsonFiles) {
+                    try {
+                        ScenarioConfig config = mapper.readValue(f, ScenarioConfig.class);
+                        if (config != null && scenarioId.equalsIgnoreCase(config.getScenarioId())) {
+                            return config;
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+
+        throw new java.io.FileNotFoundException("Scenario configuration not found for ID: " + scenarioId);
     }
 }

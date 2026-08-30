@@ -162,30 +162,36 @@ export default function ObjectiveBoardView({ session, activeScenario, onClose })
       )
     },
     {
-      title: "2. EXECUTION (CONCEPT OF OPS)",
+      title: "2. HOW TO ATTACK THE ENEMY BASE",
       icon: Shield,
       color: "var(--red)",
       content: (
         <div className="flex-col-container">
           <div className="sitrep-box">
-            <div className="sitrep-item">
-              <span className="sitrep-title white">PHASE I: INTELLIGENCE RECONNAISSANCE</span>
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--cyan)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--cyan)' }}>STEP 1 — FIND THE SAFEHOUSE</span>
               <p className="sitrep-text">
-                Deploy Agents to suspect cities. Assign them to <strong className="text-cyber">GATHER INTELLIGENCE</strong> to intercept communication foot logs. Mark verified logs as <strong className="text-success">ACCEPTED</strong> to lock coordinates.
+                Deploy an <strong className="text-cyber">Intelligence Agent</strong> to a hostile city node. Assign the task <strong className="text-cyber">UNCOVER SAFEHOUSE</strong>. On success, the agent returns the hidden <strong className="text-cyber">3-digit security code</strong> for that safehouse — this code is required to execute a raid.
               </p>
             </div>
-            
-            <div className="sitrep-item" style={{ borderLeftColor: 'var(--red)' }}>
-              <span className="sitrep-title" style={{ color: 'var(--red)' }}>PHASE II: TACTICAL DISRUPTION</span>
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--amber)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--amber)' }}>STEP 2 — CONFIRM WITH SCANS</span>
               <p className="sitrep-text">
-                Deploy Combat Teams to active nodes. Assign <strong className="text-threat">FREEZE FINANCE</strong> or <strong className="text-threat">RAID LOGISTICS</strong> to disrupt sourcing. This forces the suspect cell to pivot to emergency fallback routes, buying us time.
+                Run <strong className="text-cyber">CCTV</strong>, <strong className="text-cyber">SATELLITE</strong>, <strong className="text-cyber">PHONE TAP</strong>, or <strong className="text-cyber">WIRE TAP</strong> scans on the city to generate clues confirming suspect presence. Accepted clues update the Dossier timeline and help narrow down which safehouse the operative is hiding in.
               </p>
             </div>
-
             <div className="sitrep-item" style={{ borderLeftColor: 'var(--red)' }}>
-              <span className="sitrep-title" style={{ color: 'var(--red)' }}>PHASE III: SAFEHOUSE INTERCEPTION</span>
+              <span className="sitrep-title" style={{ color: 'var(--red)' }}>STEP 3 — RAID OR STRIKE</span>
               <p className="sitrep-text">
-                Expose hostile base nodes via the agent task <strong className="text-cyber">UNCOVER SAFEHOUSE</strong>. Send combat units to execute a <strong className="text-threat">RAID SAFEHOUSE</strong> using the uncovered 3-digit security key to eliminate the cell.
+                <strong className="text-threat">Option A — Team Raid:</strong> Send a <strong className="text-cyber">Tactical Team</strong> to the city and execute <strong className="text-threat">RAID SAFEHOUSE</strong> using the uncovered 3-digit code. The team's Combat Skill determines success odds. Secure Safehouses always have a flat 50% chance.
+                <br /><br />
+                <strong className="text-threat">Option B — Drone Strike:</strong> Deploy a <strong className="text-cyber">Drone</strong> with the <strong className="text-threat">STRIKE</strong> action on the city to destroy safehouses remotely — no code needed, but may not eliminate all operatives inside.
+              </p>
+            </div>
+            <div className="sitrep-item briefing-alert" style={{ borderLeftColor: 'var(--red)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--red)' }}>⚠ WARNING</span>
+              <p className="sitrep-text" style={{ color: 'var(--red-dim)' }}>
+                Never raid without the correct code — a wrong code triggers an alert and the suspect escapes. Every raid destroys the safehouse regardless of outcome; surviving operatives will flee and rebuild.
               </p>
             </div>
           </div>
@@ -193,30 +199,115 @@ export default function ObjectiveBoardView({ session, activeScenario, onClose })
       )
     },
     {
-      title: "3. COMMAND & SIGNAL (ROE)",
+      title: "3. BORDER & FRIENDLY SECTOR DEFENCE",
       icon: Radio,
-      color: "var(--red)",
+      color: "var(--amber)",
       content: (
         <div className="flex-col-container">
           <div className="sitrep-box">
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--cyan)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--cyan)' }}>BORDER PATROL — BLOCK THE CROSSING</span>
+              <p className="sitrep-text">
+                Assign an <strong className="text-cyber">Intelligence Agent</strong> to a border city node with the task <strong className="text-cyber">BORDER PATROL</strong>. The agent monitors crossing requests and has a high chance of flagging and intercepting any operative that attempts to infiltrate from hostile territory.
+              </p>
+            </div>
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--cyan)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--cyan)' }}>DRONE RECON — WATCH FRIENDLY CITIES</span>
+              <p className="sitrep-text">
+                Deploy a <strong className="text-cyber">Drone</strong> to a friendly city with the <strong className="text-cyber">RECON</strong> action. The drone sweeps the city passively each turn and auto-generates sighting clues if a suspect is present — giving you early warning before the operative reaches the target.
+              </p>
+            </div>
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--amber)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--amber)' }}>SECURITY SWEEP — EXPOSE HIDDEN BASES</span>
+              <p className="sitrep-text">
+                Run a <strong className="text-cyber">SECURITY SWEEP</strong> scan on any friendly node to raise local heat, surface safehouses the AI has constructed inside friendly territory, and force suspects to react. Use this when you suspect an operative has already crossed the border.
+              </p>
+            </div>
             <div className="sitrep-item" style={{ borderLeftColor: 'var(--red)' }}>
-              <span className="sitrep-title" style={{ color: 'var(--red)' }}>a. RAID VERIFICATION PROTOCOL (ROE)</span>
+              <span className="sitrep-title" style={{ color: 'var(--red)' }}>TACTICAL TEAMS — LAST LINE OF DEFENCE</span>
               <p className="sitrep-text">
-                The Safehouse in the target city needs to be discovered first before raiding. A raid must NOT be launched at a hostile base without confirming the 3-digit access code via tap intercepts. Incorrect codes trigger alert warnings and suspect escapes.
+                Station <strong className="text-cyber">Combat Teams</strong> in friendly cities near the target (<span className="highlight">{targetCityName}</span>). If an operative crosses and builds a safehouse inside, your team can immediately execute a <strong className="text-threat">RAID SAFEHOUSE</strong> before the strike is triggered.
               </p>
             </div>
-
-            <div className="sitrep-item">
-              <span className="sitrep-title white">b. ACTIVE TAB TELEMETRY</span>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "4. YOUR ASSETS — AGENTS, TEAMS & DRONES",
+      icon: Shield,
+      color: "var(--cyan)",
+      content: (
+        <div className="flex-col-container">
+          <div className="sitrep-box">
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--cyan)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--cyan)' }}>INTELLIGENCE AGENT</span>
               <p className="sitrep-text">
-                Signal feeds (MAP, AGENTS, CLUES, DOSSIER, RESOURCES) must be tracked constantly in the left sidebar console to evaluate budget and agent cooldown statuses.
+                Covert operative deployable to any city. Available tasks:
+                <br />— <strong className="text-cyber">GATHER INTELLIGENCE</strong> — generates passive clues each turn
+                <br />— <strong className="text-cyber">UNCOVER SAFEHOUSE</strong> — reveals the 3-digit security code
+                <br />— <strong className="text-cyber">BORDER PATROL</strong> — intercepts crossing attempts at border nodes
+                <br />— <strong className="text-cyber">SURVEILLANCE</strong> — extended observation generating higher-confidence clues
               </p>
             </div>
-
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--red)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--red)' }}>TACTICAL TEAM</span>
+              <p className="sitrep-text">
+                Combat unit for direct action. Available tasks:
+                <br />— <strong className="text-threat">RAID SAFEHOUSE</strong> — destroys safehouse using 3-digit code (success depends on Combat Skill)
+                <br />— <strong className="text-threat">FREEZE FINANCE</strong> — disrupts suspect's funding sourcing phase
+                <br />— <strong className="text-threat">RAID LOGISTICS</strong> — disrupts suspect's equipment sourcing phase
+                <br />Teams enter a cooldown period after each action.
+              </p>
+            </div>
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--amber)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--amber)' }}>DRONE + DRONE BASE</span>
+              <p className="sitrep-text">
+                Aerial asset requiring a <strong className="text-cyber">Drone Base</strong> built in a city first. Available actions:
+                <br />— <strong className="text-cyber">RECON</strong> — passive city sweep each turn, auto-generates sighting clues
+                <br />— <strong className="text-threat">STRIKE</strong> — destroys safehouses remotely (no code required)
+                <br />— <strong className="text-threat">INTERCEPT</strong> — targets a moving suspect directly
+                <br />Build multiple bases to extend drone coverage across the map.
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: "5. INTEL TOOLS — DOSSIER, HINTS & SCANS",
+      icon: Radio,
+      color: "var(--cyan)",
+      content: (
+        <div className="flex-col-container">
+          <div className="sitrep-box">
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--cyan)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--cyan)' }}>DOSSIER TAB</span>
+              <p className="sitrep-text">
+                Shows a <strong className="text-cyber">turn-by-turn timeline</strong> of all suspect sightings per operative. Use it to trace movement patterns, spot sourcing phase transitions, and predict which city the operative will move to next. Only <strong className="text-success">ACCEPTED</strong> clues appear in the dossier — mark clues in the Clues tab to populate it.
+              </p>
+            </div>
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--cyan)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--cyan)' }}>HINTS TAB</span>
+              <p className="sitrep-text">
+                AI-generated <strong className="text-cyber">tactical suggestions</strong> based on your accumulated clues and game state. Check the Hints tab each turn for nudges on where to deploy agents, which city to scan next, or when to escalate to a raid.
+              </p>
+            </div>
+            <div className="sitrep-item" style={{ borderLeftColor: 'var(--amber)' }}>
+              <span className="sitrep-title" style={{ color: 'var(--amber)' }}>THE 5 SCAN TYPES</span>
+              <p className="sitrep-text">
+                Deploy scans from the city action panel on the map:
+                <br />— <strong className="text-cyber">CCTV</strong> — traffic logs for current turn T and previous turn T-1 (movement detection)
+                <br />— <strong className="text-cyber">SATELLITE</strong> — confirms physical presence in a city this turn (imagery)
+                <br />— <strong className="text-cyber">PHONE TAP</strong> — intercepts cellular activity (communication signals)
+                <br />— <strong className="text-cyber">WIRE TAP</strong> — intercepts financial transactions (sourcing phase detection)
+                <br />— <strong className="text-cyber">SECURITY SWEEP</strong> — active sweep: raises heat, surfaces safehouses, forces suspect reaction. Use sparingly.
+              </p>
+            </div>
             <div className="sitrep-item briefing-alert" style={{ borderLeftColor: 'var(--emerald)' }}>
-              <span className="sitrep-title" style={{ color: 'var(--emerald)' }}>c. SUCCESS PARAMETERS</span>
+              <span className="sitrep-title" style={{ color: 'var(--emerald)' }}>✓ SUCCESS PARAMETERS</span>
               <p className="sitrep-text" style={{ fontStyle: 'italic', color: 'var(--emerald-light)' }}>
-                Mission objective: Neutralize the target at the correct safehouse node with the correct security code to complete the operation.
+                Neutralize all threat operatives before any one of them reaches <span className="highlight">{targetCityName}</span> and executes the strike on <span className="highlight">{targetVipName}</span>. Track the Dossier. Trust the Hints. Act before they reach the Target.
               </p>
             </div>
           </div>

@@ -78,10 +78,10 @@ const CityActionDrawer = ({
               DEPLOY WIRE TAP ($20,000)
             </button>
             <button className="cyber-btn sm amber" onClick={() => onDeployTech('PHONE_TAP', cityId)}>
-              DEPLOY PHONE TAP ($40,000)
+              DEPLOY PHONE TAP ($20,000)
             </button>
             <button className="cyber-btn sm amber" onClick={() => onDeployTech('SATELLITE', cityId)}>
-              DEPLOY SATELLITE ($80,000)
+              DEPLOY SATELLITE ($50,000)
             </button>
             <button className="cyber-btn sm amber" onClick={() => onDeployTech('FINANCE_MONITOR', cityId)}>
               DEPLOY FINANCE MONITOR ($50,000)

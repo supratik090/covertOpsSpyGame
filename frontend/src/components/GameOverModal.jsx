@@ -149,7 +149,7 @@ function TimelineCard({ step, stepIdx, session, visible }) {
 }
 
 /* ─── Main modal ─────────────────────────────────────────────────────────── */
-export default function GameOverModal({ session, onConfirm, lastTurnReport }) {
+export default function GameOverModal({ session, onConfirm, onExtendGame, lastTurnReport }) {
   const isFullSuccess = session?.status === 'SUCCESS';
   const isPartialSuccess = session?.status === 'PARTIAL_DEFENDER_VICTORY';
   const isDefenderWin = isFullSuccess || isPartialSuccess;
@@ -166,8 +166,12 @@ export default function GameOverModal({ session, onConfirm, lastTurnReport }) {
     ? '#f59e0b' 
     : '#ff3b30';
 
+  const allNeutralized = session?.aiAttackers && session.aiAttackers.length > 0 && session.aiAttackers.every(a => a.eliminated);
+
   const subtitleText = isFullSuccess
-    ? 'All threat agents neutralized prior to any target strike. Target cell fully dismantled and national security preserved.'
+    ? (allNeutralized
+        ? 'All threat agents neutralized prior to any target strike. Target cell fully dismantled and national security preserved.'
+        : 'Operation successfully defended. Threat cell failed to execute target strike prior to turn deadline. Sector secured.')
     : isPartialSuccess
     ? 'Target strike was executed in friendly territory, but all hostile threat agents were subsequently neutralized by Defender forces.'
     : 'The target attack was executed and hostile operatives exfiltrated. Intelligence gaps allowed the cell to complete their mission.';
@@ -359,6 +363,34 @@ export default function GameOverModal({ session, onConfirm, lastTurnReport }) {
             transition={{ delay: 0.5 }}
             style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
           >
+            {isFullSuccess && onExtendGame && (
+              <button
+                onClick={onExtendGame}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  padding: '14px 24px', borderRadius: '6px', cursor: 'pointer',
+                  border: '1px solid #00ff66',
+                  background: 'linear-gradient(135deg, rgba(0,255,102,0.25), rgba(0,240,255,0.2))',
+                  color: '#00ff66',
+                  fontFamily: 'monospace', fontSize: '13px', fontWeight: 900, letterSpacing: '0.08em',
+                  boxShadow: '0 0 25px rgba(0,255,102,0.3)',
+                  transition: 'all 0.2s',
+                  width: '100%',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,255,102,0.4), rgba(0,240,255,0.3))';
+                  e.currentTarget.style.boxShadow = '0 0 35px rgba(0,255,102,0.5)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,255,102,0.25), rgba(0,240,255,0.2))';
+                  e.currentTarget.style.boxShadow = '0 0 25px rgba(0,255,102,0.3)';
+                }}
+              >
+                <Play size={14} />
+                EXTEND OPERATION (ADD BUDGET & CONTINUE)
+              </button>
+            )}
+
             <button
               onClick={onConfirm}
               style={{
@@ -380,7 +412,7 @@ export default function GameOverModal({ session, onConfirm, lastTurnReport }) {
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}
             >
               <LogOut size={14} />
-              RETURN TO SCENARIO SELECT
+              {isFullSuccess ? 'END OPERATION & RETURN' : 'RETURN TO SCENARIO SELECT'}
             </button>
           </motion.div>
         </div>

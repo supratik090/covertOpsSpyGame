@@ -130,6 +130,141 @@ public class GameSessionService {
         }
     }
 
+    public GameSession extendSession(UUID sessionId) {
+        GameSession session = getSession(sessionId);
+        if (!"SUCCESS".equals(session.getStatus())) {
+            throw new IllegalStateException("Game session can only be extended upon Full Defender Victory (status SUCCESS). Current status: " + session.getStatus());
+        }
+
+        final String scenarioId = session.getScenarioId();
+        final ScenarioConfig config = scenarioConfigRepository.findById(scenarioId)
+                .orElseThrow(() -> new IllegalArgumentException("Scenario configuration not found in database: " + scenarioId));
+
+        // 1. Re-activate status and extend max turns
+        session.setStatus("ACTIVE");
+        int addedTurns = config.getMaxTurns() > 0 ? config.getMaxTurns() : 25;
+        session.setMaxTurns(session.getMaxTurns() + addedTurns);
+
+        // 2. Add same starting budget to defender
+        int startingBudget = config.getStartingBudget() > 0 ? config.getStartingBudget() : 4000000;
+        session.setBudget(session.getBudget() + startingBudget);
+
+        // 3. Restore all dead agents to default locations
+        if (config.getAgents() != null) {
+            List<GameSession.Agent> currentAgents = session.getAgents();
+            if (currentAgents == null) {
+                currentAgents = new ArrayList<>();
+                session.setAgents(currentAgents);
+            }
+
+            String defaultHomeCity = "amritsar";
+            if (config.getNodes() != null) {
+                for (Node n : config.getNodes()) {
+                    if ("HOME_TERRITORY".equals(n.getTerritory())) {
+                        defaultHomeCity = n.getId();
+                        break;
+                    }
+                }
+            }
+
+            for (Map<String, Object> aMap : config.getAgents()) {
+                Integer aId = (Integer) aMap.get("id");
+                boolean exists = currentAgents.stream().anyMatch(a -> a.getId() == aId);
+                if (!exists) {
+                    GameSession.Agent agent = new GameSession.Agent();
+                    agent.setId(aId);
+                    agent.setName((String) aMap.get("name"));
+                    agent.setCodename((String) aMap.get("codename"));
+                    String startCity = (String) aMap.get("startingCity");
+                    if (startCity == null || startCity.isBlank()) {
+                        startCity = defaultHomeCity;
+                    }
+                    agent.setCurrentCity(startCity);
+                    agent.setActiveTask("UNCOVER_SAFEHOUSE");
+                    agent.setSkills((Map<String, Integer>) aMap.get("skills"));
+                    agent.setCooldownRemaining(0);
+                    currentAgents.add(agent);
+                }
+            }
+        }
+
+        // 4. Restore all dead combat teams to default locations
+        if (config.getTacticalTeams() != null) {
+            List<GameSession.TacticalTeam> currentTeams = session.getTacticalTeams();
+            if (currentTeams == null) {
+                currentTeams = new ArrayList<>();
+                session.setTacticalTeams(currentTeams);
+            }
+
+            for (Map<String, Object> tMap : config.getTacticalTeams()) {
+                Integer tId = (Integer) tMap.get("id");
+                boolean exists = currentTeams.stream().anyMatch(t -> t.getId() == tId);
+                if (!exists) {
+                    GameSession.TacticalTeam team = new GameSession.TacticalTeam();
+                    team.setId(tId);
+                    team.setName((String) tMap.get("name"));
+                    team.setOperatingCountry((String) tMap.get("operatingCountry"));
+                    String startCity = (String) tMap.get("startingCity");
+                    if (startCity == null || startCity.isBlank()) {
+                        startCity = "amritsar";
+                    }
+                    team.setCurrentCity(startCity);
+                    team.setSkills((Map<String, Integer>) tMap.get("skills"));
+                    team.setCooldownRemaining(0);
+                    currentTeams.add(team);
+                }
+            }
+        }
+
+        // 5. Attacker logic: active attackers continue, dead attackers are replaced at starting hostile locations
+        if (session.getAiAttackers() != null) {
+            List<Node> hostileNodes = config.getNodes() != null ? config.getNodes().stream()
+                    .filter(n -> "HOSTILE_TERRITORY".equals(n.getTerritory()))
+                    .collect(Collectors.toList()) : new ArrayList<>();
+            String startLoc = !hostileNodes.isEmpty() ? hostileNodes.get(0).getId() : "karachi";
+
+            List<GameSession.AIAttacker> attackers = session.getAiAttackers();
+            for (int i = 0; i < attackers.size(); i++) {
+                GameSession.AIAttacker attacker = attackers.get(i);
+                if (attacker.isEliminated()) {
+                    attacker.setEliminated(false);
+                    String locNode = startLoc;
+                    if (!hostileNodes.isEmpty()) {
+                        locNode = hostileNodes.get(i % hostileNodes.size()).getId();
+                    }
+                    attacker.setCurrentLocation(locNode);
+                    attacker.setState("Initial decoy");
+                    attacker.setBudget(config.getStartingBudget() != 0 ? config.getStartingBudget() : 300000);
+
+                    attacker.setFinanceCollected(false);
+                    attacker.setLogisticsCollected(false);
+                    attacker.setHandoverCompleted(false);
+                    attacker.setPermissionToCrossBorderRequested(false);
+                    attacker.setPermissionToCrossBorderApproved(false);
+                    attacker.setPermissionToEngageRequested(false);
+                    attacker.setPermissionToEngageApproved(false);
+                    attacker.setRequestedFinanceCity(null);
+                    attacker.setRequestedLogisticsCity(null);
+                    attacker.setHandoverCity(null);
+                    attacker.setFinanceCollectionTurnsRemaining(-1);
+                    attacker.setLogisticsCollectionTurnsRemaining(-1);
+                    attacker.setHandoverTurnsRemaining(-1);
+                }
+            }
+        }
+
+        // 6. Log clue entry about operation extension
+        if (session.getDiscoveredClues() != null) {
+            session.getDiscoveredClues().add(new GameSession.Clue(
+                    session.getCurrentTurn(),
+                    "COMMAND_CENTER",
+                    "SPECIAL DIRECTIVE: Command has authorized an extension of Operation " + session.getScenarioId().toUpperCase() + ". Additional budget allocated, disavowed forces reinstated, and hostile threat monitoring extended."
+            ));
+        }
+
+        return repository.save(session);
+    }
+
     public GameSession processEndTurn(UUID sessionId, com.spygame.covertops.model.EndTurnRequest request) {
         return processEndTurn(sessionId, request, null);
     }
@@ -330,8 +465,7 @@ public class GameSessionService {
                 session.setActiveDroneDefenseCity(chosenDefenseCity);
                 int cityHeat = session.getCityHeat() != null ? session.getCityHeat().getOrDefault(chosenDefenseCity.toLowerCase(), 0) : 0;
                 session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_DEFENSE_ACTIVATED",
-                        "🚨 DRONE DEFENSE ACTIVATED: Hostile SAM air defense batteries activated in " + chosenDefenseCity.toUpperCase() +
-                        " for 24h (Current Heat: " + cityHeat + "%). Repeated drone strikes trigger +25% Heat increase (Capped Interdiction: 10% Shot Down / 15% Damaged).",
+                        "🚨 DRONE DEFENSE ACTIVATED: Hostile SAM air defense batteries activated in " + chosenDefenseCity.toUpperCase() + " for 24h",
                         chosenDefenseCity,
                         "SIGINT Advisory"));
             }
@@ -452,8 +586,10 @@ public class GameSessionService {
                         drone.setAssignedActionType(null);
                         drone.setAssignedTargetCity(null);
                         String defenseType = isDroneDefenseActive ? "active SAM air defense battery" : (isCityUnderSweep ? "heightened security sweep air defenses" : "hostile air defenses");
-                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_RECON",
-                                "DRONE DOWN: Drone #" + droneId + " was SHOT DOWN by " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + shotDownChance + "% shot down risk, " + totalRisk + "% total interdiction risk)"));
+                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_SHOT_DOWN",
+                                "DRONE DOWN: Drone #" + droneId + " was SHOT DOWN by " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + shotDownChance + "% shot down risk, " + totalRisk + "% total interdiction risk)",
+                                targetCity,
+                                "Drone Operations"));
                         continue;
                     } else if (roll < totalRisk) {
                         drone.setStatus("DAMAGED");
@@ -462,7 +598,9 @@ public class GameSessionService {
                         drone.setAssignedTargetCity(null);
                         String defenseType = isDroneDefenseActive ? "active SAM anti-air missile fire" : (isCityUnderSweep ? "heightened security sweep AA fire" : "hostile anti-air fire");
                         session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "DRONE_DAMAGED",
-                                "DRONE DAMAGED: Drone #" + droneId + " sustained anti-aircraft damage from " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + damagedChance + "% damage risk) Requires $10K technical servicing (2-turn repair)."));
+                                "DRONE DAMAGED: Drone #" + droneId + " sustained anti-aircraft damage from " + defenseType + " during " + actionType + " in " + targetCity.toUpperCase() + "! (" + damagedChance + "% damage risk) Requires $10K technical servicing (2-turn repair).",
+                                targetCity,
+                                "Drone Operations"));
                         continue;
                     }
 
