@@ -64,6 +64,7 @@ export default function MapView({
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
+  const tacticalContainerRef = useRef(null);
 
   // Dynamically build coordinates and connections from activeScenario
   const CITY_COORDINATES = React.useMemo(() => {
@@ -164,7 +165,7 @@ export default function MapView({
     return conns;
   }, [activeScenario]);
 
-  // Normalize node coordinate points for Tactical View with strong repulsion spacing
+  // Normalize node coordinate points for Tactical View cleanly preserving relative positions
   const scaledCoords = React.useMemo(() => {
     if (!activeScenario || !activeScenario.nodes) return {};
     const xCoords = activeScenario.nodes.map(n => n.coordinates?.x || 50);
@@ -179,50 +180,14 @@ export default function MapView({
     const coords = {};
     activeScenario.nodes.forEach(node => {
       if (node.coordinates) {
-        // Expand bounds from 10% to 90% for maximum canvas utilization
-        const scaledX = 10 + ((node.coordinates.x - minX) / xRange) * 80;
-        const scaledY = 10 + ((node.coordinates.y - minY) / yRange) * 80;
+        // Map to safe inner bounds [12%-88% horizontal, 15%-80% vertical] for mobile nav safety
+        const scaledX = 12 + ((node.coordinates.x - minX) / xRange) * 76;
+        const scaledY = 15 + ((node.coordinates.y - minY) / yRange) * 65;
         coords[node.id] = { x: scaledX, y: scaledY };
       } else {
         coords[node.id] = { x: 50, y: 50 };
       }
     });
-
-    // Force-directed repulsion pass: push nodes that are too close to each other apart
-    const keys = Object.keys(coords);
-    const minDistance = 14.5; // Increased to 14.5% space to ensure clear breathing room around city nodes & badges
-    for (let iter = 0; iter < 30; iter++) {
-      let moved = false;
-      for (let i = 0; i < keys.length; i++) {
-        for (let j = i + 1; j < keys.length; j++) {
-          const id1 = keys[i];
-          const id2 = keys[j];
-          const c1 = coords[id1];
-          const c2 = coords[id2];
-          const dx = c2.x - c1.x;
-          const dy = c2.y - c1.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < minDistance && dist > 0.0001) {
-            moved = true;
-            const overlap = minDistance - dist;
-            const pushX = (dx / dist) * (overlap * 0.45);
-            const pushY = (dy / dist) * (overlap * 0.65); // Stronger vertical push for stacked labels
-            
-            c1.x -= pushX;
-            c1.y -= pushY;
-            c2.x += pushX;
-            c2.y += pushY;
-            
-            // Keep nodes within safe view bounds [6, 94]
-            c1.x = Math.max(6, Math.min(94, c1.x));
-            c1.y = Math.max(6, Math.min(94, c1.y));
-            c2.x = Math.max(6, Math.min(94, c2.x));
-            c2.y = Math.max(6, Math.min(94, c2.y));
-          }
-        }
-      }
-      if (!moved) break;
-    }
 
     return coords;
   }, [activeScenario]);
@@ -2654,6 +2619,7 @@ export default function MapView({
       {isTacticalView && (
         <div 
           className="tactical-view-blueprint" 
+          ref={tacticalContainerRef}
           onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -2794,11 +2760,10 @@ export default function MapView({
               zIndex: 1
             }}></div>
 
-            {/* Connection Lines SVG */}
+            {/* Connection Lines SVG – single clean line per connection to prevent layer ghosting */}
             <svg 
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 2 }} 
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
+              shapeRendering="geometricPrecision"
             >
               {CONNECTIONS.map(([fromId, toId], idx) => {
                 const start = scaledCoords[fromId];
@@ -2812,32 +2777,25 @@ export default function MapView({
                 const isCrossBorder = fromFriendly !== toFriendly;
 
                 const color = isCrossBorder ? '#ff3b30' : '#00f0ff';
+                const x1 = start.x.toFixed(2);
+                const y1 = start.y.toFixed(2);
+                const x2 = end.x.toFixed(2);
+                const y2 = end.y.toFixed(2);
 
                 return (
-                  <g key={`conn-${idx}`}>
-                    {/* Glowing background track */}
-                    <line
-                      x1={start.x}
-                      y1={start.y}
-                      x2={end.x}
-                      y2={end.y}
-                      stroke={color}
-                      strokeWidth="0.8"
-                      opacity="0.15"
-                    />
-                    {/* Flowing animated dashed foreground */}
-                    <line
-                      x1={start.x}
-                      y1={start.y}
-                      x2={end.x}
-                      y2={end.y}
-                      stroke={color}
-                      strokeWidth="0.4"
-                      strokeDasharray="1.5, 2.5"
-                      className="connection-line-anim"
-                      style={{ '--line-color': color }}
-                    />
-                  </g>
+                  <line
+                    key={`conn-${idx}`}
+                    x1={`${x1}%`}
+                    y1={`${y1}%`}
+                    x2={`${x2}%`}
+                    y2={`${y2}%`}
+                    stroke={color}
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeDasharray="6, 8"
+                    className="connection-line-anim"
+                    style={{ '--line-color': color }}
+                  />
                 );
               })}
             </svg>

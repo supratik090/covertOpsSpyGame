@@ -37,7 +37,14 @@ const LoginScreen = ({ onLoginSuccess }) => {
           onLoginSuccess();
         } else {
           const errText = await res.text();
-          setLoginError(errText || 'INVALID CREDENTIALS');
+          let errMsg = 'INVALID CREDENTIALS';
+          try {
+            const errJson = JSON.parse(errText);
+            errMsg = errJson.message || errJson.error || errMsg;
+          } catch (e) {
+            errMsg = errText || errMsg;
+          }
+          setLoginError(errMsg.toUpperCase());
         }
       } else {
         const res = await fetchWithRetry(`${AUTH_API_BASE}/register`, {
@@ -53,7 +60,14 @@ const LoginScreen = ({ onLoginSuccess }) => {
           setPassword('');
         } else {
           const errText = await res.text();
-          setLoginError(errText || 'OPERATOR REGISTRATION REJECTED');
+          let errMsg = 'OPERATOR REGISTRATION REJECTED';
+          try {
+            const errJson = JSON.parse(errText);
+            errMsg = errJson.message || errJson.error || errMsg;
+          } catch (e) {
+            errMsg = errText || errMsg;
+          }
+          setLoginError(errMsg.toUpperCase());
         }
       }
     } catch (err) {
