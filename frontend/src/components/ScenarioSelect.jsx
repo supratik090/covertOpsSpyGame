@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Trash2, Activity, ChevronDown, ChevronRight, Award, Trophy, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { fetchLeaderboard, fetchMyScores } from '../utils/scoresApi';
@@ -36,6 +36,15 @@ const ScenarioSelect = ({
 
   const [myScoreData, setMyScoreData] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
+
+  const startBtnRef = useRef(null);
+
+  const handleSelectScenario = (scenarioId) => {
+    setSelectedScenarioId(scenarioId);
+    setTimeout(() => {
+      startBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  };
 
   useEffect(() => {
     fetchMyScores().then(data => {
@@ -277,7 +286,7 @@ const ScenarioSelect = ({
               <div 
                 key={scenario.scenarioId}
                 className={`scenario-card ${selectedScenarioId === scenario.scenarioId ? 'selected' : ''}`}
-                onClick={() => setSelectedScenarioId(scenario.scenarioId)}
+                onClick={() => handleSelectScenario(scenario.scenarioId)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <h3 style={{ margin: 0 }}>
@@ -322,6 +331,7 @@ const ScenarioSelect = ({
         </div>
 
         <button 
+          ref={startBtnRef}
           className="cyber-btn lg" 
           onClick={() => onStartNewGame(playerRole, gameMode === 'MULTIPLAYER', timerMinutes)}
           disabled={!selectedScenarioId || loading}
