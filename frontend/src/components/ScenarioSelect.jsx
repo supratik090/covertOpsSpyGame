@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Play, Trash2, Activity, ChevronDown, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Play, Trash2, Activity, ChevronDown, ChevronRight, Award, Trophy, User } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { fetchLeaderboard, fetchMyScores } from '../utils/scoresApi';
 
 const getCountryFlag = (country) => {
   if (!country) return '';
@@ -32,6 +33,18 @@ const ScenarioSelect = ({
   const [joinToken, setJoinToken] = useState('');
   const [activeOpen, setActiveOpen] = useState(true);
   const [archivedOpen, setArchivedOpen] = useState(false);
+
+  const [myScoreData, setMyScoreData] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
+
+  useEffect(() => {
+    fetchMyScores().then(data => {
+      if (data) setMyScoreData(data);
+    });
+    fetchLeaderboard().then(data => {
+      if (Array.isArray(data)) setLeaderboard(data);
+    });
+  }, []);
 
   const getScenarioTitle = (scenarioId) => {
     const s = scenarios.find(sc => sc.scenarioId === scenarioId);
@@ -70,6 +83,37 @@ const ScenarioSelect = ({
           )}
         </div>
         <h1 className="select-title">COMMAND DESK: OPERATIONS CENTER</h1>
+
+        {/* Global User Score & Rank Banner */}
+        {myScoreData && (
+          <div style={{
+            display: 'flex',
+            justify: 'space-between',
+            alignItems: 'center',
+            padding: '10px 14px',
+            marginBottom: '16px',
+            background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.08), rgba(0, 255, 102, 0.05))',
+            border: '1px solid rgba(0, 240, 255, 0.3)',
+            borderRadius: '8px',
+            fontFamily: 'monospace'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Trophy size={18} color="#00ff66" />
+              <div>
+                <div style={{ fontSize: '9.5px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>COMMANDER STANDING</div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--cyan)' }}>
+                  RANK #{myScoreData.globalRank || '-'} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>GLOBALLY</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '9.5px', color: 'var(--text-dim)', letterSpacing: '0.08em' }}>TOTAL CAREER SCORE</div>
+              <div style={{ fontSize: '16px', fontWeight: 900, color: '#00ff66', textShadow: '0 0 8px rgba(0,255,102,0.4)' }}>
+                {myScoreData.totalScore || 0} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>PTS</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {errorMsg && <div className="error-msg">{errorMsg}</div>}
 
@@ -227,6 +271,8 @@ const ScenarioSelect = ({
             const completedSession = sessions.find(s => s.scenarioId === scenario.scenarioId && (s.status === 'SUCCESS' || s.status === 'PARTIAL_DEFENDER_VICTORY'));
             const isFullSuccess = completedSession?.status === 'SUCCESS';
             const isPartialSuccess = completedSession?.status === 'PARTIAL_DEFENDER_VICTORY';
+            const scenarioBestScore = myScoreData?.scenarioScores?.[scenario.scenarioId]?.score;
+
             return (
               <div 
                 key={scenario.scenarioId}
@@ -241,9 +287,14 @@ const ScenarioSelect = ({
                         ✓ FULL VICTORY
                       </span>
                     )}
-                    {isPartialSuccess && (
+                    {isPartialSuccess && !isFullSuccess && (
                       <span className="cia-tag gold" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.4)', fontSize: '8.5px', padding: '2px 6px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle', fontWeight: 'bold' }}>
                         ⚡ PARTIAL VICTORY
+                      </span>
+                    )}
+                    {scenarioBestScore !== undefined && (
+                      <span style={{ background: 'rgba(0, 240, 255, 0.15)', color: 'var(--cyan)', border: '1px solid rgba(0, 240, 255, 0.4)', fontSize: '9px', padding: '2px 6px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle', fontWeight: 900, fontFamily: 'monospace' }}>
+                        ★ {scenarioBestScore}/100 PTS
                       </span>
                     )}
                   </h3>
@@ -270,20 +321,66 @@ const ScenarioSelect = ({
           })}
         </div>
 
-        {/* Player Role & Game Mode: locked to DEFENDER / SINGLE PLAYER — UI toggles hidden */}
-
-
-
         <button 
           className="cyber-btn lg" 
           onClick={() => onStartNewGame(playerRole, gameMode === 'MULTIPLAYER', timerMinutes)}
           disabled={!selectedScenarioId || loading}
-          style={{ width: '100%', marginBottom: '15px' }}
+          style={{ width: '100%', marginBottom: '20px' }}
         >
           <Activity size={20} />
           <span>{gameMode === 'MULTIPLAYER' ? 'CREATE MULTIPLAYER LOBBY' : 'START NEW OPERATION'}</span>
         </button>
 
+        {/* Global Leaderboard Section */}
+        {leaderboard && leaderboard.length > 0 && (
+          <div style={{
+            background: 'rgba(4, 10, 24, 0.95)',
+            border: '1px solid rgba(0, 240, 255, 0.25)',
+            borderRadius: '8px',
+            padding: '14px',
+            marginTop: '10px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'monospace', color: '#00ff66', fontWeight: 'bold', letterSpacing: '0.08em', marginBottom: '10px' }}>
+              <Trophy size={14} color="#00ff66" /> TOP 5 GLOBAL COMMANDERS
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontFamily: 'monospace', fontSize: '11px' }}>
+              {leaderboard.map((user, idx) => {
+                const isCurrentUser = myScoreData && user.username === myScoreData.username;
+                return (
+                  <div
+                    key={user.username}
+                    style={{
+                      display: 'flex',
+                      justify: 'space-between',
+                      alignItems: 'center',
+                      padding: '6px 10px',
+                      borderRadius: '4px',
+                      background: isCurrentUser ? 'rgba(0, 255, 102, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                      border: isCurrentUser ? '1px solid rgba(0, 255, 102, 0.3)' : '1px solid transparent'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        color: idx === 0 ? '#ffcc00' : idx === 1 ? '#cbd5e1' : idx === 2 ? '#b45309' : 'var(--text-dim)',
+                        fontWeight: 'bold',
+                        width: '20px'
+                      }}>
+                        #{idx + 1}
+                      </span>
+                      <span style={{ color: isCurrentUser ? '#00ff66' : 'var(--text-primary)', fontWeight: isCurrentUser ? 'bold' : 'normal' }}>
+                        {user.username} {isCurrentUser && '(YOU)'}
+                      </span>
+                    </div>
+                    <span style={{ color: 'var(--cyan)', fontWeight: 'bold' }}>
+                      {user.totalScore} PTS
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
       </motion.div>
     </div>

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Target, AlertTriangle, CheckCircle, XCircle,
-  Play, SkipForward, Eye, LogOut, ChevronRight, Clock, MapPin
+  Play, SkipForward, Eye, LogOut, ChevronRight, Clock, MapPin, Award
 } from 'lucide-react';
+import { fetchSessionScore } from '../utils/scoresApi';
 
 /* ─── Source badge config (mirrors DossierView) ──────────────────────────── */
 const SOURCE_CFG = {
@@ -154,6 +155,16 @@ export default function GameOverModal({ session, onConfirm, onExtendGame, lastTu
   const isPartialSuccess = session?.status === 'PARTIAL_DEFENDER_VICTORY';
   const isDefenderWin = isFullSuccess || isPartialSuccess;
 
+  const [scoreData, setScoreData] = useState(null);
+
+  useEffect(() => {
+    if (session?.id && isDefenderWin) {
+      fetchSessionScore(session.id).then(data => {
+        if (data) setScoreData(data);
+      });
+    }
+  }, [session?.id, isDefenderWin]);
+
   const titleText = isFullSuccess 
     ? '✦ FULL DEFENDER VICTORY' 
     : isPartialSuccess 
@@ -276,6 +287,53 @@ export default function GameOverModal({ session, onConfirm, onExtendGame, lastTu
           >
             {subtitleText}
           </motion.p>
+
+          {/* 100-Point Performance Score Breakdown Panel */}
+          {isDefenderWin && scoreData && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.5, duration: 0.3 }}
+              style={{
+                margin: '0 auto 20px',
+                maxWidth: '460px',
+                padding: '16px',
+                borderRadius: '10px',
+                background: 'rgba(0, 240, 255, 0.04)',
+                border: '1px solid rgba(0, 240, 255, 0.3)',
+                boxShadow: '0 0 25px rgba(0, 240, 255, 0.08)',
+                textAlign: 'left'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid rgba(0, 240, 255, 0.2)', paddingBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--cyan)', letterSpacing: '0.08em' }}>
+                  <Award size={16} /> PERFORMANCE RATING
+                </div>
+                <div style={{ fontSize: '20px', fontFamily: 'monospace', fontWeight: 900, color: '#00ff66', textShadow: '0 0 10px rgba(0,255,102,0.5)' }}>
+                  {scoreData.totalScore} <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>/ 100 PTS</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', fontFamily: 'monospace' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>⏱️ TURN EFFICIENCY ({scoreData.turnsUsed}/{scoreData.maxTurns} turns)</span>
+                  <span style={{ color: 'var(--cyan)', fontWeight: 'bold' }}>+{scoreData.turnScore} / 30</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>🛡️ PERSONNEL PRESERVATION ({scoreData.agentsLost} agents lost)</span>
+                  <span style={{ color: 'var(--cyan)', fontWeight: 'bold' }}>+{scoreData.personnelScore} / 35</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>💰 BUDGET CONSERVATION (${(scoreData.budgetRemaining || 0).toLocaleString()})</span>
+                  <span style={{ color: 'var(--cyan)', fontWeight: 'bold' }}>+{scoreData.budgetScore} / 25</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>🎖️ VICTORY QUALITY ({scoreData.outcome === 'SUCCESS' ? 'FULL DEFEAT' : 'PARTIAL DEFEAT'})</span>
+                  <span style={{ color: 'var(--cyan)', fontWeight: 'bold' }}>+{scoreData.victoryQualityScore} / 10</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {/* Final Turn Combat & Tactical Resolution Report */}
           {hasCombatReport && (

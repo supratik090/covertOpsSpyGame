@@ -1070,7 +1070,7 @@ export default function App() {
             playerRole={session.playerRole}
           />
 
-          <main className="tab-content">
+          <main className={`tab-content ${activeTab === 'MAP' || activeTab === 'TACTICAL' ? 'tab-content-map' : ''}`}>
             {activeTab === 'OBJECTIVES' && (
               <ObjectiveBoardView
                 session={session}

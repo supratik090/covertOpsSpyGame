@@ -55,6 +55,9 @@ public class GameSessionService {
     @Autowired
     private SecuritySweepService securitySweepService;
 
+    @Autowired
+    private ScoringService scoringService;
+
     public List<GameSession> listSessions() {
         return lobbyService.listSessions();
     }
@@ -93,6 +96,13 @@ public class GameSessionService {
     }
 
     public GameSession saveSession(GameSession session) {
+        if (session != null && ("SUCCESS".equals(session.getStatus()) || "PARTIAL_DEFENDER_VICTORY".equals(session.getStatus()))) {
+            try {
+                scoringService.submitScoreIfWin(session);
+            } catch (Exception e) {
+                log.error("Failed to submit score for session: " + session.getId(), e);
+            }
+        }
         return repository.save(session);
     }
 
