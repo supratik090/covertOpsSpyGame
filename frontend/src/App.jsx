@@ -170,46 +170,7 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!session || !session.isMultiplayer) return;
 
-    const currentUser = localStorage.getItem('covert_ops_operator_user');
-    const isWaiting = session.lobbyStatus === 'LOBBY_WAITING' || session.activePlayer !== currentUser;
-
-    if (!isWaiting) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const token = localStorage.getItem('spy_game_token');
-        const res = await fetch(`${GAME_API_BASE}/${session.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (
-            data.lobbyStatus !== session.lobbyStatus || 
-            data.activePlayer !== session.activePlayer || 
-            data.currentTurn !== session.currentTurn ||
-            data.status !== session.status
-          ) {
-            setSession(data);
-            if (data.activePlayer === currentUser) {
-              addToast("It is your turn! Prepare your operations.", "success");
-            }
-          }
-        } else if (res.status === 401) {
-          localStorage.removeItem('spy_game_token');
-          localStorage.removeItem('covert_ops_operator_user');
-          localStorage.removeItem('spy_game_session_id');
-          window.dispatchEvent(new Event('unauthorized_logout'));
-        }
-      } catch (err) {
-        console.error("Failed to poll session status", err);
-      }
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [session]);
 
   // Sync persistent drone operations from session.drones on turn load
   useEffect(() => {
@@ -243,38 +204,7 @@ export default function App() {
     fetchHintsCount();
   }, [session?.id, session?.currentTurn]);
 
-  useEffect(() => {
-    if (!session || !session.turnDeadline) {
-      setCountdownText('');
-      return;
-    }
 
-    const updateTimer = () => {
-      const deadline = new Date(session.turnDeadline).getTime();
-      const now = new Date().getTime();
-      const diff = deadline - now;
-
-      if (diff <= 0) {
-        setCountdownText('EXPIRED');
-        const currentUser = localStorage.getItem('covert_ops_operator_user');
-        if (session.activePlayer === currentUser && session.status === 'ACTIVE') {
-          addToast("TIME LIMIT EXPIRED. Executing scheduled transmission automatically.", "warning");
-          handleEndTurn();
-        }
-        clearInterval(timer);
-        return;
-      }
-
-      const mins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      setCountdownText(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
-    };
-
-    updateTimer();
-    const timer = setInterval(updateTimer, 1000);
-
-    return () => clearInterval(timer);
-  }, [session]);
 
   const addToast = (message, type = 'info') => {
     const id = Date.now() + Math.random().toString(36).substr(2, 9);
@@ -289,16 +219,15 @@ export default function App() {
   };
 
   // Start new game
-  const handleStartNewGame = async (role = 'DEFENDER', isMultiplayer = false, timerMinutes = 5) => {
+  const handleStartNewGame = async (role = 'DEFENDER') => {
     if (!selectedScenarioId) {
       addToast("Please select a scenario config.", "warning");
       return;
     }
+    const isFirstTime = !localStorage.getItem('spy_game_has_played') || sessions.length === 0;
     setLoading(true);
     try {
-      const endpoint = isMultiplayer
-        ? `${GAME_API_BASE}/create-multiplayer?scenarioId=${selectedScenarioId}&playerRole=${role}&timerMinutes=${timerMinutes}`
-        : `${GAME_API_BASE}/create?scenarioId=${selectedScenarioId}&playerRole=${role}`;
+      const endpoint = `${GAME_API_BASE}/create?scenarioId=${selectedScenarioId}&playerRole=${role}&isFirstTimeUser=${isFirstTime}`;
       const res = await fetchWithRetry(endpoint, {
         method: 'POST'
       }, (a, m) => setRetryState({ attempt: a, max: m }));
@@ -317,54 +246,18 @@ export default function App() {
       setReplayPlan(null);
       fetchReplayData(data.id, true);
       fetchSessions();
-      addToast(isMultiplayer ? "Multiplayer lobby created successfully." : "Operation initiated successfully.", "success");
-    } catch (err) {
-      addToast(err.message, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  // Join multiplayer game
-  const handleJoinGame = async (token) => {
-    if (!token) {
-      addToast("Please enter a valid game token.", "warning");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetchWithRetry(`${GAME_API_BASE}/join?gameToken=${token.trim()}`, {
-        method: 'POST'
-      }, (a, m) => setRetryState({ attempt: a, max: m }));
-      setRetryState(null);
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || 'Failed to join game session.');
+      if (isFirstTime) {
+        localStorage.setItem('spy_game_has_played', 'true');
+        addToast("First-Time User: Asset deployment automatically skipped with default configuration.", "info");
+      } else {
+        addToast("Operation initiated successfully.", "success");
       }
-      const data = await res.json();
-      setSession(data);
-      localStorage.setItem('spy_game_session_id', data.id);
-      setLocalAssessments({});
-      resetTurnStates();
-      setLostAgentsList([]);
-
-      setActiveTab(getInitialTab());
-      setScreen('GAME');
-      setShowGodMode(false);
-      setReplayPlan(null);
-      fetchSessions();
-      addToast("Successfully joined operation.", "success");
     } catch (err) {
       addToast(err.message, "error");
     } finally {
       setLoading(false);
     }
-  };
-
-  const checkWaiting = () => {
-    const currentUser = localStorage.getItem('covert_ops_operator_user');
-    const waiting = session && session.isMultiplayer && (session.lobbyStatus === 'LOBBY_WAITING' || session.activePlayer !== currentUser);
-    return waiting;
   };
 
   // Continue existing game
@@ -1043,7 +936,6 @@ export default function App() {
           onStartNewGame={handleStartNewGame}
           onLoadGame={handleLoadGame}
           onDeleteGame={handleDeleteGame}
-          onJoinGame={handleJoinGame}
           loading={loading}
           errorMsg={errorMsg}
           onLogout={handleLogout}
@@ -1223,8 +1115,6 @@ export default function App() {
             onEndTurn={handleEndTurn}
             loading={loading}
             onExit={handleExit}
-            isWaiting={isWaiting}
-            countdownText={countdownText}
           />
         </>
       )}

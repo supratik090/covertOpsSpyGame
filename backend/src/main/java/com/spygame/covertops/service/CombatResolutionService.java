@@ -270,41 +270,15 @@ public class CombatResolutionService {
 
             boolean isFinanceLogisticsMatch = false;
             if ("FREEZE_FINANCE".equals(type)) {
-                if (session.isMultiplayer()) {
-                    isFinanceLogisticsMatch = city.equals(session.getRequestedFinanceCity());
-                } else {
-                    isFinanceLogisticsMatch = currentStep != null && city.equals(currentStep.getFinanceCity());
-                }
+                isFinanceLogisticsMatch = currentStep != null && city.equals(currentStep.getFinanceCity());
             } else if ("RAID_LOGISTICS".equals(type)) {
-                if (session.isMultiplayer()) {
-                    isFinanceLogisticsMatch = city.equals(session.getRequestedLogisticsCity());
-                } else {
-                    isFinanceLogisticsMatch = currentStep != null && city.equals(currentStep.getLogisticsCity());
-                }
+                isFinanceLogisticsMatch = currentStep != null && city.equals(currentStep.getLogisticsCity());
             }
 
             if (isFinanceLogisticsMatch) {
-                if (session.isMultiplayer()) {
-                    if ("FREEZE_FINANCE".equals(type)) {
-                        session.setRequestedFinanceCity(null);
-                        session.setFinanceCollectionTurnsRemaining(0);
-                        session.setFinanceCollected(false);
-                        session.setActiveAttackerPhase("FINANCE_SOURCING");
-                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER",
-                                "FREEZE FINANCE: Defender has frozen the finance pipeline of suspect " + session.getActualAttacker() + " in " + city.toUpperCase() + "! Sourcing defeated. You must request finance in a different city."));
-                    } else {
-                        session.setRequestedLogisticsCity(null);
-                        session.setLogisticsCollectionTurnsRemaining(0);
-                        session.setLogisticsCollected(false);
-                        session.setActiveAttackerPhase("LOGISTICS_SOURCING");
-                        session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER",
-                                "RAID LOGISTICS: Defender has raided the logistics cache of suspect " + session.getActualAttacker() + " in " + city.toUpperCase() + "! Sourcing defeated. You must request logistics in a different city."));
-                    }
-                } else {
-                    milestoneService.reallocateAiSourcing(session, city, "FREEZE_FINANCE".equals(type), config);
-                    session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER",
-                            "OPERATION SUCCESS: Defender " + type + " in " + city.toUpperCase() + " disrupted the suspect " + session.getActualAttacker() + "'s sourcing. Attacker plan defeated, forcing resource re-allocation."));
-                }
+                milestoneService.reallocateAiSourcing(session, city, "FREEZE_FINANCE".equals(type), config);
+                session.getDiscoveredClues().add(new GameSession.Clue(currentTurn, "COMMAND_CENTER",
+                        "OPERATION SUCCESS: Defender " + type + " in " + city.toUpperCase() + " disrupted the suspect " + session.getActualAttacker() + "'s sourcing. Attacker plan defeated, forcing resource re-allocation."));
                 continue;
             }
 
@@ -316,43 +290,18 @@ public class CombatResolutionService {
 
             boolean isMatch = false;
             if (("ROADBLOCK".equals(type) || "TRANSIT_CHECKPOINT".equals(type))) {
-                if (session.isMultiplayer()) {
-                    isMatch = city.equals(session.getSuspectLocation());
-                } else {
-                    isMatch = currentStep != null && city.equals(currentStep.getSuspectLocation());
-                }
+                isMatch = currentStep != null && city.equals(currentStep.getSuspectLocation());
             } else if ("STOP_INFILTRATION".equals(type)) {
-                if (session.isMultiplayer()) {
-                    isMatch = city.equals(session.getSuspectLocation()) && "BORDER_CROSSING".equals(session.getActiveAttackerPhase());
-                } else {
-                    isMatch = currentStep != null && city.equals(currentStep.getSuspectLocation()) && currentStep.isSmuggling();
-                }
+                isMatch = currentStep != null && city.equals(currentStep.getSuspectLocation()) && currentStep.isSmuggling();
             } else if ("STOP_EXFILTRATION".equals(type)) {
-                if (session.isMultiplayer()) {
-                    isMatch = city.equals(session.getSuspectLocation()) && "EXFILTRATION".equals(session.getActiveAttackerPhase());
-                } else {
-                    PlanStep strikeStep = session.getAiMasterPlan().getPrimaryPlan().get(session.getAiMasterPlan().getPrimaryPlan().size() - 1);
-                    if (city.equals(strikeStep.getEscapeNode())) {
-                        isMatch = true;
-                    }
+                PlanStep strikeStep = session.getAiMasterPlan().getPrimaryPlan().get(session.getAiMasterPlan().getPrimaryPlan().size() - 1);
+                if (city.equals(strikeStep.getEscapeNode())) {
+                    isMatch = true;
                 }
             } else if (("LOCKDOWN".equals(type) || "CITY_GRID_LOCKDOWN".equals(type))) {
-                if (session.isMultiplayer()) {
-                    final String finalSuspectLoc = session.getSuspectLocation();
-                    boolean suspectCurrentlyHere = city.equals(finalSuspectLoc);
-                    boolean suspectMovingHere = false;
-                    Node suspectNode = config.getNodes().stream().filter(n -> n.getId().equals(finalSuspectLoc)).findFirst().orElse(null);
-                    if (suspectNode != null && suspectNode.getConnections() != null) {
-                        suspectMovingHere = suspectNode.getConnections().contains(city);
-                    }
-                    if (suspectCurrentlyHere || suspectMovingHere) {
-                        isMatch = true;
-                    }
-                } else {
-                    boolean suspectCurrentlyHere = city.equals(session.getSuspectLocation());
-                    if (suspectCurrentlyHere) {
-                        isMatch = true;
-                    }
+                boolean suspectCurrentlyHere = city.equals(session.getSuspectLocation());
+                if (suspectCurrentlyHere) {
+                    isMatch = true;
                 }
             }
 

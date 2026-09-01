@@ -71,16 +71,11 @@ public class AuthenticationInterceptor implements HandlerInterceptor {
                     if (gameOpt.isPresent()) {
                         GameSession gameSession = gameOpt.get();
                         String owner = gameSession.getOwnerUsername();
-                        String invitee = gameSession.getPlayerB();
                         boolean isAuthorized = false;
                         if (owner != null && owner.equals(userSession.getUsername())) {
                             isAuthorized = true;
                         }
-                        if (invitee != null && invitee.equals(userSession.getUsername())) {
-                            isAuthorized = true;
-                        }
-                        // If both are null (legacy single-player or public), or not matches, deny
-                        if (owner == null && invitee == null) {
+                        if (owner == null) {
                             isAuthorized = true;
                         }
                         if (!isAuthorized) {
