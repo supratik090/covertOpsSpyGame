@@ -4,21 +4,28 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spygame.covertops.model.ScenarioConfig;
 import com.spygame.covertops.repository.ScenarioConfigRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.util.concurrent.CompletableFuture;
 
 @Component
-public class ScenarioDatabaseSeeder implements CommandLineRunner {
+public class ScenarioDatabaseSeeder {
 
     @Autowired
     private ScenarioConfigRepository scenarioRepository;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    @Override
-    public void run(String... args) throws Exception {
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        System.out.println("HTTP Server is live and serving requests. Initiating background scenario database seeding...");
+        CompletableFuture.runAsync(this::seedScenarios);
+    }
+
+    public void seedScenarios() {
         String[] candidateDirs = {
             "../scenarios",
             "scenarios",
@@ -43,7 +50,7 @@ public class ScenarioDatabaseSeeder implements CommandLineRunner {
                             scenarioRepository.save(config);
                             processedFiles.add(file.getName());
                             foundAny = true;
-                            System.out.println("Seeder Success: Imported scenario '" + sId + "' (" + file.getName() + ") into DB.");
+                            System.out.println("Seeder Success (Async): Imported scenario '" + sId + "' (" + file.getName() + ") into DB.");
                         } catch (Exception e) {
                             System.err.println("Seeder Error: Failed parsing " + file.getName() + " - " + e.getMessage());
                         }
