@@ -1,7 +1,7 @@
 import React from 'react';
 import { Activity, LogOut } from 'lucide-react';
 
-const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit, isWaiting, countdownText }) => {
+const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit }) => {
   if (!session) return null;
 
   const { budget, currentTurn, maxTurns, heatPercentage, cobraAlertLevel, status } = session;
@@ -59,30 +59,7 @@ const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit, isWaiti
       
       <div className="status-divider" />
       
-
-      
       <div className="status-spacer" />
-      
-      {session.isMultiplayer && (
-        <div style={{ marginRight: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ fontSize: '8px', color: 'var(--text-dim)', fontFamily: 'monospace' }}>GAME TOKEN</div>
-          <div style={{ fontSize: '10px', color: '#00f0ff', fontFamily: 'monospace', fontWeight: 'bold' }}>{session.id.substring(0, 8)}...</div>
-        </div>
-      )}
-
-      {session.isMultiplayer && (
-        <div style={{ marginRight: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ fontSize: '8px', color: 'var(--text-dim)', fontFamily: 'monospace' }}>ACTIVE OPERATOR</div>
-          <div style={{ fontSize: '10px', color: '#00f0ff', fontFamily: 'monospace' }}>{session.activePlayer}</div>
-        </div>
-      )}
-
-      {countdownText && (
-        <div style={{ marginRight: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div style={{ fontSize: '8px', color: 'var(--text-dim)', fontFamily: 'monospace' }}>TIME LIMIT</div>
-          <div style={{ fontSize: '12px', color: '#ff3b30', fontFamily: 'monospace', fontWeight: 'bold' }}>{countdownText}</div>
-        </div>
-      )}
 
       {covertActions?.length > 0 && (
         <div className="planned-actions-mini">
@@ -91,14 +68,13 @@ const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit, isWaiti
       )}
       
       <button 
-        className={`end-turn-btn ${isWaiting ? 'disabled' : ''}`} 
+        className="end-turn-btn" 
         onClick={onEndTurn}
-        disabled={loading || status !== 'ACTIVE' || isWaiting}
-        style={isWaiting ? { opacity: 0.6, cursor: 'not-allowed', background: '#333', borderColor: '#555' } : {}}
+        disabled={loading || status !== 'ACTIVE'}
       >
         <Activity size={18} />
-        <span>{isWaiting ? 'WAITING FOR OPPONENT' : 'END TURN'}</span>
-        {covertActions?.length > 0 && !isWaiting && <span className="action-badge">{covertActions.length}</span>}
+        <span>END TURN</span>
+        {covertActions?.length > 0 && <span className="action-badge">{covertActions.length}</span>}
       </button>
 
       <button className="cyber-btn sm red" onClick={onExit}>

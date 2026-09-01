@@ -45,9 +45,6 @@ public class DeploymentService {
                 ? scenarioConfigRepository.findById(session.getScenarioId()).orElse(null)
                 : null;
 
-        if (!session.isDeploymentPending()) {
-            throw new IllegalStateException("Deployment phase is not active for this session.");
-        }
         if (!"DEFENDER".equals(session.getPlayerRole())) {
             throw new IllegalStateException("Deployment phase is only available for DEFENDER players.");
         }

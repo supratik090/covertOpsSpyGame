@@ -80,55 +80,11 @@ public class GameSession {
     private String maintenanceDroneBase; // Active drone base under 24h technical maintenance this turn
     private String nextTurnMaintenanceDroneBase; // Advance warning city for scheduled maintenance next turn
 
-    // Multiplayer properties
-    private boolean isMultiplayer = false;
-    private String playerA;
-    private String playerB;
-    private String activePlayer;
-    private String playerARole;
-    private String playerBRole;
-    private int turnTimerDurationMinutes = 5;
-    private java.time.LocalDateTime turnDeadline;
-    private String lobbyStatus = "LOBBY_WAITING"; // LOBBY_WAITING, IN_PROGRESS, TERMINATED
-    private boolean playerATurnSubmitted = false;
-    private boolean playerBTurnSubmitted = false;
     private java.util.List<String> turnHistory = new java.util.ArrayList<>();
 
     public java.util.List<String> getTurnHistory() { return turnHistory; }
     public void setTurnHistory(java.util.List<String> turnHistory) { this.turnHistory = turnHistory; }
 
-    public boolean isMultiplayer() { return isMultiplayer; }
-    public void setMultiplayer(boolean multiplayer) { isMultiplayer = multiplayer; }
-
-    public String getPlayerA() { return playerA; }
-    public void setPlayerA(String playerA) { this.playerA = playerA; }
-
-    public String getPlayerB() { return playerB; }
-    public void setPlayerB(String playerB) { this.playerB = playerB; }
-
-    public String getActivePlayer() { return activePlayer; }
-    public void setActivePlayer(String activePlayer) { this.activePlayer = activePlayer; }
-
-    public String getPlayerARole() { return playerARole; }
-    public void setPlayerARole(String playerARole) { this.playerARole = playerARole; }
-
-    public String getPlayerBRole() { return playerBRole; }
-    public void setPlayerBRole(String playerBRole) { this.playerBRole = playerBRole; }
-
-    public int getTurnTimerDurationMinutes() { return turnTimerDurationMinutes; }
-    public void setTurnTimerDurationMinutes(int turnTimerDurationMinutes) { this.turnTimerDurationMinutes = turnTimerDurationMinutes; }
-
-    public java.time.LocalDateTime getTurnDeadline() { return turnDeadline; }
-    public void setTurnDeadline(java.time.LocalDateTime turnDeadline) { this.turnDeadline = turnDeadline; }
-
-    public String getLobbyStatus() { return lobbyStatus; }
-    public void setLobbyStatus(String lobbyStatus) { this.lobbyStatus = lobbyStatus; }
-
-    public boolean isPlayerATurnSubmitted() { return playerATurnSubmitted; }
-    public void setPlayerATurnSubmitted(boolean playerATurnSubmitted) { this.playerATurnSubmitted = playerATurnSubmitted; }
-
-    public boolean isPlayerBTurnSubmitted() { return playerBTurnSubmitted; }
-    public void setPlayerBTurnSubmitted(boolean playerBTurnSubmitted) { this.playerBTurnSubmitted = playerBTurnSubmitted; }
 
     public GameSession() {}
 

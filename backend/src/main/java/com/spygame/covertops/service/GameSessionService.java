@@ -79,15 +79,11 @@ public class GameSessionService {
     }
 
     public GameSession createSession(String scenarioId, String playerRole, String ownerUsername) {
-        return lobbyService.createSession(scenarioId, playerRole, ownerUsername);
+        return lobbyService.createSession(scenarioId, playerRole, ownerUsername, false);
     }
 
-    public GameSession createMultiplayerSession(String scenarioId, String playerARole, String ownerUsername, int timerMinutes) {
-        return lobbyService.createMultiplayerSession(scenarioId, playerARole, ownerUsername, timerMinutes);
-    }
-
-    public GameSession joinSession(UUID sessionId, String inviteeUsername) {
-        return lobbyService.joinSession(sessionId, inviteeUsername);
+    public GameSession createSession(String scenarioId, String playerRole, String ownerUsername, boolean isFirstTimeUser) {
+        return lobbyService.createSession(scenarioId, playerRole, ownerUsername, isFirstTimeUser);
     }
 
     public GameSession getSession(UUID sessionId) {
@@ -312,82 +308,31 @@ public class GameSessionService {
         }
         log.info("[TIMING] Serialization backup took: {} ms", System.currentTimeMillis() - backupStart);
 
-        if (session.isMultiplayer()) {
-            long mpStart = System.currentTimeMillis();
-            if (!"IN_PROGRESS".equals(session.getLobbyStatus())) {
-                throw new IllegalStateException("Multiplayer game lobby is not in progress.");
-            }
-            if (username != null && !username.equals(session.getActivePlayer())) {
-                throw new IllegalStateException("It is not your turn to submit selections.");
-            }
-
-            boolean isAttacker = false;
-            if (username != null) {
-                if (username.equals(session.getPlayerA())) {
-                    isAttacker = "ATTACKER".equals(session.getPlayerARole());
-                } else if (username.equals(session.getPlayerB())) {
-                    isAttacker = "ATTACKER".equals(session.getPlayerBRole());
-                }
-            } else {
-                isAttacker = "ATTACKER".equals(session.getActivePlayer().equals(session.getPlayerA()) ? session.getPlayerARole() : session.getPlayerBRole());
-            }
-
-            if (isAttacker) {
-                session = playerAttackerService.applyAttackerActions(session, request, config);
-
-                if (!"ACTIVE".equals(session.getStatus())) {
-                    long saveStart = System.currentTimeMillis();
-                    GameSession saved = repository.save(session);
-                    log.info("[TIMING] Attacker early save took: {} ms", System.currentTimeMillis() - saveStart);
-                    return saved;
-                }
-
-                String defenderUsername = session.getPlayerA().equals(session.getActivePlayer()) ? session.getPlayerB() : session.getPlayerA();
-                session.setActivePlayer(defenderUsername);
-                session.setPlayerRole("DEFENDER");
-                session.setTurnDeadline(java.time.LocalDateTime.now().plusMinutes(session.getTurnTimerDurationMinutes()));
-                
-                long saveStart = System.currentTimeMillis();
-                GameSession saved = repository.save(session);
-                log.info("[TIMING] Attacker regular save took: {} ms", System.currentTimeMillis() - saveStart);
-                return saved;
-            }
-            session.setPlayerRole("DEFENDER");
-            log.info("[TIMING] Multiplayer check & processing took: {} ms", System.currentTimeMillis() - mpStart);
-        }
-
         int currentTurn = session.getCurrentTurn();
 
         // 1. Apply actions and execute AI turn based on player role
-        if (!session.isMultiplayer()) {
-            if ("ATTACKER".equals(session.getPlayerRole())) {
-                // Apply Human Attacker actions
-                long attActionsStart = System.currentTimeMillis();
-                session = playerAttackerService.applyAttackerActions(session, request, config);
-                log.info("[TIMING] applyAttackerActions took: {} ms", System.currentTimeMillis() - attActionsStart);
+        if ("ATTACKER".equals(session.getPlayerRole())) {
+            // Apply Human Attacker actions
+            long attActionsStart = System.currentTimeMillis();
+            session = playerAttackerService.applyAttackerActions(session, request, config);
+            log.info("[TIMING] applyAttackerActions took: {} ms", System.currentTimeMillis() - attActionsStart);
 
-                // Execute AI Defender turn
-                long aiStart = System.currentTimeMillis();
-                session = aiDefenderService.executeTurn(session, config);
-                log.info("[TIMING] aiDefenderService.executeTurn took: {} ms", System.currentTimeMillis() - aiStart);
-            } else {
-                // Execute AI Attacker turn (Attacker Phase & Movements) FIRST
-                long aiStart = System.currentTimeMillis();
-                session = aiService.executeTurn(session, config);
-                log.info("[TIMING] aiService.executeTurn took: {} ms", System.currentTimeMillis() - aiStart);
-
-                // Apply Human Defender actions (Drone Attacks, Tactical Raids, Scanners) SECOND
-                long defActionsStart = System.currentTimeMillis();
-                session = defenderActionService.applyDefenderActions(session, request, config);
-                log.info("[TIMING] applyDefenderActions took: {} ms", System.currentTimeMillis() - defActionsStart);
-            }
+            // Execute AI Defender turn
+            long aiStart = System.currentTimeMillis();
+            session = aiDefenderService.executeTurn(session, config);
+            log.info("[TIMING] aiDefenderService.executeTurn took: {} ms", System.currentTimeMillis() - aiStart);
         } else {
-            // Multiplayer Mode: Only apply Defender actions here since Attacker actions 
-            // were already applied and saved during the Attacker's active sub-turn.
+            // Execute AI Attacker turn (Attacker Phase & Movements) FIRST
+            long aiStart = System.currentTimeMillis();
+            session = aiService.executeTurn(session, config);
+            log.info("[TIMING] aiService.executeTurn took: {} ms", System.currentTimeMillis() - aiStart);
+
+            // Apply Human Defender actions (Drone Attacks, Tactical Raids, Scanners) SECOND
             long defActionsStart = System.currentTimeMillis();
             session = defenderActionService.applyDefenderActions(session, request, config);
-            log.info("[TIMING] applyDefenderActions (Multiplayer) took: {} ms", System.currentTimeMillis() - defActionsStart);
+            log.info("[TIMING] applyDefenderActions took: {} ms", System.currentTimeMillis() - defActionsStart);
         }
+
 
         List<Map<String, Object>> covertActions = request.getCovertActions();
         if (covertActions == null) {
@@ -793,12 +738,6 @@ public class GameSessionService {
         session = securitySweepService.resolveSecuritySweeps(session, currentStep, config);
         log.info("[TIMING] resolveSecuritySweeps took: {} ms", System.currentTimeMillis() - sweepStart);
 
-        if (session.isMultiplayer()) {
-            String attackerUsername = session.getPlayerA().equals(session.getActivePlayer()) ? session.getPlayerB() : session.getPlayerA();
-            session.setActivePlayer(attackerUsername);
-            session.setPlayerRole("ATTACKER");
-            session.setTurnDeadline(java.time.LocalDateTime.now().plusMinutes(session.getTurnTimerDurationMinutes()));
-        }
 
         com.spygame.covertops.util.SafehouseUtils.ensureAllSafehousesHavePlaces(session, config);
         long dbSaveStart = System.currentTimeMillis();

@@ -13,8 +13,8 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/scores")
-@CrossOrigin(origins = "*")
+@RequestMapping({"/api/scores", "/api/game/scores"})
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class ScoreController {
 
     @Autowired

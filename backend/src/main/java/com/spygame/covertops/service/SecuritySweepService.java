@@ -303,7 +303,7 @@ public class SecuritySweepService {
     }
 
     private void updateHeatLevel(GameSession session, PlanStep currentStep, ScenarioConfig config) {
-        if (currentStep == null && !session.isMultiplayer()) return;
+        if (currentStep == null) return;
 
         if (session.getCityHeat() == null) {
             session.setCityHeat(new java.util.HashMap<>());

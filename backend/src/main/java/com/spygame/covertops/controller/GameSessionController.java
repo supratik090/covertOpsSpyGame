@@ -37,35 +37,15 @@ public class GameSessionController {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // POST /api/game/create?scenarioId=operation_silent_edge&playerRole=DEFENDER
+    // POST /api/game/create?scenarioId=operation_silent_edge&playerRole=DEFENDER&isFirstTimeUser=true
     @PostMapping("/create")
     public GameSession createGame(
             @RequestParam String scenarioId,
             @RequestParam(required = false, defaultValue = "DEFENDER") String playerRole,
+            @RequestParam(required = false, defaultValue = "false") boolean isFirstTimeUser,
             jakarta.servlet.http.HttpServletRequest request) {
         String username = (String) request.getAttribute("username");
-        return sessionService.createSession(scenarioId, playerRole, username);
-    }
-
-    // POST /api/game/create-multiplayer?scenarioId=...&playerRole=...&timerMinutes=5
-    @PostMapping("/create-multiplayer")
-    public GameSession createMultiplayerGame(
-            @RequestParam String scenarioId,
-            @RequestParam(required = false, defaultValue = "DEFENDER") String playerRole,
-            @RequestParam(required = false, defaultValue = "5") int timerMinutes,
-            jakarta.servlet.http.HttpServletRequest request) {
-        String username = (String) request.getAttribute("username");
-        return sessionService.createMultiplayerSession(scenarioId, playerRole, username, timerMinutes);
-    }
-
-    // POST /api/game/join?gameToken=...
-    @PostMapping("/join")
-    public GameSession joinGame(
-            @RequestParam String gameToken,
-            jakarta.servlet.http.HttpServletRequest request) {
-        String username = (String) request.getAttribute("username");
-        UUID sessionId = UUID.fromString(gameToken);
-        return sessionService.joinSession(sessionId, username);
+        return sessionService.createSession(scenarioId, playerRole, username, isFirstTimeUser);
     }
 
     // GET /api/game/scenarios

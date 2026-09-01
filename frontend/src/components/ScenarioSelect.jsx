@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Trash2, Activity, ChevronDown, ChevronRight, Award, Trophy, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { fetchLeaderboard, fetchMyScores } from '../utils/scoresApi';
@@ -22,20 +22,25 @@ const ScenarioSelect = ({
   onStartNewGame,
   onLoadGame,
   onDeleteGame,
-  onJoinGame,
   loading,
   errorMsg,
   onLogout
 }) => {
   const playerRole = 'DEFENDER';
-  const gameMode = 'SINGLE';
-  const [timerMinutes, setTimerMinutes] = useState(5);
-  const [joinToken, setJoinToken] = useState('');
   const [activeOpen, setActiveOpen] = useState(true);
   const [archivedOpen, setArchivedOpen] = useState(false);
 
   const [myScoreData, setMyScoreData] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
+
+  const startBtnRef = useRef(null);
+
+  const handleSelectScenario = (scenarioId) => {
+    setSelectedScenarioId(scenarioId);
+    setTimeout(() => {
+      startBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  };
 
   useEffect(() => {
     fetchMyScores().then(data => {
@@ -154,11 +159,6 @@ const ScenarioSelect = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div style={{ flex: 1 }}>
                         <h3 style={{ margin: '4px 0' }}>{getScenarioTitle(s.scenarioId)}</h3>
-                        {s.multiplayer && (
-                          <div style={{ fontSize: '9.5px', fontFamily: 'monospace', color: 'var(--cyan)', marginTop: '2px', wordBreak: 'break-all' }}>
-                            GAME TOKEN: {s.id}
-                          </div>
-                        )}
                         <div className="scenario-meta" style={{ marginTop: '6px' }}>
                           <div>TURN: <span className="val cyan">{s.currentTurn}/{s.maxTurns}</span></div>
                           <div>ROLE: <span className={`val ${s.playerRole === 'ATTACKER' ? 'red' : 'green'}`} style={{ fontWeight: 'bold' }}>{s.playerRole}</span></div>
@@ -277,7 +277,7 @@ const ScenarioSelect = ({
               <div 
                 key={scenario.scenarioId}
                 className={`scenario-card ${selectedScenarioId === scenario.scenarioId ? 'selected' : ''}`}
-                onClick={() => setSelectedScenarioId(scenario.scenarioId)}
+                onClick={() => handleSelectScenario(scenario.scenarioId)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <h3 style={{ margin: 0 }}>
@@ -322,13 +322,14 @@ const ScenarioSelect = ({
         </div>
 
         <button 
+          ref={startBtnRef}
           className="cyber-btn lg" 
-          onClick={() => onStartNewGame(playerRole, gameMode === 'MULTIPLAYER', timerMinutes)}
+          onClick={() => onStartNewGame(playerRole)}
           disabled={!selectedScenarioId || loading}
           style={{ width: '100%', marginBottom: '20px' }}
         >
           <Activity size={20} />
-          <span>{gameMode === 'MULTIPLAYER' ? 'CREATE MULTIPLAYER LOBBY' : 'START NEW OPERATION'}</span>
+          <span>START NEW OPERATION</span>
         </button>
 
         {/* Global Leaderboard Section */}
