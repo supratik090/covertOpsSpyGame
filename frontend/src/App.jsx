@@ -345,10 +345,6 @@ export default function App() {
 
   // Assign agent task (buffered locally)
   const handleAssignAgentTask = (agentId, task) => {
-    if (checkWaiting()) {
-      addToast("It is not your turn.", "warning");
-      return;
-    }
     if (!session) return;
     const agent = session.agents.find(a => a.id === agentId);
     if (!agent) return;
@@ -358,10 +354,6 @@ export default function App() {
 
   // Buy a new drone for a drone base city (Queued locally to prevent screen freeze & state out-of-sync)
   const handleBuyDrone = (cityNode, type) => {
-    if (checkWaiting()) {
-      addToast("It is not your turn.", "warning");
-      return;
-    }
     if (!session) return;
 
     const isBaseQueued = localDroneBaseBuilds.includes(cityNode);
@@ -410,10 +402,6 @@ export default function App() {
 
   // Queue drone technical servicing locally (committed on turn end)
   const handleServiceDrone = (droneId) => {
-    if (checkWaiting()) {
-      addToast("It is not your turn.", "warning");
-      return;
-    }
     if (!session) return;
 
     if (localServicedDrones.includes(droneId)) {
@@ -446,10 +434,6 @@ export default function App() {
 
   // Relocate agent locally
   const handleRelocateAgent = (agentId, targetCity) => {
-    if (checkWaiting()) {
-      addToast("It is not your turn.", "warning");
-      return;
-    }
     if (!session) return;
     
     // Check if agent is currently locked out by cooldown/training
@@ -481,10 +465,6 @@ export default function App() {
 
   // Relocate tactical team locally
   const handleRelocateTacticalTeam = (teamId, targetCity) => {
-    if (checkWaiting()) {
-      addToast("It is not your turn.", "warning");
-      return;
-    }
     if (!session) return;
 
     const team = session.tacticalTeams.find(t => t.id === teamId);
@@ -508,10 +488,6 @@ export default function App() {
 
   // Build safehouse (buffered locally)
   const handleBuildSafehouse = (cityNode, isSecure = false) => {
-    if (checkWaiting()) {
-      addToast("It is not your turn.", "warning");
-      return;
-    }
     if (!session) return;
     const isAttacker = session.playerRole === 'ATTACKER';
     if (isAttacker) {
@@ -545,10 +521,6 @@ export default function App() {
 
   // Deploy tech resource (buffered locally)
   const handleDeployTech = (type, cityNode) => {
-    if (checkWaiting()) {
-      addToast("It is not your turn.", "warning");
-      return;
-    }
     if (!session) return;
     const isAttacker = session.playerRole === 'ATTACKER';
     if (isAttacker) {
@@ -589,10 +561,6 @@ export default function App() {
 
   // Covert Actions Planner
   const toggleCovertAction = (actionType, cityNode, teamId, targetSafehouseCode = "") => {
-    if (checkWaiting()) {
-      addToast("It is not your turn.", "warning");
-      return;
-    }
     const existingIdx = covertActions.findIndex(a => a.teamId === teamId);
     let newActions = [...covertActions];
     if (existingIdx >= 0) {
@@ -911,7 +879,7 @@ export default function App() {
       }).length
     : 0;
 
-  const isWaiting = checkWaiting();
+
 
   return (
     <div className={`app-layout ${screen !== 'GAME' ? 'no-sidebar' : ''}`}>
