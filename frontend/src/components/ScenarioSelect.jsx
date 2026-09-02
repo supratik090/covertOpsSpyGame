@@ -93,9 +93,10 @@ const ScenarioSelect = ({
         {myScoreData && (
           <div style={{
             display: 'flex',
-            justify: 'space-between',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '10px 14px',
+            gap: '16px',
+            padding: '10px 16px',
             marginBottom: '16px',
             background: 'linear-gradient(90deg, rgba(0, 240, 255, 0.08), rgba(0, 255, 102, 0.05))',
             border: '1px solid rgba(0, 240, 255, 0.3)',
