@@ -33,6 +33,8 @@ const ScenarioSelect = ({
   const [myScoreData, setMyScoreData] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
 
+  const [needDeploymentScreen, setNeedDeploymentScreen] = useState(false);
+
   const startBtnRef = useRef(null);
 
   const handleSelectScenario = (scenarioId) => {
@@ -322,10 +324,30 @@ const ScenarioSelect = ({
           })}
         </div>
 
+        <label style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+          marginBottom: '14px',
+          fontSize: '11px',
+          color: 'var(--text-dim)',
+          fontFamily: 'monospace',
+          userSelect: 'none'
+        }}>
+          <input 
+            type="checkbox" 
+            checked={needDeploymentScreen} 
+            onChange={(e) => setNeedDeploymentScreen(e.target.checked)}
+            style={{ accentColor: 'var(--cyan)', cursor: 'pointer', width: '14px', height: '14px' }}
+          />
+          <span>Enable Manual Asset Deployment Phase (Default: Skipped)</span>
+        </label>
+
         <button 
           ref={startBtnRef}
           className="cyber-btn lg" 
-          onClick={() => onStartNewGame(playerRole)}
+          onClick={() => onStartNewGame(playerRole, needDeploymentScreen)}
           disabled={!selectedScenarioId || loading}
           style={{ width: '100%', marginBottom: '20px' }}
         >
