@@ -120,6 +120,7 @@ export default function App() {
   // Retry spinner state
   const [retryState, setRetryState] = useState(null);
   const [countdownText, setCountdownText] = useState('');
+  const [isWaiting, setIsWaiting] = useState(false);
 
   // Load scenarios on mount or success
   const fetchScenarios = async () => {
@@ -219,15 +220,15 @@ export default function App() {
   };
 
   // Start new game
-  const handleStartNewGame = async (role = 'DEFENDER') => {
+  const handleStartNewGame = async (role = 'DEFENDER', needDeploymentScreen = false) => {
     if (!selectedScenarioId) {
       addToast("Please select a scenario config.", "warning");
       return;
     }
-    const isFirstTime = !localStorage.getItem('spy_game_has_played') || sessions.length === 0;
+    const skipDeployment = !needDeploymentScreen;
     setLoading(true);
     try {
-      const endpoint = `${GAME_API_BASE}/create?scenarioId=${selectedScenarioId}&playerRole=${role}&isFirstTimeUser=${isFirstTime}`;
+      const endpoint = `${GAME_API_BASE}/create?scenarioId=${selectedScenarioId}&playerRole=${role}&isFirstTimeUser=${skipDeployment}`;
       const res = await fetchWithRetry(endpoint, {
         method: 'POST'
       }, (a, m) => setRetryState({ attempt: a, max: m }));
@@ -247,11 +248,10 @@ export default function App() {
       fetchReplayData(data.id, true);
       fetchSessions();
 
-      if (isFirstTime) {
-        localStorage.setItem('spy_game_has_played', 'true');
-        addToast("First-Time User: Asset deployment automatically skipped with default configuration.", "info");
+      if (skipDeployment) {
+        addToast("Asset deployment automatically skipped with default configuration.", "info");
       } else {
-        addToast("Operation initiated successfully.", "success");
+        addToast("Operation initiated successfully. Manual deployment phase active.", "success");
       }
     } catch (err) {
       addToast(err.message, "error");
@@ -1083,6 +1083,8 @@ export default function App() {
             onEndTurn={handleEndTurn}
             loading={loading}
             onExit={handleExit}
+            isWaiting={isWaiting}
+            countdownText={countdownText}
           />
         </>
       )}
