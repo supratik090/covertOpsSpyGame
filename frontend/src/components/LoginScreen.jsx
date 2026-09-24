@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Key, Play, Mail, ShieldAlert, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { AUTH_API_BASE } from '../config';
+import { AUTH_API_BASE, HEALTH_API_URL } from '../config';
 import { fetchWithRetry } from '../utils/api';
 import RetrySpinner from './RetrySpinner';
 
 const LoginScreen = ({ onLoginSuccess }) => {
   const [loginMode, setLoginMode] = useState('LOGIN'); // 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD'
   
+  // Backend health status state ('checking' | 'up' | 'down')
+  const [backendStatus, setBackendStatus] = useState('checking');
+
   // Login & Register state
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -26,6 +29,29 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const [maskedEmail, setMaskedEmail] = useState('');
   const [forgotMessage, setForgotMessage] = useState('');
   const [forgotError, setForgotError] = useState('');
+
+  const checkBackendHealth = async () => {
+    setBackendStatus('checking');
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(HEALTH_API_URL, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        setBackendStatus('up');
+      } else {
+        setBackendStatus('down');
+      }
+    } catch (err) {
+      setBackendStatus('down');
+    }
+  };
+
+  useEffect(() => {
+    checkBackendHealth();
+    const interval = setInterval(checkBackendHealth, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const resetAllStates = () => {
     setLoginError('');
@@ -68,16 +94,6 @@ const LoginScreen = ({ onLoginSuccess }) => {
           localStorage.setItem('covert_ops_operator_user', data.username);
           localStorage.setItem('spy_game_token', data.token);
           onLoginSuccess();
-        } else {
-          const errText = await res.text();
-          let errMsg = 'INVALID CREDENTIALS';
-          try {
-            const errJson = JSON.parse(errText);
-            errMsg = errJson.message || errJson.error || errMsg;
-          } catch {
-            errMsg = errText || errMsg;
-          }
-          setLoginError(errMsg.toUpperCase());
         }
       } else if (loginMode === 'REGISTER') {
         const payload = { username, email, password };
@@ -92,22 +108,21 @@ const LoginScreen = ({ onLoginSuccess }) => {
           setRegisterSuccess('OPERATOR ENROLLED SUCCESSFULLY. PROCEED TO LOGIN.');
           setLoginMode('LOGIN');
           setPassword('');
-        } else {
-          const errText = await res.text();
-          let errMsg = 'OPERATOR REGISTRATION REJECTED';
-          try {
-            const errJson = JSON.parse(errText);
-            errMsg = errJson.message || errJson.error || errMsg;
-          } catch {
-            errMsg = errText || errMsg;
-          }
-          setLoginError(errMsg.toUpperCase());
         }
       }
     } catch (err) {
-      console.error(err);
-      setLoginError('CONNECTION TO CLEARANCE DATABASE FAILED');
+      console.error('Auth request failed:', err);
       setRetryState(null);
+      const msg = err?.message || '';
+
+      if (err.status === 401 || err.status === 400 || msg.toLowerCase().includes('credential') || msg.toLowerCase().includes('passphrase') || msg.toLowerCase().includes('invalid')) {
+        const cleanMsg = msg ? msg.toUpperCase() : 'INVALID OPERATOR ID OR PASSPHRASE';
+        setLoginError(`LOGIN FAILED: ${cleanMsg}`);
+      } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Network Error')) {
+        setLoginError('CONNECTION TO CLEARANCE DATABASE FAILED (BACKEND OFFLINE)');
+      } else {
+        setLoginError(`LOGIN FAILED: ${msg ? msg.toUpperCase() : 'AUTHENTICATION REJECTED'}`);
+      }
     }
   };
 
@@ -210,6 +225,19 @@ const LoginScreen = ({ onLoginSuccess }) => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
+        <button
+          type="button"
+          className={`backend-status-dot ${backendStatus}`}
+          onClick={checkBackendHealth}
+          title={
+            backendStatus === 'up'
+              ? 'Backend Status: Operational'
+              : backendStatus === 'down'
+              ? 'Backend Status: Unreachable (Click to recheck)'
+              : 'Checking Backend Status...'
+          }
+          aria-label="Backend Status Indicator"
+        />
         <div className="auth-header">
           <Key className="auth-icon" size={48} />
           <h1 className="auth-title">SHADOW PROTOCOL</h1>

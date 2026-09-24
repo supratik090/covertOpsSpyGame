@@ -16,7 +16,7 @@ public class PrivacyController {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Privacy Policy - Spy Game / Covert Ops</title>
+                <title>Privacy Policy - Shadow Protocol</title>
                 <style>
                     :root {
                         --bg-color: #0d1117;
@@ -94,12 +94,12 @@ public class PrivacyController {
             <body>
             <div class="container">
                 <h1>Privacy Policy</h1>
-                <div class="subtitle"><strong>App Name:</strong> Spy Game (Covert Ops) | <strong>Effective Date:</strong> September 1, 2026</div>
+                <div class="subtitle"><strong>App Name:</strong> Shadow Protocol | <strong>Effective Date:</strong> September 1, 2026</div>
 
-                <p>Welcome to <strong>Spy Game (Covert Ops)</strong>. We respect your privacy and are committed to protecting your personal data. This Privacy Policy outlines how we collect, use, and safeguard your information when you use our mobile application and services.</p>
+                <p>Welcome to <strong>Shadow Protocol</strong>. We respect your privacy and are committed to protecting your personal data. This Privacy Policy outlines how we collect, use, and safeguard your information when you use our mobile application and services.</p>
 
                 <div class="highlight-box">
-                    <strong>Summary:</strong> Spy Game is a location-aware multiplayer game. We collect location data (when enabled) to render in-game maps and synchronize real-time gameplay. We do not sell your personal data to third parties.
+                    <strong>Summary:</strong> Shadow Protocol is a location-aware tactical strategy game. We collect location data (when enabled) to render in-game tactical maps and synchronize real-time gameplay. We do not sell your personal data to third parties.
                 </div>
 
                 <h2>1. Information We Collect</h2>
@@ -121,7 +121,7 @@ public class PrivacyController {
                 </ul>
 
                 <h2>3. Location Data Usage & Permissions</h2>
-                <p>Because Spy Game incorporates location-based mechanics, the app requests access to your device's location services. Location data is processed only while actively participating in game missions or viewing map interfaces. You can disable location permissions at any time through your device settings, though certain gameplay features may become unavailable.</p>
+                <p>Because Shadow Protocol incorporates location-based mechanics, the app requests access to your device's location services. Location data is processed only while actively participating in game missions or viewing map interfaces. You can disable location permissions at any time through your device settings, though certain gameplay features may become unavailable.</p>
 
                 <h2>4. Data Sharing & Third-Party Services</h2>
                 <p>We do <strong>not</strong> sell, rent, or trade your personal data. We may share data only with trusted infrastructure providers required to operate the app:</p>
@@ -138,7 +138,7 @@ public class PrivacyController {
                 <p>We implement industry-standard security measures, including HTTPS encryption in transit and secure database storage, to protect your data against unauthorized access, alteration, or disclosure.</p>
 
                 <h2>7. Children's Privacy</h2>
-                <p>Spy Game is not directed to children under the age of 13. We do not knowingly collect personal information from children under 13. If we discover that a child under 13 has provided us with personal information, we will delete it promptly.</p>
+                <p>Shadow Protocol is not directed to children under the age of 13. We do not knowingly collect personal information from children under 13. If we discover that a child under 13 has provided us with personal information, we will delete it promptly.</p>
 
                 <h2>8. Changes to This Privacy Policy</h2>
                 <p>We may update our Privacy Policy periodically. Any changes will be posted on this page with an updated "Effective Date".</p>
@@ -150,7 +150,7 @@ public class PrivacyController {
                 </div>
 
                 <footer>
-                    &copy; 2026 Spy Game (Covert Ops). All rights reserved.
+                    &copy; 2026 Shadow Protocol. All rights reserved.
                 </footer>
             </div>
             </body>
