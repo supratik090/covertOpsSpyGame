@@ -475,7 +475,61 @@ body {
   display: flex; align-items: center; justify-content: center; min-height: 100vh;
   background: radial-gradient(ellipse at 50% 30%, rgba(0,240,255,0.04) 0%, transparent 60%), var(--bg-deep);
 }
-.auth-card { width: 100%; max-width: 420px; padding: 40px; }
+.auth-card { width: 100%; max-width: 420px; padding: 40px; position: relative; }
+
+/* Backend Status Dot Indicator */
+.backend-status-dot {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+  transition: all 0.3s ease;
+  z-index: 10;
+}
+
+.backend-status-dot.up {
+  background-color: #10b981;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4);
+  animation: dot-pulse-green 2s infinite ease-in-out;
+}
+
+.backend-status-dot.down {
+  background-color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 0 0 20px rgba(239, 68, 68, 0.4);
+  animation: dot-pulse-red 1.5s infinite ease-in-out;
+}
+
+.backend-status-dot.checking {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  animation: dot-pulse-yellow 1s infinite alternate;
+}
+
+.backend-status-dot:hover {
+  transform: scale(1.25);
+}
+
+@keyframes dot-pulse-green {
+  0%, 100% { box-shadow: 0 0 8px rgba(16, 185, 129, 0.6), 0 0 16px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 0 0 14px rgba(16, 185, 129, 0.95), 0 0 26px rgba(16, 185, 129, 0.5); }
+}
+
+@keyframes dot-pulse-red {
+  0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.6), 0 0 16px rgba(239, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 14px rgba(239, 68, 68, 0.95), 0 0 26px rgba(239, 68, 68, 0.5); }
+}
+
+@keyframes dot-pulse-yellow {
+  0% { opacity: 0.5; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1.05); }
+}
+
 .auth-header { text-align: center; margin-bottom: 32px; }
 .auth-brand {
   display: flex;

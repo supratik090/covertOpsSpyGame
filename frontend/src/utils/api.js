@@ -18,21 +18,32 @@ export async function fetchWithRetry(input, init = {}, onRetry = null) {
       if (res.ok) return res;
 
       if (res.status === 401) {
-        localStorage.removeItem('spy_game_token');
-        localStorage.removeItem('covert_ops_operator_user');
-        localStorage.removeItem('spy_game_session_id');
-        window.dispatchEvent(new Event('unauthorized_logout'));
-        const err = new Error(`HTTP 401: Unauthorized`);
+        let errText = 'Invalid credentials';
+        try {
+          const body = await res.json();
+          if (body && (body.message || body.error)) {
+            errText = body.message || body.error;
+          }
+        } catch (e) {}
+
+        if (token) {
+          localStorage.removeItem('spy_game_token');
+          localStorage.removeItem('covert_ops_operator_user');
+          localStorage.removeItem('spy_game_session_id');
+          window.dispatchEvent(new Event('unauthorized_logout'));
+        }
+
+        const err = new Error(errText);
         err.status = 401;
         throw err;
       }
 
-      // Fast-fail 4xx client errors (400, 403, 404, 409, etc.) without 20s retry loop
+      // Fast-fail 4xx client errors (400, 403, 404, 409, etc.) without retry loop
       if (res.status >= 400 && res.status < 500) {
         let errText = `HTTP ${res.status}: ${res.statusText}`;
         try {
           const body = await res.json();
-          if (body && body.message) errText = body.message;
+          if (body && (body.message || body.error)) errText = body.message || body.error;
         } catch (e) {}
         const err = new Error(errText);
         err.status = res.status;
