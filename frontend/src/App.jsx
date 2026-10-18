@@ -19,6 +19,7 @@ import { GAME_API_BASE } from './config';
 import { fetchWithRetry } from './utils/api';
 import RetrySpinner from './components/RetrySpinner';
 import DeploymentScreen from './components/DeploymentScreen';
+import SpotlightTour from './components/SpotlightTour/SpotlightTour';
 
 
 const getInitialTab = () =>
@@ -122,6 +123,9 @@ export default function App() {
   const [countdownText, setCountdownText] = useState('');
   const [isWaiting, setIsWaiting] = useState(false);
 
+  // Turn 1 Android Tactical Operations Tour
+  const [isTourOpen, setIsTourOpen] = useState(false);
+
   // Load scenarios on mount or success
   const fetchScenarios = async () => {
     try {
@@ -170,6 +174,20 @@ export default function App() {
       window.removeEventListener('unauthorized_logout', handleUnauthorized);
     };
   }, []);
+
+  // Auto-prompt Turn 1 Tactical Operations Tour on first run (especially for mobile/Android)
+  useEffect(() => {
+    if (screen === 'GAME' && session && session.currentTurn === 1 && session.playerRole === 'DEFENDER' && !session.deploymentPending) {
+      try {
+        const tourDone = localStorage.getItem('covert_ops_mobile_tour_v1');
+        if (!tourDone) {
+          setIsTourOpen(true);
+        }
+      } catch (err) {
+        console.warn('Could not read tour flag from localStorage', err);
+      }
+    }
+  }, [screen, session?.id, session?.currentTurn, session?.deploymentPending]);
 
 
 
@@ -1085,6 +1103,18 @@ export default function App() {
             onExit={handleExit}
             isWaiting={isWaiting}
             countdownText={countdownText}
+            onOpenTour={() => setIsTourOpen(true)}
+          />
+
+          <SpotlightTour
+            isOpen={isTourOpen}
+            onClose={() => setIsTourOpen(false)}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            selectedCityNode={selectedCityNode}
+            setSelectedCityNode={setSelectedCityNode}
+            session={session}
+            nodesData={activeScenario?.nodes || []}
           />
         </>
       )}

@@ -1,0 +1,236 @@
+{
+  "scenarioId": "operation_panmunjom_breach",
+  "attackingCountry": "Northern Strike Directorate",
+  "defendingCountry": "ROK-US Combined Forces",
+  "title": "Operation Panmunjom Breach",
+  "briefing": "A high-ranking nuclear physicist has defected to the South. Northern covert ops units have crossed into the DMZ staging sector to locate and neutralize the defector in Seoul before debriefing. Sweep the transit corridors, lock down borders, and eliminate the assassin before Turn 25.",
+  "attackerBriefing": "Infiltrate past the Demilitarized Zone, evade ROK-US surveillance cordons, acquire weapons from safehouses in Gyeonggi, and neutralize the defector scientist in central Seoul.",
+  "targetCity": "seoul_central",
+  "targetVip": "Defector Nuclear Physicist",
+  "attackForm": "ASSASSINATION",
+  "maxTurns": 25,
+  "startingBudget": 4500000,
+  "mapBackground": "satellite",
+  "nodes": [
+    {
+      "id": "pyongyang_command",
+      "name": "Pyongyang Supreme Command",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 25, "y": 20, "lat": 39.0392, "lng": 125.7625},
+      "connections": ["nampo_port", "sariwon_depot", "wonsan_naval"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "RANSOMWARE_HACK"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Mansu Hill Base", "Ryugyong Tower Sector", "Taedonggang Docks", "Moranbong Enclave", "Potonggang Terminal"]
+    },
+    {
+      "id": "nampo_port",
+      "name": "Nampo Coastal Naval Base",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 18, "y": 30, "lat": 38.7375, "lng": 125.4078},
+      "connections": ["pyongyang_command", "sariwon_depot", "incheon_port"],
+      "availableFinance": ["COMMERCIAL_FRONT_LOAN", "ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["West Sea Barrage", "Nampo Harbor Berth 3", "Waudo Coastal Point", "Hanggu Warehouses", "Chollima Industrial Zone"]
+    },
+    {
+      "id": "sariwon_depot",
+      "name": "Sariwon Inland Depot",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 26, "y": 38, "lat": 38.5078, "lng": 125.7544},
+      "connections": ["pyongyang_command", "nampo_port", "kaesong_complex"],
+      "availableFinance": ["LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Railway Marshaling Yard", "Kugmin Depot", "Mount Jongbang Outpost", "Central Highway Pass", "Industrial Suburb"]
+    },
+    {
+      "id": "wonsan_naval",
+      "name": "Wonsan Naval Garrison",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 50, "y": 22, "lat": 39.1539, "lng": 127.4436},
+      "connections": ["pyongyang_command", "kaesong_complex"],
+      "availableFinance": ["CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["PORT_CONTAINER_CONTRABAND"],
+      "places": ["Kalma Beach Peninsula", "Songdowon Outpost", "Naval Submarine Pier", "Wonsan Harbor", "Anbyon Junction"]
+    },
+    {
+      "id": "kaesong_complex",
+      "name": "Kaesong Infiltration Complex",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 32, "y": 50, "lat": 37.9708, "lng": 126.5544},
+      "connections": ["sariwon_depot", "wonsan_naval", "panmunjom_dmz"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Industrial Complex Gate 1", "Panmun Station", "Nam Gate District", "Songak Hill Safehouse", "Old Town Quarter"]
+    },
+    {
+      "id": "panmunjom_dmz",
+      "name": "Panmunjom DMZ Line",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 36, "y": 54, "lat": 37.9560, "lng": 126.6769},
+      "connections": ["kaesong_complex", "paju_frontier", "incheon_port"],
+      "availableFinance": ["HUNDI_HAWALA"],
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"],
+      "places": ["Joint Security Area", "Freedom House Line", "Bridge of No Return", "Infiltration Tunnel #3", "Daeseong-dong Border"]
+    },
+    {
+      "id": "paju_frontier",
+      "name": "Paju Garrison Checkpoint",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 40, "y": 62, "lat": 37.7599, "lng": 126.7799},
+      "connections": ["panmunjom_dmz", "incheon_port", "seoul_central"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "VERY_HIGH",
+      "places": ["Tongil Bridge Checkpoint", "Imjingak Outpost", "Munsan Rail Station", "Heyri Art Enclave", "Camp Bonifas Perimeter"]
+    },
+    {
+      "id": "incheon_port",
+      "name": "Incheon Maritime Port & Terminal",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 34, "y": 72, "lat": 37.4563, "lng": 126.7052},
+      "connections": ["nampo_port", "panmunjom_dmz", "paju_frontier", "suwon_junction", "seoul_central"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Incheon Coastal Passenger Pier", "Songdo Smart Complex", "Chinatown Harbor", "Wolmido Watchpoint", "Bupyeong Logistics Hub"]
+    },
+    {
+      "id": "suwon_junction",
+      "name": "Suwon Rail & Logistics Hub",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 45, "y": 82, "lat": 37.2636, "lng": 127.0286},
+      "connections": ["incheon_port", "seoul_central"],
+      "defenses": "MEDIUM",
+      "counterEspionage": "MEDIUM",
+      "places": ["Hwaseong Fortress Outpost", "Suwon KTX Hub", "Gwanggyo Tech Sector", "Paldal Market", "Air Base Perimeter"]
+    },
+    {
+      "id": "seoul_central",
+      "name": "Seoul Capital Security Center",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 42, "y": 70, "lat": 37.5665, "lng": 126.9780},
+      "connections": ["paju_frontier", "incheon_port", "suwon_junction"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Yongsan Defense Compound", "Gwanghwamun Plaza", "Gangnam Financial Tower", "Mapo Safe Facility", "Namsan Intelligence Post"]
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "seoul_central"},
+    {"cityId": "incheon_port"},
+    {"cityId": "paju_frontier"},
+    {"cityId": "kaesong_complex"}
+  ],
+  "attackerNames": [
+    "Ri Kwang-Chol",
+    "Kim Jin-Hyuk",
+    "Pak Myong-Sik",
+    "Choe Hak-Sun"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Min-Ho Kang",
+      "codename": "TIGER",
+      "startingCity": "seoul_central",
+      "skills": {"humint": 85, "sigint": 80, "infiltration": 85, "survivability": 80}
+    },
+    {
+      "id": 2,
+      "name": "Ji-Yeon Park",
+      "codename": "VIPER",
+      "startingCity": "paju_frontier",
+      "skills": {"humint": 70, "sigint": 90, "infiltration": 90, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "David Miller",
+      "codename": "SENTINEL",
+      "startingCity": "incheon_port",
+      "skills": {"humint": 80, "sigint": 85, "infiltration": 70, "survivability": 75}
+    },
+    {
+      "id": 4,
+      "name": "Jun-Seok Lee",
+      "codename": "SHADOW",
+      "startingCity": "kaesong_complex",
+      "skills": {"humint": 90, "sigint": 40, "infiltration": 95, "survivability": 95}
+    },
+    {
+      "id": 5,
+      "name": "Soo-Jin Choi",
+      "codename": "RAVEN",
+      "startingCity": "seoul_central",
+      "skills": {"humint": 75, "sigint": 75, "infiltration": 80, "survivability": 85}
+    },
+    {
+      "id": 6,
+      "name": "Daniel Kim",
+      "codename": "GHOST",
+      "startingCity": "suwon_junction",
+      "skills": {"humint": 65, "sigint": 70, "infiltration": 85, "survivability": 90}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "DMZ Strike Group",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "kaesong_complex",
+      "skills": {"combat": 90, "stealth": 85, "mobility": 80}
+    },
+    {
+      "id": 2,
+      "name": "Paju Border Unit",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "paju_frontier",
+      "skills": {"combat": 85, "stealth": 80, "mobility": 85}
+    },
+    {
+      "id": 3,
+      "name": "Seoul SWAT Command",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "seoul_central",
+      "skills": {"combat": 95, "stealth": 70, "mobility": 80}
+    },
+    {
+      "id": 4,
+      "name": "Incheon Coast Guard",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "incheon_port",
+      "skills": {"combat": 80, "stealth": 80, "mobility": 85}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 50000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 20000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "CCTV", "cityId": "paju_frontier"},
+    {"type": "WIRE_TAP", "cityId": "kaesong_complex"}
+  ],
+  "logisticsMapping": {
+    "ASSASSINATION": {
+      "itemName": "Silenced Armor-Piercing Sniper Weapon",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "ASSASSINATION": {
+      "itemName": "Laundered Infiltration Escrow",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}

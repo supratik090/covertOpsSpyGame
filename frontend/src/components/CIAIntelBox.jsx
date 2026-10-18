@@ -125,7 +125,7 @@ export default function CIAIntelBox({
       btnStyle.border = '1px solid #10b981';
       btnStyle.color = '#10b981';
       return (
-        <button onClick={() => onBuildSafehouse?.(cityId)} className={btnClass} style={btnStyle}>
+        <button data-tour="cia-safehouse-build" onClick={() => onBuildSafehouse?.(cityId)} className={btnClass} style={btnStyle}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
             <SafehouseIcon size={13} color="#10b981" style={{ animation: 'pulse 1.5s infinite' }} />
             BUILD SAFEHOUSE
@@ -138,7 +138,7 @@ export default function CIAIntelBox({
     btnStyle.background = 'rgba(255, 255, 255, 0.02)';
     btnStyle.border = '1px solid rgba(255, 255, 255, 0.15)';
     return (
-      <button onClick={() => onBuildSafehouse?.(cityId)} className={btnClass} style={btnStyle}>
+      <button data-tour="cia-safehouse-build" onClick={() => onBuildSafehouse?.(cityId)} className={btnClass} style={btnStyle}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
           <SafehouseIcon size={13} color="rgba(0,240,255,0.5)" />
           BUILD SAFEHOUSE
@@ -240,7 +240,7 @@ export default function CIAIntelBox({
         <div className="mobile-handle-bar"></div>
       </div>
 
-      <div className="cia-box-header">
+      <div className="cia-box-header" data-tour="cia-header">
         <div className="cia-glow-indicator animate-ping"></div>
         <h3 className="text-cyber">TACTICAL REPORT</h3>
         {onClose && (
@@ -289,7 +289,7 @@ export default function CIAIntelBox({
         )}
 
         {/* Safehouses Status */}
-        <div className="cia-section">
+        <div className="cia-section" data-tour="cia-safehouse-status">
           <h4 className="cia-sub-title">
             <SafehouseIcon size={12} color="var(--cyan)" style={{ marginRight: '4px' }} />
             SAFEHOUSE ASSETS
@@ -331,7 +331,7 @@ export default function CIAIntelBox({
 
 
         {/* Field Intelligence Force */}
-        <div className="cia-section">
+        <div className="cia-section" data-tour="cia-agent-section">
           <h4 className="cia-sub-title"><Users size={12} /> FIELD INTEL FORCE</h4>
           {localAgents.length === 0 ? (
             <div className="text-dim font-mono text-[10px] py-1">None</div>
@@ -361,7 +361,7 @@ export default function CIAIntelBox({
                     {activeAgentId === a.id && !isMoved && (
                       <div className="cia-agent-controls animate-fade-in">
                         {/* Task Assignment */}
-                        <div>
+                        <div data-tour="cia-agent-tasks">
                           <span className="cia-controls-label">TASK DIRECTIVES</span>
                           <div className="cia-task-button-grid">
                             {['FIND_SUSPECT', 'MONITOR_FINANCE', 'MONITOR_LOGISTICS', 'UNCOVER_SAFEHOUSE'].map(task => {
@@ -386,7 +386,7 @@ export default function CIAIntelBox({
 
                         {/* Movement Options */}
                         {a.cooldownRemaining === 0 && (
-                          <div>
+                          <div data-tour="cia-agent-movement">
                             <span className="cia-controls-label">MOVE TO CONNECTING CENTER</span>
                             <div className="cia-dispatch-list">
                               {currentConnections.length === 0 ? (
@@ -424,7 +424,7 @@ export default function CIAIntelBox({
         </div>
 
         {/* Combat Force */}
-        <div className="cia-section">
+        <div className="cia-section" data-tour="cia-combat-team">
           <h4 className="cia-sub-title"><Shield size={12} /> COMBAT FORCE</h4>
           {localTeams.length === 0 ? (
             <div className="text-dim font-mono text-[10px] py-1">None</div>
@@ -626,7 +626,7 @@ export default function CIAIntelBox({
 
         {/* Drone Aviation System */}
         {isFriendly && (
-          <div className="cia-section">
+          <div className="cia-section" data-tour="cia-drones">
             <h4 className="cia-sub-title"><DroneIcon size={12} color="var(--cyan)" /> DRONE AVIATION FORCE</h4>
 
             {/* Drone Base status / construct button */}

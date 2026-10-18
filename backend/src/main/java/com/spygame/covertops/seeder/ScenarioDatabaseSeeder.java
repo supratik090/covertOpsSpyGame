@@ -46,6 +46,7 @@ public class ScenarioDatabaseSeeder {
                         if (processedFiles.contains(file.getName())) continue;
                         try {
                             ScenarioConfig config = mapper.readValue(file, ScenarioConfig.class);
+                            config.setLastModified(file.lastModified());
                             String sId = config.getScenarioId();
                             scenarioRepository.save(config);
                             processedFiles.add(file.getName());

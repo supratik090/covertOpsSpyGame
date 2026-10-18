@@ -315,7 +315,9 @@ export default function MapView({
 
     const map = L.map(mapContainerRef.current, {
       zoomControl: false,
-      attributionControl: false
+      attributionControl: false,
+      tap: false // Disable Leaflet's tap handler — it conflicts with Capacitor's Android WebView
+                 // (internally references handleUserActivity which is not defined in WebView context)
     });
 
     map.fitBounds(bounds, { padding: [20, 20] });

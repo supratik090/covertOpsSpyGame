@@ -65,7 +65,7 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, hin
   }
 
   return (
-    <div className="vtab-bar">
+    <div className="vtab-bar" data-tour="vtab-bar">
       <div className="vtab-logo">
         <Shield />
       </div>
@@ -75,6 +75,7 @@ const VerticalTabBar = ({ activeTab, setActiveTab, clueCount, acceptedCount, hin
         return (
           <div
             key={tab.id}
+            data-tab={tab.id}
             className={`vtab ${isActive ? 'active' : ''} ${tab.flash ? 'flash-update' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >

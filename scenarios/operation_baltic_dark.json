@@ -1,0 +1,236 @@
+{
+  "scenarioId": "operation_baltic_dark",
+  "attackingCountry": "Eastern Deep Cover Unit",
+  "defendingCountry": "Nordic Maritime Defense",
+  "title": "Operation Baltic Dark",
+  "briefing": "Hostile naval saboteurs operating under commercial maritime cover are deploying high-yield underwater demolition charges along Baltic subsea energy and fiber trunklines. Protect the strategic island hub on Gotland before Turn 25.",
+  "attackerBriefing": "Infiltrate Baltic maritime channels, acquire underwater demolition payloads from regional ports, navigate undetected to Gotland Island, and execute a catastrophic cable severing operation.",
+  "targetCity": "gotland_terminal",
+  "targetVip": "Subsea Fiber & Energy Interconnector",
+  "attackForm": "SABOTAGE",
+  "maxTurns": 25,
+  "startingBudget": 5000000,
+  "mapBackground": "satellite",
+  "nodes": [
+    {
+      "id": "st_petersburg_hub",
+      "name": "St. Petersburg Maritime Command",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 80, "y": 20, "lat": 59.9343, "lng": 30.3351},
+      "connections": ["kronstadt_base", "narva_frontier", "helsinki_coast"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Admiralty Shipyard Pier", "Vasilevsky Island Docks", "Kanonersky Island Outpost", "Baltic Shipyard Berth", "Neva Delta Quay"]
+    },
+    {
+      "id": "kronstadt_base",
+      "name": "Kronstadt Fortress Island",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 74, "y": 22, "lat": 59.9961, "lng": 29.7649},
+      "connections": ["st_petersburg_hub", "narva_frontier", "tallinn_port"],
+      "availableFinance": ["ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["PORT_CONTAINER_CONTRABAND"],
+      "places": ["Naval Cathedral Square", "Fort Alexander Waterway", "Middle Harbor Jetty", "Petrovsky Dock", "Kotlin Causeway"]
+    },
+    {
+      "id": "narva_frontier",
+      "name": "Narva Border Crossing",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 70, "y": 32, "lat": 59.3797, "lng": 28.1791},
+      "connections": ["st_petersburg_hub", "kronstadt_base", "tallinn_port", "riga_harbor"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING"],
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"],
+      "places": ["Hermann Castle Outpost", "Friendship Bridge Post", "Narva River Banks", "Kreenholm District", "Railway Checkpoint"]
+    },
+    {
+      "id": "tallinn_port",
+      "name": "Tallinn Gulf Port",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 55, "y": 28, "lat": 59.4370, "lng": 24.7535},
+      "connections": ["kronstadt_base", "narva_frontier", "helsinki_coast", "riga_harbor", "gotland_terminal"],
+      "availableFinance": ["RANSOMWARE_HACK", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Old City Harbor Docks", "Muuga Container Terminal", "Paljassaare Coast", "Kalamaja Safehouse", "Pirita Marina Pier"]
+    },
+    {
+      "id": "riga_harbor",
+      "name": "Riga Baltic Industrial Port",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 55, "y": 50, "lat": 56.9496, "lng": 24.1052},
+      "connections": ["narva_frontier", "tallinn_port", "klaipeda_port", "gotland_terminal"],
+      "availableFinance": ["HUNDI_HAWALA", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Freeport Wharf No 5", "Daugava River Anchorage", "Vecrīga Quarter", "Mangalsala Breakwater", "Kundzinsala Terminal"]
+    },
+    {
+      "id": "klaipeda_port",
+      "name": "Klaipeda Curonian Harbor",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 45, "y": 65, "lat": 55.7033, "lng": 21.1443},
+      "connections": ["riga_harbor", "kaliningrad_naval", "gotland_terminal"],
+      "availableFinance": ["DRUG_SALES"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Curonian Lagoon Spit", "Cruise Ship Terminal", "Melnrage Coast Post", "Smiltyne Ferry Wharf", "Lithuanian Navy Berth"]
+    },
+    {
+      "id": "kaliningrad_naval",
+      "name": "Kaliningrad Enclave Naval Base",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 40, "y": 78, "lat": 54.7104, "lng": 20.4522},
+      "connections": ["klaipeda_port", "gotland_terminal", "stockholm_port"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Baltiysk Naval Port", "Pregolya River Basin", "Svetly Shipyard Pier", "Chkalovsk Airfield Outpost", "Pillau Fortress"]
+    },
+    {
+      "id": "stockholm_port",
+      "name": "Stockholm Naval Archipelago",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 30, "y": 35, "lat": 59.3293, "lng": 18.0686},
+      "connections": ["helsinki_coast", "kaliningrad_naval", "gotland_terminal"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "VERY_HIGH",
+      "places": ["Skeppsholmen Naval Base", "Värtahamnen Ferry Docks", "Djurgården Coastal Outpost", "Nacka Strand Terminal", "Muskö Naval Tunnel Complex"]
+    },
+    {
+      "id": "helsinki_coast",
+      "name": "Helsinki Coast Guard Station",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 52, "y": 18, "lat": 60.1699, "lng": 24.9384},
+      "connections": ["st_petersburg_hub", "tallinn_port", "stockholm_port"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Suomenlinna Sea Fortress", "Katajanokka Quay", "Vuosaari Deepwater Pier", "Santahamina Military Island", "West Harbor Berth"]
+    },
+    {
+      "id": "gotland_terminal",
+      "name": "Gotland Subsea Cable Terminal",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 38, "y": 48, "lat": 57.5000, "lng": 18.5000},
+      "connections": ["tallinn_port", "riga_harbor", "klaipeda_port", "kaliningrad_naval", "stockholm_port"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Visby Harbor Docks", "Slite Port Cable Station", "Tofta Radar Command", "Fårö Sound Watchpost", "Tingstäde Subsea Hub"]
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "gotland_terminal"},
+    {"cityId": "stockholm_port"},
+    {"cityId": "helsinki_coast"},
+    {"cityId": "tallinn_port"}
+  ],
+  "attackerNames": [
+    "Ilya Voronin",
+    "Mikhail Gorshkov",
+    "Pavel Danilov",
+    "Sergei Belov"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Henrik Lindqvist",
+      "codename": "TRIDENT",
+      "startingCity": "stockholm_port",
+      "skills": {"humint": 80, "sigint": 85, "infiltration": 80, "survivability": 80}
+    },
+    {
+      "id": 2,
+      "name": "Astrid Berg",
+      "codename": "NORTH STAR",
+      "startingCity": "gotland_terminal",
+      "skills": {"humint": 85, "sigint": 85, "infiltration": 75, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "Eero Virtanen",
+      "codename": "BLIZZARD",
+      "startingCity": "helsinki_coast",
+      "skills": {"humint": 75, "sigint": 90, "infiltration": 70, "survivability": 75}
+    },
+    {
+      "id": 4,
+      "name": "Jonas Tamm",
+      "codename": "BALTIC",
+      "startingCity": "tallinn_port",
+      "skills": {"humint": 90, "sigint": 45, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "Lars Soderberg",
+      "codename": "DRAKEN",
+      "startingCity": "gotland_terminal",
+      "skills": {"humint": 70, "sigint": 75, "infiltration": 85, "survivability": 80}
+    },
+    {
+      "id": 6,
+      "name": "Mikael Salo",
+      "codename": "FROST",
+      "startingCity": "stockholm_port",
+      "skills": {"humint": 60, "sigint": 80, "infiltration": 85, "survivability": 90}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "Gotland Coastal Battlegroup",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "gotland_terminal",
+      "skills": {"combat": 95, "stealth": 80, "mobility": 85}
+    },
+    {
+      "id": 2,
+      "name": "Stockholm Archipelago Unit",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "stockholm_port",
+      "skills": {"combat": 85, "stealth": 85, "mobility": 80}
+    },
+    {
+      "id": 3,
+      "name": "Tallinn Strike Unit",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "tallinn_port",
+      "skills": {"combat": 80, "stealth": 90, "mobility": 80}
+    },
+    {
+      "id": 4,
+      "name": "Finnish Gulf Patrol",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "helsinki_coast",
+      "skills": {"combat": 85, "stealth": 80, "mobility": 85}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 50000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 20000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "SATELLITE", "cityId": "gotland_terminal"},
+    {"type": "WIRE_TAP", "cityId": "tallinn_port"}
+  ],
+  "logisticsMapping": {
+    "SABOTAGE": {
+      "itemName": "Subsea Acoustic Detonation Demolition Charges",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "SABOTAGE": {
+      "itemName": "Baltic Offshore Clearing Wire",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}
