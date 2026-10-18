@@ -1,7 +1,7 @@
 import React from 'react';
-import { Activity, LogOut } from 'lucide-react';
+import { Activity, LogOut, HelpCircle } from 'lucide-react';
 
-const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit }) => {
+const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit, onOpenTour }) => {
   if (!session) return null;
 
   const { budget, currentTurn, maxTurns, heatPercentage, cobraAlertLevel, status } = session;
@@ -25,7 +25,7 @@ const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit }) => {
   const cobra = parseCobraLevel(cobraAlertLevel);
 
   return (
-    <div className="status-bar">
+    <div className="status-bar" data-tour="status-bar">
       <div className="status-item">
         <span className="label">BUDGET</span>
         <span className="value text-green">${budget?.toLocaleString()}</span>
@@ -69,6 +69,7 @@ const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit }) => {
       
       <button 
         className="end-turn-btn" 
+        data-tour="end-turn-btn"
         onClick={onEndTurn}
         disabled={loading || status !== 'ACTIVE'}
       >
@@ -77,7 +78,17 @@ const StatusBar = ({ session, covertActions, onEndTurn, loading, onExit }) => {
         {covertActions?.length > 0 && <span className="action-badge">{covertActions.length}</span>}
       </button>
 
-      <button className="cyber-btn sm red" onClick={onExit}>
+      {onOpenTour && (
+        <button 
+          className="cyber-btn sm cyan" 
+          onClick={onOpenTour} 
+          title="Tactical Operations Guide"
+        >
+          <HelpCircle size={18} />
+        </button>
+      )}
+
+      <button className="cyber-btn sm red" onClick={onExit} title="Exit Operations">
         <LogOut size={18} />
       </button>
     </div>

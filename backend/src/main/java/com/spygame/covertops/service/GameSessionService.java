@@ -103,7 +103,7 @@ public class GameSessionService {
     }
 
     public List<ScenarioConfig> getAvailableScenarios() {
-        return scenarioConfigRepository.findAll();
+        return scenarioConfigRepository.findAllByOrderByLastModifiedDesc();
     }
 
     public GameSession assessClue(UUID sessionId, int clueIndex, String assessment) {

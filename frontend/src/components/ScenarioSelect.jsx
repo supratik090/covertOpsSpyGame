@@ -6,12 +6,18 @@ import { fetchLeaderboard, fetchMyScores } from '../utils/scoresApi';
 const getCountryFlag = (country) => {
   if (!country) return '';
   const c = country.toLowerCase().trim();
-  if (c === 'india') return '🇮🇳';
-  if (c === 'pakistan') return '🇵🇰';
-  if (c === 'bangladesh') return '🇧🇩';
-  if (c === 'israel') return '🇮🇱';
-  if (c === 'iran') return '🇮🇷';
-  return '';
+  if (c.includes('india')) return '🇮🇳';
+  if (c.includes('pakistan')) return '🇵🇰';
+  if (c.includes('bangladesh')) return '🇧🇩';
+  if (c.includes('israel')) return '🇮🇱';
+  if (c.includes('iran')) return '🇮🇷';
+  if (c.includes('korea') || c.includes('northern')) return '🇰🇵';
+  if (c.includes('rok') || c.includes('south korea')) return '🇰🇷';
+  if (c.includes('yemen') || c.includes('insurgent') || c.includes('mandeb')) return '🇾🇪';
+  if (c.includes('maritime') || c.includes('coalition')) return '⚓';
+  if (c.includes('interpol') || c.includes('iaea') || c.includes('syndicate')) return '☢️';
+  if (c.includes('nordic') || c.includes('baltic') || c.includes('eastern')) return '🌊';
+  return '🌐';
 };
 
 const ScenarioSelect = ({
@@ -62,7 +68,17 @@ const ScenarioSelect = ({
   const archivedSessions = sessions.filter(s => s.status !== 'ACTIVE');
 
   const activeScenarioIds = new Set(activeSessions.map(s => s.scenarioId));
+  // Render available scenarios exactly as delivered by the backend (descending order of lastModified)
   const availableScenarios = scenarios.filter(s => !activeScenarioIds.has(s.scenarioId));
+
+  // Default selection to first available scenario if none is selected
+  useEffect(() => {
+    if (availableScenarios.length > 0) {
+      if (!selectedScenarioId || !availableScenarios.some(s => s.scenarioId === selectedScenarioId)) {
+        setSelectedScenarioId(availableScenarios[0].scenarioId);
+      }
+    }
+  }, [availableScenarios, selectedScenarioId, setSelectedScenarioId]);
 
   return (
     <div className="select-screen">
@@ -285,6 +301,11 @@ const ScenarioSelect = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <h3 style={{ margin: 0 }}>
                     {scenario.title} 
+                    {scenario.lastModified && scenario.lastModified >= 1790000000000 && (
+                      <span className="cia-tag cyan" style={{ background: 'rgba(0, 240, 255, 0.15)', color: '#00f0ff', border: '1px solid rgba(0, 240, 255, 0.4)', fontSize: '8.5px', padding: '2px 6px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle', fontWeight: 'bold' }}>
+                        ★ NEW
+                      </span>
+                    )}
                     {isFullSuccess && (
                       <span className="cia-tag green" style={{ background: 'rgba(0, 255, 102, 0.1)', color: '#00ff66', border: '1px solid rgba(0, 255, 102, 0.4)', fontSize: '8.5px', padding: '2px 6px', borderRadius: '3px', marginLeft: '8px', display: 'inline-block', verticalAlign: 'middle', fontWeight: 'bold' }}>
                         ✓ FULL VICTORY
@@ -376,7 +397,7 @@ const ScenarioSelect = ({
                     key={user.username}
                     style={{
                       display: 'flex',
-                      justify: 'space-between',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '6px 10px',
                       borderRadius: '4px',

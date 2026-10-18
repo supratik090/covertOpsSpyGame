@@ -10,6 +10,10 @@
     <meta property="og:title" content="SHADOW PROTOCOL" />
     <meta property="og:description" content="Hunt. Intercept. Neutralize. Before they reach the capital." />
     <meta name="theme-color" content="#050811" />
+    <script>
+      // Global fallback to prevent 'handleUserActivity is not defined' ReferenceError in WebView context
+      window.handleUserActivity = window.handleUserActivity || function() {};
+    </script>
   </head>
   <body>
     <div id="root"></div>

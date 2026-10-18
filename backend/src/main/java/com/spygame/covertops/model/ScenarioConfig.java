@@ -2,13 +2,16 @@ package com.spygame.covertops.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 import java.util.Map;
 
 @Document(collection = "scenarios")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ScenarioConfig {
     @Id
     private String scenarioId;
+    private Long lastModified;
     private String title;
     private String briefing;
     private String attackerBriefing;
@@ -102,4 +105,7 @@ public class ScenarioConfig {
 
     public Map<String, Map<String, Object>> getFinanceMapping() { return financeMapping; }
     public void setFinanceMapping(Map<String, Map<String, Object>> financeMapping) { this.financeMapping = financeMapping; }
+
+    public Long getLastModified() { return lastModified; }
+    public void setLastModified(Long lastModified) { this.lastModified = lastModified; }
 }
