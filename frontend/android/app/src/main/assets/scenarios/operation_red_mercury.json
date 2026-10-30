@@ -1,0 +1,236 @@
+{
+  "scenarioId": "operation_red_mercury",
+  "attackingCountry": "Proliferation Syndicate",
+  "defendingCountry": "IAEA & Interpol Task Force",
+  "title": "Operation Red Mercury",
+  "briefing": "Intelligence intercepts confirm a transnational proliferation syndicate has acquired weapons-grade nuclear material from an abandoned Central Asian facility. The courier is transporting the payload across the Caspian corridor. Intercept the courier before they reach the Bosphorus Maritime Gateway in Istanbul.",
+  "attackerBriefing": "Transport the weaponized nuclear material across the Caspian corridor to the Bosphorus terminal in Istanbul. Evade Interpol sweeps, establish safehouses in hostile sectors, and deliver the payload.",
+  "targetCity": "istanbul_terminal",
+  "targetVip": "Enriched Nuclear Core",
+  "attackForm": "SMUGGLING",
+  "maxTurns": 25,
+  "startingBudget": 5000000,
+  "mapBackground": "satellite",
+  "nodes": [
+    {
+      "id": "aktau_port",
+      "name": "Aktau Caspian Port",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 55, "y": 35, "lat": 43.6481, "lng": 51.1722},
+      "connections": ["ashgabat_hub", "turkmenbashi_port", "baku_port"],
+      "availableFinance": ["CRYPTO_WALLET_SWEEP", "COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["PORT_CONTAINER_CONTRABAND"],
+      "places": ["Terminal Pier 4", "Industrial Embankment", "Seaside Microdistrict", "Oil Wharf", "Mangystau Depot"]
+    },
+    {
+      "id": "ashgabat_hub",
+      "name": "Ashgabat Central Hub",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 70, "y": 55, "lat": 37.9601, "lng": 58.3261},
+      "connections": ["aktau_port", "turkmenbashi_port", "tehran_command"],
+      "availableFinance": ["HUNDI_HAWALA", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Neutrality Monument", "Bitarap Avenue", "Gulanly Bazaar", "Choganly District", "Railway Terminal"]
+    },
+    {
+      "id": "turkmenbashi_port",
+      "name": "Turkmenbashi Ferry Harbor",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 58, "y": 48, "lat": 40.0231, "lng": 52.9697},
+      "connections": ["aktau_port", "ashgabat_hub", "baku_port", "tehran_command"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Ferry Berth No 2", "Awaza Boulevard", "Caspian Shipping Docks", "Kenar Depot", "Harbor Customs Yard"]
+    },
+    {
+      "id": "tehran_command",
+      "name": "Tehran Logistics Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 52, "y": 65, "lat": 35.6892, "lng": 51.3890},
+      "connections": ["ashgabat_hub", "turkmenbashi_port", "tabriz_outpost"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE", "ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Grand Bazaar Vaults", "Tajrish Square", "Enghelab District", "Mehrabad Logistics", "Sadeghieh Terminal"]
+    },
+    {
+      "id": "tabriz_outpost",
+      "name": "Tabriz Frontier Post",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 42, "y": 52, "lat": 38.0962, "lng": 46.2738},
+      "connections": ["tehran_command", "yerevan_sector", "baku_port"],
+      "availableFinance": ["DRUG_SALES"],
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"],
+      "places": ["Historic Bazaar", "El Goli District", "Abraslan Outpost", "Valiasr Avenue", "Railway Freight Hub"]
+    },
+    {
+      "id": "yerevan_sector",
+      "name": "Yerevan Transit Sector",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 38, "y": 45, "lat": 40.1792, "lng": 44.4991},
+      "connections": ["tabriz_outpost", "tbilisi_cross", "baku_port"],
+      "availableFinance": ["HUNDI_HAWALA"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Republic Square", "Kentron Alleyways", "Malatia Warehouse", "Nor Nork Heights", "Arabkir Depot"]
+    },
+    {
+      "id": "tbilisi_cross",
+      "name": "Tbilisi Overland Junction",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 37, "y": 38, "lat": 41.7151, "lng": 44.8271},
+      "connections": ["yerevan_sector", "batumi_port", "baku_port"],
+      "availableFinance": ["TRIBAL_TOLLS", "RANSOMWARE_HACK"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Old Town Baths", "Rustaveli Environs", "Didube Transit Station", "Vake Enclave", "Samgori Freight Yard"]
+    },
+    {
+      "id": "batumi_port",
+      "name": "Batumi Black Sea Station",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 30, "y": 40, "lat": 41.6168, "lng": 41.6367},
+      "connections": ["tbilisi_cross", "istanbul_terminal"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Seaside Boulevard", "Port Berth 1", "Old Boulevard Quarter", "Gonio Coastal Post", "Chaquvi Junction"]
+    },
+    {
+      "id": "baku_port",
+      "name": "Baku Caspian Defense Base",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 48, "y": 44, "lat": 40.4093, "lng": 49.8671},
+      "connections": ["aktau_port", "turkmenbashi_port", "tabriz_outpost", "yerevan_sector", "tbilisi_cross"],
+      "defenses": "VERY_HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Baku Bay Port", "Icherisheher Gates", "Nizami Street Safehouse", "Yasamal District", "Bibiheybat Base"]
+    },
+    {
+      "id": "istanbul_terminal",
+      "name": "Istanbul Maritime Terminal",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 12, "y": 42, "lat": 41.0082, "lng": 28.9784},
+      "connections": ["batumi_port", "tbilisi_cross"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Galata Port Terminal", "Karaköy Docks", "Eminönü Piers", "Sirkeci Vault", "Haydarpaşa Terminal"]
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "istanbul_terminal"},
+    {"cityId": "baku_port"},
+    {"cityId": "batumi_port"},
+    {"cityId": "tbilisi_cross"}
+  ],
+  "attackerNames": [
+    "Dmitri Volkov",
+    "Arsen Sarkisyan",
+    "Rustam Kadyrov",
+    "Farid Al-Mansoor"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Alexander Hayes",
+      "codename": "ORION",
+      "startingCity": "istanbul_terminal",
+      "skills": {"humint": 85, "sigint": 85, "infiltration": 70, "survivability": 70}
+    },
+    {
+      "id": 2,
+      "name": "Nadia Petrova",
+      "codename": "SIREN",
+      "startingCity": "baku_port",
+      "skills": {"humint": 75, "sigint": 90, "infiltration": 85, "survivability": 80}
+    },
+    {
+      "id": 3,
+      "name": "Viktor Vance",
+      "codename": "COBALT",
+      "startingCity": "batumi_port",
+      "skills": {"humint": 80, "sigint": 70, "infiltration": 75, "survivability": 85}
+    },
+    {
+      "id": 4,
+      "name": "Kamil Rahimov",
+      "codename": "NOMAD",
+      "startingCity": "tbilisi_cross",
+      "skills": {"humint": 90, "sigint": 60, "infiltration": 90, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "Elena Rostova",
+      "codename": "MIRAGE",
+      "startingCity": "baku_port",
+      "skills": {"humint": 70, "sigint": 80, "infiltration": 80, "survivability": 85}
+    },
+    {
+      "id": 6,
+      "name": "Soran Demir",
+      "codename": "FALCON",
+      "startingCity": "istanbul_terminal",
+      "skills": {"humint": 60, "sigint": 75, "infiltration": 85, "survivability": 90}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "Alpha Strike",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "tbilisi_cross",
+      "skills": {"combat": 85, "stealth": 80, "mobility": 80}
+    },
+    {
+      "id": 2,
+      "name": "Caspian Watch",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "baku_port",
+      "skills": {"combat": 80, "stealth": 85, "mobility": 85}
+    },
+    {
+      "id": 3,
+      "name": "Bosphorus Garrison",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "istanbul_terminal",
+      "skills": {"combat": 90, "stealth": 75, "mobility": 80}
+    },
+    {
+      "id": 4,
+      "name": "Black Sea Guard",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "batumi_port",
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 50000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 20000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "WIRE_TAP", "cityId": "baku_port"},
+    {"type": "CCTV", "cityId": "tbilisi_cross"}
+  ],
+  "logisticsMapping": {
+    "SMUGGLING": {
+      "itemName": "Shielded Lead-Lined Transportation Cask",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "SMUGGLING": {
+      "itemName": "Cryptographic Black-Market Escrow",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}

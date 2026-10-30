@@ -144,6 +144,15 @@ export default function App() {
     }
   };
 
+  // Telemetry Heartbeat: records playtime in minutes while session is active
+  useEffect(() => {
+    if (!session?.id) return;
+    const interval = setInterval(() => {
+      fetch(`${GAME_API_BASE}/${session.id}/heartbeat?seconds=30`).catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [session?.id]);
+
   const fetchSessions = async () => {
     try {
       const res = await fetchWithRetry(`${GAME_API_BASE}/list`, {}, (a, m) => setRetryState({ attempt: a, max: m }));

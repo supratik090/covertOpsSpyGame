@@ -1,0 +1,236 @@
+{
+  "scenarioId": "operation_babel_mandeb",
+  "attackingCountry": "Insurgent Command",
+  "defendingCountry": "Combined Maritime Coalition",
+  "title": "Operation Bab-el-Mandeb",
+  "briefing": "Hostile insurgent cells operating along the Yemeni coast are coordinating a catastrophic sabotage strike against maritime shipping in the Bab-el-Mandeb strait. Intercept operatives, neutralize coastal safehouses, and protect the primary crude export pier in Djibouti before Turn 25.",
+  "attackerBriefing": "Infiltrate the Bab-el-Mandeb strait, evade coalition maritime surveillance, establish safehouses in hostile coastal sectors, and plant high-yield limpet ordnance at the Djibouti crude export terminal.",
+  "targetCity": "djibouti_port",
+  "targetVip": "Crude Export Pier & LNG Berth",
+  "attackForm": "SABOTAGE",
+  "maxTurns": 25,
+  "startingBudget": 5000000,
+  "mapBackground": "satellite",
+  "nodes": [
+    {
+      "id": "sanaa_citadel",
+      "name": "Sana'a Mountain Citadel",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 55, "y": 25, "lat": 15.3694, "lng": 44.1910},
+      "connections": ["hodeidah_port", "taiz_cross"],
+      "availableFinance": ["CROSS_BORDER_SMUGGLING", "LOCAL_PROTECTION_MONEY"],
+      "availableLogistics": ["MILITARY_ORDNANCE_THEFT"],
+      "places": ["Old Walled City", "Bab al-Yaman", "Hadda Enclave", "Jabal Nuqum Foothills", "Tahrir Square"]
+    },
+    {
+      "id": "hodeidah_port",
+      "name": "Hodeidah Smuggling Port",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 45, "y": 32, "lat": 14.7978, "lng": 42.9545},
+      "connections": ["sanaa_citadel", "taiz_cross", "perim_island", "assab_port"],
+      "availableFinance": ["DRUG_SALES", "ILLICIT_ARMS_SALES"],
+      "availableLogistics": ["BLACK_MARKET_IMPORT"],
+      "places": ["Fishermen Docks", "Corniche Outpost", "Salif Pier", "Katheeb Peninsula", "Customs Depot"]
+    },
+    {
+      "id": "taiz_cross",
+      "name": "Taiz Strategic Cross",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 52, "y": 45, "lat": 13.5795, "lng": 44.0209},
+      "connections": ["sanaa_citadel", "hodeidah_port", "aden_port", "perim_island"],
+      "availableFinance": ["TRIBAL_TOLLS"],
+      "availableLogistics": ["FRONTIER_ARMS_BAZAAR"],
+      "places": ["Al-Qahira Castle", "Bab Musa Quarter", "Sabir Mountain Pass", "Hawban Junction", "Al-Noor Environs"]
+    },
+    {
+      "id": "aden_port",
+      "name": "Aden Deepwater Harbor",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 62, "y": 55, "lat": 12.7855, "lng": 45.0187},
+      "connections": ["taiz_cross", "mukalla_coast", "perim_island", "berbera_harbor"],
+      "availableFinance": ["HUNDI_HAWALA", "CRYPTO_WALLET_SWEEP"],
+      "availableLogistics": ["PORT_CONTAINER_CONTRABAND"],
+      "places": ["Crater District", "Tawahi Naval Docks", "Mualla Wharf", "Khor Maksar", "Gold Mohur Beach"]
+    },
+    {
+      "id": "mukalla_coast",
+      "name": "Mukalla Coastal Station",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 80, "y": 48, "lat": 14.5425, "lng": 49.1242},
+      "connections": ["aden_port"],
+      "availableFinance": ["SWISS_ACCOUNT_WIRE"],
+      "availableLogistics": ["LOCAL_MINING_EXPLOSIVES"],
+      "places": ["Old Port Wharf", "Dis District", "Fowa Outpost", "Khalf Coastal Terminal", "Corniche Quay"]
+    },
+    {
+      "id": "asmara_sector",
+      "name": "Asmara Northern Border",
+      "territory": "HOSTILE_TERRITORY",
+      "coordinates": {"x": 22, "y": 22, "lat": 15.3229, "lng": 38.9251},
+      "connections": ["assab_port"],
+      "availableFinance": ["COMMERCIAL_FRONT_LOAN"],
+      "availableLogistics": ["BORDER_TUNNEL_SMUGGLE"],
+      "places": ["Harnet Avenue", "Medeber Market", "Godaif Sector", "Airport Outpost", "Forto Heights"]
+    },
+    {
+      "id": "assab_port",
+      "name": "Assab Maritime Station",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 38, "y": 48, "lat": 13.0059, "lng": 42.7402},
+      "connections": ["asmara_sector", "hodeidah_port", "perim_island", "djibouti_port"],
+      "defenses": "HIGH",
+      "counterEspionage": "HIGH",
+      "places": ["Assab Naval Jetty", "Refinery Wharf", "Old Italian Fort", "Central Quay", "Airport Perimeter"]
+    },
+    {
+      "id": "perim_island",
+      "name": "Perim Island Watchpost",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 48, "y": 58, "lat": 12.6569, "lng": 43.4150},
+      "connections": ["hodeidah_port", "taiz_cross", "aden_port", "assab_port", "djibouti_port"],
+      "defenses": "EXTREME",
+      "counterEspionage": "VERY_HIGH",
+      "places": ["Lighthouse Battery", "South Harbor Anchorage", "Old Coaling Station", "Runway Perimeter", "Radar Hill"]
+    },
+    {
+      "id": "berbera_harbor",
+      "name": "Berbera Coalition Base",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 60, "y": 80, "lat": 10.4396, "lng": 45.0143},
+      "connections": ["aden_port", "djibouti_port"],
+      "defenses": "HIGH",
+      "counterEspionage": "MEDIUM",
+      "places": ["Deepwater Container Pier", "Old Russian Runway", "Maritime Academy Point", "Gaza Marina", "Airport Garrison"]
+    },
+    {
+      "id": "djibouti_port",
+      "name": "Djibouti Crude Export Pier",
+      "territory": "HOME_TERRITORY",
+      "coordinates": {"x": 42, "y": 68, "lat": 11.5886, "lng": 43.1456},
+      "connections": ["perim_island", "assab_port", "berbera_harbor"],
+      "defenses": "EXTREME",
+      "counterEspionage": "EXTREME",
+      "places": ["Doraleh Oil Terminal", "Port Autonome Quays", "Camp Lemonnier Sector", "Heron Coastal Base", "Venice Quarter"]
+    }
+  ],
+  "startingDefenderSafehouses": [
+    {"cityId": "djibouti_port"},
+    {"cityId": "perim_island"},
+    {"cityId": "assab_port"},
+    {"cityId": "aden_port"}
+  ],
+  "attackerNames": [
+    "Abdul-Karim Al-Huthi",
+    "Tariq Al-Yamani",
+    "Yusuf Al-Bahr",
+    "Hussein Al-Fadli"
+  ],
+  "agents": [
+    {
+      "id": 1,
+      "name": "Nathaniel Drake",
+      "codename": "TRIDENT",
+      "startingCity": "djibouti_port",
+      "skills": {"humint": 80, "sigint": 85, "infiltration": 80, "survivability": 75}
+    },
+    {
+      "id": 2,
+      "name": "Amina Hassan",
+      "codename": "CORAL",
+      "startingCity": "perim_island",
+      "skills": {"humint": 90, "sigint": 70, "infiltration": 85, "survivability": 85}
+    },
+    {
+      "id": 3,
+      "name": "Liam Scott",
+      "codename": "HARPOON",
+      "startingCity": "assab_port",
+      "skills": {"humint": 75, "sigint": 90, "infiltration": 65, "survivability": 70}
+    },
+    {
+      "id": 4,
+      "name": "Zubair Al-Habib",
+      "codename": "GHOST",
+      "startingCity": "aden_port",
+      "skills": {"humint": 85, "sigint": 50, "infiltration": 95, "survivability": 90}
+    },
+    {
+      "id": 5,
+      "name": "Claire Vance",
+      "codename": "MONSOON",
+      "startingCity": "djibouti_port",
+      "skills": {"humint": 70, "sigint": 80, "infiltration": 75, "survivability": 80}
+    },
+    {
+      "id": 6,
+      "name": "Farhan Saeed",
+      "codename": "VANGUARD",
+      "startingCity": "berbera_harbor",
+      "skills": {"humint": 60, "sigint": 70, "infiltration": 85, "survivability": 90}
+    }
+  ],
+  "tacticalTeams": [
+    {
+      "id": 1,
+      "name": "Red Sea Recon",
+      "operatingCountry": "HOSTILE_TERRITORY",
+      "startingCity": "aden_port",
+      "skills": {"combat": 85, "stealth": 85, "mobility": 80}
+    },
+    {
+      "id": 2,
+      "name": "Perim Island Guard",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "perim_island",
+      "skills": {"combat": 85, "stealth": 80, "mobility": 85}
+    },
+    {
+      "id": 3,
+      "name": "Coalition Task Unit",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "djibouti_port",
+      "skills": {"combat": 90, "stealth": 75, "mobility": 80}
+    },
+    {
+      "id": 4,
+      "name": "Horn Combat Force",
+      "operatingCountry": "HOME_TERRITORY",
+      "startingCity": "assab_port",
+      "skills": {"combat": 80, "stealth": 80, "mobility": 80}
+    }
+  ],
+  "defensiveAssetCosts": {
+    "SATELLITE": 50000,
+    "CCTV": 30000,
+    "WIRE_TAP": 20000,
+    "FINANCE_MONITOR": 50000,
+    "PHONE_TAP": 20000,
+    "BIOMETRIC_SCAN": 35000,
+    "BORDER_GUARD": 40000,
+    "SIGNAL_JAMMER": 25000
+  },
+  "safehouseBuildCosts": {
+    "HOME_TERRITORY": 40000,
+    "HOSTILE_TERRITORY": 100000
+  },
+  "startingEspionageResources": [
+    {"type": "SATELLITE", "cityId": "perim_island"},
+    {"type": "WIRE_TAP", "cityId": "aden_port"}
+  ],
+  "logisticsMapping": {
+    "SABOTAGE": {
+      "itemName": "Submersible Magnetic Limpet Mine Array",
+      "cost": 150000,
+      "leadTime": 5,
+      "footprint": 30
+    }
+  },
+  "financeMapping": {
+    "SABOTAGE": {
+      "itemName": "Maritime Contraband Wire Transfer",
+      "cost": 50000,
+      "leadTime": 5,
+      "footprint": 10
+    }
+  }
+}

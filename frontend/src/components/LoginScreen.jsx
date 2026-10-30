@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Play, Mail, ShieldAlert, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Play, ShieldAlert, RefreshCw, Eye, EyeOff, ShieldCheck, UserCheck, HelpCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AUTH_API_BASE, HEALTH_API_URL } from '../config';
 import { fetchWithRetry } from '../utils/api';
 import RetrySpinner from './RetrySpinner';
+
+const PRESET_SECURITY_QUESTIONS = [
+  'What is your primary agency safehouse station?',
+  'What was your first covert operations callsign?',
+  'What was the codename of your inaugural mission?',
+  'What is your secret cryptographic cipher keyword?'
+];
 
 const LoginScreen = ({ onLoginSuccess }) => {
   const [loginMode, setLoginMode] = useState('LOGIN'); // 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD'
@@ -16,14 +23,17 @@ const LoginScreen = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [securityQuestion, setSecurityQuestion] = useState(PRESET_SECURITY_QUESTIONS[0]);
+  const [securityAnswer, setSecurityAnswer] = useState('berlin');
   const [loginError, setLoginError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
   const [retryState, setRetryState] = useState(null);
 
-  // Forgot Password state
-  const [forgotStep, setForgotStep] = useState(1); // 1: Request OTP, 2: Submit OTP & Reset
+  // Forgot Password / Recovery state
+  const [forgotStep, setForgotStep] = useState(1); // 1: Identify Operator, 2: Answer Secret Question & Reset
   const [forgotIdentifier, setForgotIdentifier] = useState('');
-  const [otp, setOtp] = useState('');
+  const [recoveredQuestion, setRecoveredQuestion] = useState('');
+  const [recoveryAnswer, setRecoveryAnswer] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [maskedEmail, setMaskedEmail] = useState('');
@@ -42,7 +52,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
       } else {
         setBackendStatus('down');
       }
-    } catch (err) {
+    } catch {
       setBackendStatus('down');
     }
   };
@@ -67,7 +77,8 @@ const LoginScreen = ({ onLoginSuccess }) => {
     setEmail('');
     setPassword('');
     setForgotIdentifier('');
-    setOtp('');
+    setRecoveredQuestion('');
+    setRecoveryAnswer('');
     setNewPassword('');
     setMaskedEmail('');
     setForgotStep(1);
@@ -96,7 +107,13 @@ const LoginScreen = ({ onLoginSuccess }) => {
           onLoginSuccess();
         }
       } else if (loginMode === 'REGISTER') {
-        const payload = { username, email, password };
+        const payload = {
+          username,
+          email,
+          password,
+          securityQuestion,
+          securityAnswer: securityAnswer.trim().toLowerCase()
+        };
         const res = await fetchWithRetry(`${AUTH_API_BASE}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -126,7 +143,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleRequestOtp = async (e) => {
+  const handleRequestSecurityChallenge = async (e) => {
     e.preventDefault();
     resetAllStates();
 
@@ -148,11 +165,12 @@ const LoginScreen = ({ onLoginSuccess }) => {
       if (res.ok) {
         const data = await res.json();
         setMaskedEmail(data.email || '');
-        setForgotMessage(data.message || 'OTP CODE DISPATCHED');
+        setRecoveredQuestion(data.securityQuestion || data.message || 'What is your primary agency safehouse station?');
+        setForgotMessage('SECURITY CHALLENGE RETRIEVED. VERIFY ANSWER TO PROCEED.');
         setForgotStep(2);
       } else {
         const errText = await res.text();
-        let errMsg = 'OTP REQUEST FAILED';
+        let errMsg = 'IDENTIFIER VERIFICATION FAILED';
         try {
           const errJson = JSON.parse(errText);
           errMsg = errJson.message || errJson.error || errMsg;
@@ -163,17 +181,17 @@ const LoginScreen = ({ onLoginSuccess }) => {
       }
     } catch (err) {
       console.error(err);
-      setForgotError('CONNECTION TO DISPATCH SERVICE FAILED');
+      setForgotError('CONNECTION TO RECOVERY SERVICE FAILED');
       setRetryState(null);
     }
   };
 
-  const handleResetPassword = async (e) => {
+  const handleResetWithSecretAnswer = async (e) => {
     e.preventDefault();
     resetAllStates();
 
-    if (!otp.trim() || !newPassword.trim()) {
-      setForgotError('ENTER BOTH OTP PASSCODE AND NEW PASSPHRASE');
+    if (!recoveryAnswer.trim() || !newPassword.trim()) {
+      setForgotError('ENTER BOTH SECURITY ANSWER AND NEW PASSPHRASE');
       return;
     }
 
@@ -185,19 +203,20 @@ const LoginScreen = ({ onLoginSuccess }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           identifier: forgotIdentifier,
-          otp: otp.trim(),
+          securityAnswer: recoveryAnswer.trim().toLowerCase(),
+          otp: recoveryAnswer.trim().toLowerCase(),
           newPassword: newPassword.trim()
         })
       }, onRetry);
       setRetryState(null);
 
       if (res.ok) {
-        setRegisterSuccess('PASSPHRASE RESET SUCCESSFUL. LOG IN WITH YOUR NEW CREDS.');
+        setRegisterSuccess('PASSPHRASE RESET SUCCESSFUL. AUTHENTICATE WITH YOUR NEW CREDS.');
         setLoginMode('LOGIN');
         setUsername(forgotIdentifier);
         setPassword('');
         setForgotStep(1);
-        setOtp('');
+        setRecoveryAnswer('');
         setNewPassword('');
       } else {
         const errText = await res.text();
@@ -231,19 +250,25 @@ const LoginScreen = ({ onLoginSuccess }) => {
           onClick={checkBackendHealth}
           title={
             backendStatus === 'up'
-              ? 'Backend Status: Operational'
+              ? 'Backend Status: Operational (Embedded Local Engine)'
               : backendStatus === 'down'
               ? 'Backend Status: Unreachable (Click to recheck)'
               : 'Checking Backend Status...'
           }
           aria-label="Backend Status Indicator"
         />
+
+        {/* High-res App Icon Header */}
         <div className="auth-header">
-          <Key className="auth-icon" size={48} />
+          <div className="auth-icon-wrapper">
+            <img src="/hi_res_icon.png" alt="Covert Ops Shield" className="auth-app-icon" />
+            <div className="auth-icon-ring" />
+          </div>
           <h1 className="auth-title">SHADOW PROTOCOL</h1>
-          <p className="auth-subtitle">CLEARANCE TERMINAL — AUTHENTICATE TO OPERATE</p>
+          <p className="auth-subtitle">CLEARANCE TERMINAL · SECURE ENGINE</p>
         </div>
 
+        {/* Tabs */}
         <div className="auth-tabs">
           <button 
             className={`auth-tab ${loginMode === 'LOGIN' ? 'active' : ''}`}
@@ -265,6 +290,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
           </button>
         </div>
 
+        {/* LOGIN OR REGISTER FORM */}
         {loginMode !== 'FORGOT_PASSWORD' ? (
           <form className="auth-form" onSubmit={handleAuth} autoComplete="off">
             <div className="form-field">
@@ -275,6 +301,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
                 type="text" 
                 className="cyber-input" 
                 value={username}
+                placeholder={loginMode === 'LOGIN' ? 'Enter Callsign ID or Email' : 'Enter Callsign ID'}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="off"
                 required 
@@ -282,17 +309,47 @@ const LoginScreen = ({ onLoginSuccess }) => {
             </div>
 
             {loginMode === 'REGISTER' && (
-              <div className="form-field">
-                <label className="form-label">EMAIL ADDRESS</label>
-                <input 
-                  type="email" 
-                  className="cyber-input" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="off"
-                  required 
-                />
-              </div>
+              <>
+                <div className="form-field">
+                  <label className="form-label">EMAIL ADDRESS</label>
+                  <input 
+                    type="email" 
+                    className="cyber-input" 
+                    value={email}
+                    placeholder="operator@covertops.net"
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="off"
+                    required 
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">SECRET SECURITY QUESTION</label>
+                  <select
+                    className="cyber-input"
+                    value={securityQuestion}
+                    onChange={(e) => setSecurityQuestion(e.target.value)}
+                    style={{ background: 'var(--bg-deep)', color: 'var(--text-primary)', cursor: 'pointer' }}
+                  >
+                    {PRESET_SECURITY_QUESTIONS.map((q) => (
+                      <option key={q} value={q}>{q}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">SECRET ANSWER</label>
+                  <input 
+                    type="text" 
+                    className="cyber-input" 
+                    value={securityAnswer}
+                    placeholder="e.g. berlin"
+                    onChange={(e) => setSecurityAnswer(e.target.value)}
+                    autoComplete="off"
+                    required 
+                  />
+                </div>
+              </>
             )}
 
             <div className="form-field">
@@ -302,6 +359,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
                   type={showPassword ? 'text' : 'password'} 
                   className="cyber-input" 
                   value={password}
+                  placeholder="••••••••"
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
                   required 
@@ -323,7 +381,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
                 className="auth-link"
                 onClick={() => switchMode('FORGOT_PASSWORD')}
               >
-                FORGOT PASSPHRASE?
+                FORGOT PASSPHRASE? (SECRET QUESTION)
               </button>
             )}
 
@@ -336,15 +394,17 @@ const LoginScreen = ({ onLoginSuccess }) => {
             </button>
           </form>
         ) : (
+          /* SECRET QUESTION RECOVERY FORM */
           <div className="auth-form">
             {forgotStep === 1 ? (
-              <form onSubmit={handleRequestOtp} className="auth-form" autoComplete="off">
+              <form onSubmit={handleRequestSecurityChallenge} className="auth-form" autoComplete="off">
                 <div className="form-field">
                   <label className="form-label">OPERATOR ID OR REGISTERED EMAIL</label>
                   <input 
                     type="text" 
                     className="cyber-input" 
                     value={forgotIdentifier}
+                    placeholder="Enter operator callsign or email"
                     onChange={(e) => setForgotIdentifier(e.target.value)}
                     autoComplete="off"
                     required 
@@ -354,27 +414,42 @@ const LoginScreen = ({ onLoginSuccess }) => {
                 {forgotError && <div className="auth-error">{forgotError}</div>}
 
                 <button type="submit" className="cyber-btn lg">
-                  <Mail size={20} />
-                  <span>DISPATCH OTP CODE</span>
+                  <HelpCircle size={20} />
+                  <span>RETRIEVE SECRET QUESTION</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  className="auth-link"
+                  style={{ alignSelf: 'center', marginTop: '4px' }}
+                  onClick={() => switchMode('LOGIN')}
+                >
+                  RETURN TO LOGIN TERMINAL
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleResetPassword} className="auth-form" autoComplete="off">
+              <form onSubmit={handleResetWithSecretAnswer} className="auth-form" autoComplete="off">
                 {maskedEmail && (
                   <div className="auth-info">
-                    OTP PASSCODE SENT TO: <strong>{maskedEmail}</strong>
+                    OPERATOR RECORD: <strong>{forgotIdentifier}</strong> ({maskedEmail})
                   </div>
                 )}
                 {forgotMessage && <div className="auth-success">{forgotMessage}</div>}
 
+                {/* Secret Question Challenge Display */}
+                <div className="security-question-banner">
+                  <span className="security-question-badge">SECURITY CHALLENGE</span>
+                  <p className="security-question-text">{recoveredQuestion}</p>
+                </div>
+
                 <div className="form-field">
-                  <label className="form-label">6-DIGIT OTP PASSCODE</label>
+                  <label className="form-label">SECURITY ANSWER</label>
                   <input 
                     type="text" 
                     className="cyber-input" 
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    maxLength={6}
+                    value={recoveryAnswer}
+                    placeholder="Enter secret answer"
+                    onChange={(e) => setRecoveryAnswer(e.target.value)}
                     autoComplete="off"
                     required 
                   />
@@ -387,6 +462,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
                       type={showNewPassword ? 'text' : 'password'} 
                       className="cyber-input" 
                       value={newPassword}
+                      placeholder="••••••••"
                       onChange={(e) => setNewPassword(e.target.value)}
                       autoComplete="new-password"
                       required 
@@ -405,8 +481,8 @@ const LoginScreen = ({ onLoginSuccess }) => {
                 {forgotError && <div className="auth-error">{forgotError}</div>}
 
                 <button type="submit" className="cyber-btn lg">
-                  <ShieldAlert size={20} />
-                  <span>UPDATE PASSPHRASE</span>
+                  <ShieldCheck size={20} />
+                  <span>VERIFY & RESET PASSPHRASE</span>
                 </button>
 
                 <button 
@@ -416,7 +492,7 @@ const LoginScreen = ({ onLoginSuccess }) => {
                   onClick={() => { resetAllStates(); setForgotStep(1); }}
                 >
                   <RefreshCw size={12} style={{ display: 'inline', marginRight: '4px' }} />
-                  RESEND CODE / CHANGE IDENTIFIER
+                  CHANGE OPERATOR ID
                 </button>
               </form>
             )}

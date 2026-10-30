@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Shield, Eye, Crosshair, Radio, Lock } from 'lucide-react';
+import { Play, Crosshair } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
    Animated scanline / grid canvas background
@@ -22,7 +22,7 @@ const GridCanvas = () => {
       // Grid lines
       ctx.strokeStyle = 'rgba(0,255,170,0.04)';
       ctx.lineWidth = 1;
-      const cellW = 60, cellH = 60;
+      const cellW = 50, cellH = 50;
       for (let x = 0; x < W; x += cellW) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
       }
@@ -64,7 +64,7 @@ const GridCanvas = () => {
 /* ─────────────────────────────────────────────
    Typewriter hook
 ───────────────────────────────────────────── */
-const useTypewriter = (text, speed = 40) => {
+const useTypewriter = (text, speed = 35) => {
   const [displayed, setDisplayed] = useState('');
   const [done, setDone] = useState(false);
   useEffect(() => {
@@ -82,21 +82,6 @@ const useTypewriter = (text, speed = 40) => {
 };
 
 /* ─────────────────────────────────────────────
-   Feature pill card
-───────────────────────────────────────────── */
-const FeaturePill = ({ icon: Icon, label, delay }) => (
-  <motion.div
-    className="home-feature-pill"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay, duration: 0.5 }}
-  >
-    <Icon size={16} className="home-feature-icon" />
-    <span>{label}</span>
-  </motion.div>
-);
-
-/* ─────────────────────────────────────────────
    Screenshot card
 ───────────────────────────────────────────── */
 const ScreenshotCard = ({ src, label, fallbackLabel, delay }) => {
@@ -104,9 +89,9 @@ const ScreenshotCard = ({ src, label, fallbackLabel, delay }) => {
   return (
     <motion.div
       className="home-screenshot-card"
-      initial={{ opacity: 0, scale: 0.92 }}
+      initial={{ opacity: 0, scale: 0.94 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay, duration: 0.5 }}
+      transition={{ delay, duration: 0.4 }}
       whileHover={{ scale: 1.03, y: -4 }}
     >
       {!hasError ? (
@@ -134,11 +119,11 @@ const HomeScreen = ({ onPlay }) => {
   const [phase, setPhase] = useState(0); // 0=boot, 1=ready
   const { displayed: bootText } = useTypewriter(
     '> INITIALIZING SHADOW PROTOCOL... SECURE CHANNEL ESTABLISHED.',
-    28
+    25
   );
 
   useEffect(() => {
-    const t = setTimeout(() => setPhase(1), 2200);
+    const t = setTimeout(() => setPhase(1), 1800);
     return () => clearTimeout(t);
   }, []);
 
@@ -175,7 +160,7 @@ const HomeScreen = ({ onPlay }) => {
           <motion.div
             className="home-boot-overlay"
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.5 }}
           >
             <span className="home-boot-text">{bootText}<span className="home-boot-cursor">█</span></span>
           </motion.div>
@@ -189,29 +174,30 @@ const HomeScreen = ({ onPlay }) => {
             className="home-content"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.7 }}
           >
             {/* ── HERO ── */}
             <div className="home-hero">
-              {/* Logo mark */}
+              {/* App Logo */}
               <motion.div
-                className="home-logo-mark"
-                initial={{ scale: 0, rotate: -90 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: 'spring', stiffness: 120, delay: 0.1 }}
+                className="home-app-icon-container"
+                initial={{ scale: 0.7, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 140, damping: 15, delay: 0.1 }}
               >
-                <Shield size={52} />
-                <div className="home-logo-ring" />
+                <div className="home-icon-frame">
+                  <img src="/hi_res_icon.png" alt="Shadow Protocol Logo" className="home-app-icon" />
+                  <div className="home-icon-radar-glow" />
+                </div>
               </motion.div>
 
-              {/* Title */}
+              {/* Title & Tagline */}
               <motion.div
                 className="home-title-block"
-                initial={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, y: -16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, duration: 0.5 }}
+                transition={{ delay: 0.25, duration: 0.4 }}
               >
-                <span className="home-eyebrow">CLASSIFIED · EYES ONLY</span>
                 <h1 className="home-title">
                   <span className="home-title-shadow">SHADOW</span>
                   <span className="home-title-protocol">PROTOCOL</span>
@@ -222,38 +208,34 @@ const HomeScreen = ({ onPlay }) => {
                 </p>
               </motion.div>
 
-              {/* Feature pills */}
-              <div className="home-features">
-                <FeaturePill icon={Eye}       label="INTELLIGENCE OPS"   delay={0.4} />
-                <FeaturePill icon={Crosshair} label="TACTICAL RAIDS"     delay={0.5} />
-                <FeaturePill icon={Radio}     label="SIGNAL INTERCEPTS"  delay={0.6} />
-                <FeaturePill icon={Lock}      label="COVERT SAFEHOUSES"  delay={0.7} />
+              {/* Action Button */}
+              <div className="home-cta-block">
+                <motion.button
+                  id="home-play-btn"
+                  className="home-play-btn"
+                  onClick={onPlay}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5, type: 'spring', stiffness: 220 }}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
+                >
+                  <div className="home-play-btn-primary">
+                    <Play size={20} fill="currentColor" />
+                    <span>INITIATE OPERATION</span>
+                  </div>
+                  <span className="home-play-btn-glow" />
+                </motion.button>
+
+                <motion.p
+                  className="home-hint"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.5 }}
+                  transition={{ delay: 0.7 }}
+                >
+                  Authenticate to access classified mission files
+                </motion.p>
               </div>
-
-              {/* CTA */}
-              <motion.button
-                id="home-play-btn"
-                className="home-play-btn"
-                onClick={onPlay}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.85, type: 'spring', stiffness: 200 }}
-                whileHover={{ scale: 1.07 }}
-                whileTap={{ scale: 0.96 }}
-              >
-                <Play size={22} fill="currentColor" />
-                <span>INITIATE OPERATION</span>
-                <span className="home-play-btn-glow" />
-              </motion.button>
-
-              <motion.p
-                className="home-hint"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.45 }}
-                transition={{ delay: 1.2 }}
-              >
-                Authenticate to access classified mission files
-              </motion.p>
             </div>
 
             {/* ── SCREENSHOTS ── */}
@@ -262,7 +244,7 @@ const HomeScreen = ({ onPlay }) => {
                 className="home-section-header"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.9 }}
+                transition={{ delay: 0.8 }}
               >
                 <span className="home-section-line" />
                 <span className="home-section-label">OPERATION PREVIEW</span>
@@ -270,7 +252,7 @@ const HomeScreen = ({ onPlay }) => {
               </motion.div>
               <div className="home-screenshots-grid">
                 {screenshots.map((s, i) => (
-                  <ScreenshotCard key={s.label} {...s} delay={1.0 + i * 0.12} />
+                  <ScreenshotCard key={s.label} {...s} delay={0.9 + i * 0.1} />
                 ))}
               </div>
             </div>
@@ -279,8 +261,8 @@ const HomeScreen = ({ onPlay }) => {
             <motion.div
               className="home-footer"
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.4 }}
-              transition={{ delay: 1.5 }}
+              animate={{ opacity: 0.5 }}
+              transition={{ delay: 1.2 }}
             >
               <span>SHADOW PROTOCOL</span>
               <span className="home-footer-dot">·</span>
