@@ -12,7 +12,7 @@ const PRESET_SECURITY_QUESTIONS = [
   'What is your secret cryptographic cipher keyword?'
 ];
 
-const LoginScreen = ({ onLoginSuccess }) => {
+const LoginScreen = ({ onLoginSuccess, onBack }) => {
   const [loginMode, setLoginMode] = useState('LOGIN'); // 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD'
   
   // Backend health status state ('checking' | 'up' | 'down')
@@ -388,8 +388,8 @@ const LoginScreen = ({ onLoginSuccess }) => {
             {loginError && <div className="auth-error">{loginError}</div>}
             {registerSuccess && <div className="auth-success">{registerSuccess}</div>}
 
-            <button type="submit" className="cyber-btn lg">
-              <Play size={20} />
+            <button type="submit" className="cyber-btn-auth-primary">
+              <Play size={18} fill="#000" />
               <span>{loginMode === 'LOGIN' ? 'AUTHENTICATE' : 'ENROLL OPERATOR'}</span>
             </button>
           </form>
@@ -413,8 +413,8 @@ const LoginScreen = ({ onLoginSuccess }) => {
 
                 {forgotError && <div className="auth-error">{forgotError}</div>}
 
-                <button type="submit" className="cyber-btn lg">
-                  <HelpCircle size={20} />
+                <button type="submit" className="cyber-btn-auth-primary">
+                  <HelpCircle size={18} />
                   <span>RETRIEVE SECRET QUESTION</span>
                 </button>
 
@@ -480,8 +480,8 @@ const LoginScreen = ({ onLoginSuccess }) => {
 
                 {forgotError && <div className="auth-error">{forgotError}</div>}
 
-                <button type="submit" className="cyber-btn lg">
-                  <ShieldCheck size={20} />
+                <button type="submit" className="cyber-btn-auth-primary">
+                  <ShieldCheck size={18} />
                   <span>VERIFY & RESET PASSPHRASE</span>
                 </button>
 
@@ -496,6 +496,26 @@ const LoginScreen = ({ onLoginSuccess }) => {
                 </button>
               </form>
             )}
+          </div>
+        )}
+
+        {/* Engine Status indicator matching terminal aesthetic */}
+        <div className="auth-engine-status">
+          <span className={`engine-status-dot ${backendStatus === 'up' ? 'online' : backendStatus === 'down' ? 'offline' : 'checking'}`} />
+          <span className="engine-status-text">
+            {backendStatus === 'up' ? 'ENGINE ONLINE' : backendStatus === 'down' ? 'ENGINE OFFLINE' : 'CHECKING ENGINE'}
+          </span>
+        </div>
+
+        {onBack && (
+          <div style={{ textAlign: 'center' }}>
+            <button
+              type="button"
+              className="auth-back-link"
+              onClick={onBack}
+            >
+              ← RETURN TO MISSION BRIEFING
+            </button>
           </div>
         )}
       </motion.div>

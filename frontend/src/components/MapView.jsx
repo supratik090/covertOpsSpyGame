@@ -391,9 +391,9 @@ export default function MapView({
 
         const polyline = L.polyline([fromCoords, toCoords], {
           color: isCrossBorder ? '#ff3b30' : '#00f0ff',
-          weight: 2,
-          opacity: 0.4,
-          dashArray: '5, 8'
+          weight: 1.2,
+          opacity: 0.22,
+          dashArray: '4, 6'
         }).addTo(map);
         polylinesRef.current.push(polyline);
       }
@@ -527,8 +527,25 @@ export default function MapView({
            ${destroyedFriendlyCities.includes(cityId) ? '<div class="safehouse-alert-badge compromised">🚨 SAFEHOUSE COMPROMISED</div>' : ''}
            ${destroyedEnemyCities.some(c => (typeof c === 'string' ? c : c.cityId) === cityId) ? `<div class="safehouse-alert-badge neutralized">🎯 ${destroyedEnemyCities.find(c => (typeof c === 'string' ? c : c.cityId) === cityId)?.isElimination ? 'ENEMY ELIMINATED' : 'SAFEHOUSE DESTROYED'}</div>` : ''}
            ${isStruck ? '<div class="smoke-fumes-container"><div class="fume-particle" style="--wind: -3px; --wind-far: -8px"></div><div class="fume-particle" style="--wind: 4px; --wind-far: 9px"></div><div class="fume-particle" style="--wind: -1px; --wind-far: -3px"></div></div><div class="fire-flame">🔥</div>' : ''}
-           <div class="city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''} ${isDroneDefenseActive ? 'drone-defense-alert' : ''}"></div>
-           <div class="city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}"></div>
+           ${isTarget ? `
+             <div class="city-node-shape-container is-target ${isSelected ? 'is-selected' : ''}">
+               <svg class="city-shape-svg target-triangle-svg" width="34" height="34" viewBox="0 0 34 34">
+                 ${isSelected ? '<polygon points="17,1 32,29 2,29" fill="none" stroke="#FFB938" stroke-width="1.5" opacity="0.75" stroke-dasharray="4 3" class="shape-select-ring" />' : ''}
+                 <polygon points="17,5 29,27 5,27" fill="rgba(255, 185, 56, 0.14)" stroke="#FFB938" stroke-width="2.4" stroke-linejoin="round" class="city-shape-core" />
+               </svg>
+             </div>` : isFriendly ? `
+             <div class="city-node-shape-container is-friendly ${isSelected ? 'is-selected' : ''}">
+               <svg class="city-shape-svg friendly-circle-svg" width="34" height="34" viewBox="0 0 34 34">
+                 ${isSelected ? '<circle cx="17" cy="17" r="15" fill="none" stroke="#2BD9F0" stroke-width="1.5" opacity="0.75" stroke-dasharray="4 3" class="shape-select-ring" />' : ''}
+                 <circle cx="17" cy="17" r="11.5" fill="rgba(43, 217, 240, 0.08)" stroke="#2BD9F0" stroke-width="2.4" class="city-shape-core" />
+               </svg>
+             </div>` : `
+             <div class="city-node-shape-container is-hostile ${isSelected ? 'is-selected' : ''}">
+               <svg class="city-shape-svg hostile-diamond-svg" width="34" height="34" viewBox="0 0 34 34">
+                 ${isSelected ? '<polygon points="17,1 32,17 17,32 2,17" fill="none" stroke="#FF4757" stroke-width="1.5" opacity="0.75" stroke-dasharray="4 3" class="shape-select-ring" />' : ''}
+                 <polygon points="17,5 28,17 17,28 6,17" fill="rgba(255, 71, 87, 0.12)" stroke="#FF4757" stroke-width="2.4" stroke-linejoin="round" class="city-shape-core" />
+               </svg>
+             </div>`}
            ${showSafehouseIconHtml ? `<div class="city-marker-safehouse" style="display: flex; align-items: center; justify-content: center;">${showSafehouseIconHtml}</div>` : ''}
            ${showExposedNormalIcon ? `<div class="city-marker-exposed-hostile">${safehouseIconHtml({ size: 11, color: '#f59e0b' })}👁️</div>` : ''}
            ${showExposedSecureIcon ? `<div class="city-marker-exposed-secure">${safehouseIconHtml({ size: 11, color: '#ffcc00', secure: true })}🛡️</div>` : ''}
@@ -2634,7 +2651,7 @@ export default function MapView({
             position: 'absolute', 
             inset: 0, 
             overflow: 'hidden', 
-            background: '#091124',
+            background: '#070B12',
             cursor: isDragging ? 'grabbing' : 'grab'
           }}
         >
@@ -2662,26 +2679,20 @@ export default function MapView({
             </svg>
           </div>
 
-          {/* Bottom Oscilloscope Frequency Wave Overlay */}
-          <div className="hud-oscilloscope" style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', width: '260px', height: '30px', zIndex: 2, pointerEvents: 'none', opacity: 0.35 }}>
-            <svg width="100%" height="100%" viewBox="0 0 300 40" preserveAspectRatio="none">
-              <path 
-                d="M 0,20 Q 25,5 50,20 T 100,20 T 150,20 T 200,20 T 250,20 T 300,20" 
-                fill="none" 
-                stroke="#00f0ff" 
-                strokeWidth="1.5" 
-                strokeDasharray="6, 6"
-                className="oscilloscope-wave-1" 
-              />
-              <path 
-                d="M 0,20 Q 25,35 50,20 T 100,20 T 150,20 T 200,20 T 250,20 T 300,20" 
-                fill="none" 
-                stroke="#00f0ff" 
-                strokeWidth="0.8" 
-                opacity="0.5"
-                className="oscilloscope-wave-2" 
-              />
-            </svg>
+          {/* Tactical HUD Legend (Hostile / Secured / Suspect) */}
+          <div className="tactical-hud-legend">
+            <div className="legend-chip hostile">
+              <span className="legend-symbol">♦</span>
+              <span className="legend-text">HOSTILE</span>
+            </div>
+            <div className="legend-chip secured">
+              <span className="legend-symbol">●</span>
+              <span className="legend-text">SECURED</span>
+            </div>
+            <div className="legend-chip suspect">
+              <span className="legend-symbol">▲</span>
+              <span className="legend-text">SUSPECT</span>
+            </div>
           </div>
 
           {/* Vignette Shadow Overlay (gives a glowing monitors-edge CRT console feel) */}
@@ -2778,7 +2789,7 @@ export default function MapView({
                 const toFriendly = toNode ? toNode.territory === 'HOME_TERRITORY' : ['srinagar', 'jammu', 'amritsar', 'chandigarh', 'new_delhi'].includes(toId);
                 const isCrossBorder = fromFriendly !== toFriendly;
 
-                const color = isCrossBorder ? '#ff3b30' : '#00f0ff';
+                const color = isCrossBorder ? 'rgba(255, 71, 87, 0.35)' : 'rgba(43, 217, 240, 0.22)';
                 const x1 = start.x.toFixed(2);
                 const y1 = start.y.toFixed(2);
                 const x2 = end.x.toFixed(2);
@@ -2792,11 +2803,10 @@ export default function MapView({
                     x2={`${x2}%`}
                     y2={`${y2}%`}
                     stroke={color}
-                    strokeWidth="1.5"
+                    strokeWidth="1"
                     strokeLinecap="round"
-                    strokeDasharray="6, 8"
-                    className="connection-line-anim"
-                    style={{ '--line-color': color }}
+                    strokeDasharray="4, 6"
+                    className="connection-line-tactical"
                   />
                 );
               })}
@@ -2965,8 +2975,111 @@ export default function MapView({
                     {struckCities.includes(cityId.toLowerCase()) && (
                       <div className="struck-glow struck-glow--tactical" />
                     )}
-                    <div className={`city-marker-outer ${isFriendly ? 'friendly' : 'hostile'} ${isSweptZone ? 'sweep-alert' : ''} ${isDroneDefenseActive ? 'drone-defense-alert' : ''}`}></div>
-                    <div className={`city-marker-inner ${isFriendly ? 'friendly' : 'hostile'} ${isTarget ? 'target' : ''}`}></div>
+                    {/* Distinct Tactical Geometric Shape: Red Inverted Square (Hostile), Blue Circle (Friendly), Orange Triangle (Target) */}
+                    <div className={`city-node-shape-container ${isTarget ? 'is-target' : isFriendly ? 'is-friendly' : 'is-hostile'} ${isSelected ? 'is-selected' : ''}`}>
+                      {isTarget ? (
+                        <svg className="city-shape-svg target-triangle-svg" width="34" height="34" viewBox="0 0 34 34">
+                          {isSelected && (
+                            <polygon
+                              points="17,1 32,29 2,29"
+                              fill="none"
+                              stroke="#FFB938"
+                              strokeWidth="1.5"
+                              opacity="0.75"
+                              strokeDasharray="4 3"
+                              className="shape-select-ring"
+                            />
+                          )}
+                          {isSweptZone && (
+                            <polygon
+                              points="17,0 33,31 1,31"
+                              fill="none"
+                              stroke="#FF4757"
+                              strokeWidth="1.5"
+                              strokeDasharray="3 3"
+                              className="shape-sweep-ring"
+                            />
+                          )}
+                          <polygon
+                            points="17,5 29,27 5,27"
+                            fill="rgba(255, 185, 56, 0.14)"
+                            stroke="#FFB938"
+                            strokeWidth="2.4"
+                            strokeLinejoin="round"
+                            className="city-shape-core"
+                          />
+                        </svg>
+                      ) : isFriendly ? (
+                        <svg className="city-shape-svg friendly-circle-svg" width="34" height="34" viewBox="0 0 34 34">
+                          {isSelected && (
+                            <circle
+                              cx="17"
+                              cy="17"
+                              r="15"
+                              fill="none"
+                              stroke="#2BD9F0"
+                              strokeWidth="1.5"
+                              opacity="0.75"
+                              strokeDasharray="4 3"
+                              className="shape-select-ring"
+                            />
+                          )}
+                          {isSweptZone && (
+                            <circle
+                              cx="17"
+                              cy="17"
+                              r="16"
+                              fill="none"
+                              stroke="#FF4757"
+                              strokeWidth="1.5"
+                              strokeDasharray="3 3"
+                              className="shape-sweep-ring"
+                            />
+                          )}
+                          <circle
+                            cx="17"
+                            cy="17"
+                            r="11.5"
+                            fill="rgba(43, 217, 240, 0.08)"
+                            stroke="#2BD9F0"
+                            strokeWidth="2.4"
+                            className="city-shape-core"
+                          />
+                        </svg>
+                      ) : (
+                        <svg className="city-shape-svg hostile-diamond-svg" width="34" height="34" viewBox="0 0 34 34">
+                          {isSelected && (
+                            <polygon
+                              points="17,1 32,17 17,32 2,17"
+                              fill="none"
+                              stroke="#FF4757"
+                              strokeWidth="1.5"
+                              opacity="0.75"
+                              strokeDasharray="4 3"
+                              className="shape-select-ring"
+                            />
+                          )}
+                          {isSweptZone && (
+                            <polygon
+                              points="17,0 33,17 17,33 1,17"
+                              fill="none"
+                              stroke="#FF4757"
+                              strokeWidth="1.5"
+                              strokeDasharray="3 3"
+                              className="shape-sweep-ring"
+                            />
+                          )}
+                          <polygon
+                            points="17,5 28,17 17,28 6,17"
+                            fill="rgba(255, 71, 87, 0.12)"
+                            stroke="#FF4757"
+                            strokeWidth="2.4"
+                            strokeLinejoin="round"
+                            className="city-shape-core"
+                          />
+                        </svg>
+                      )}
+                    </div>
                     {/* Structured Top Asset Toolbar — Flex container prevents icon collisions */}
                     {(agentsCount > 0 || showSafehouseIcon || showExposedNormalIcon || showExposedSecureIcon || teamsCount > 0) && (
                       <div className="city-marker-asset-bar">
@@ -3065,7 +3178,7 @@ export default function MapView({
                     {hasIdleAgent && <div className="city-marker-idle">⚠</div>}
                     {isSweptZone && <div className="city-marker-sweep-label">⚠ SWEEP</div>}
                     {isDroneDefenseActive && <div className="city-marker-drone-defense-label">🛡️ AIR DEFENSE ACTIVE</div>}
-                    <div className={`city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''} ${nodeIdx % 2 === 0 ? 'label-top' : 'label-bottom'}`}>{cityId.replace('_', ' ').toUpperCase()}</div>
+                    <div className={`city-marker-label ${isSelected ? 'active' : ''} ${isSweptZone ? 'sweep-text' : ''}`}>{cityId.replace('_', ' ').toUpperCase()}</div>
                   </div>
                 </div>
               );

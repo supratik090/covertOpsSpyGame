@@ -919,7 +919,7 @@ export default function App() {
       )}
 
       {screen === 'LOGIN' && (
-        <LoginScreen onLoginSuccess={onLoginSuccess} />
+        <LoginScreen onLoginSuccess={onLoginSuccess} onBack={() => setScreen('HOME')} />
       )}
 
       {screen === 'SELECT' && (

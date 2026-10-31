@@ -4,33 +4,34 @@
    DESIGN TOKENS
    ═══════════════════════════════════════════════ */
 :root {
-  --bg-deep: #030610;
-  --bg-primary: #050811;
-  --bg-secondary: #090e1a;
-  --bg-panel: rgba(10, 18, 33, 0.80);
-  --bg-card: rgba(12, 20, 38, 0.60);
-  --bg-elevated: rgba(15, 25, 45, 0.92);
+  --bg-deep: #070B12;
+  --bg-primary: #070B12;
+  --bg-secondary: #0D1520;
+  --bg-panel: rgba(13, 21, 32, 0.90);
+  --bg-card: rgba(13, 21, 32, 0.75);
+  --bg-elevated: #0D1520;
 
-  --border-subtle: rgba(100, 116, 139, 0.15);
-  --border-panel: rgba(0, 240, 255, 0.12);
+  --border-subtle: #1F3044;
+  --border-panel: #1F3044;
 
-  --cyan: #00f0ff;
-  --cyan-dim: rgba(0, 240, 255, 0.6);
-  --cyan-ghost: rgba(0, 240, 255, 0.08);
-  --red: #ff3b30;
-  --red-dim: rgba(255, 59, 48, 0.6);
-  --red-ghost: rgba(255, 59, 48, 0.08);
+  --cyan: #2BD9F0;
+  --cyan-dim: rgba(43, 217, 240, 0.6);
+  --cyan-ghost: rgba(43, 217, 240, 0.08);
+  --red: #FF4757;
+  --red-dim: rgba(255, 71, 87, 0.6);
+  --red-ghost: rgba(255, 71, 87, 0.08);
   --green: #00ff66;
   --green-ghost: rgba(0, 255, 102, 0.08);
-  --amber: #ffcc00;
-  --amber-ghost: rgba(255, 204, 0, 0.08);
+  --amber: #FFB938;
+  --amber-dim: rgba(255, 185, 56, 0.6);
+  --amber-ghost: rgba(255, 185, 56, 0.08);
   --purple: #bd00ff;
   --purple-ghost: rgba(189, 0, 255, 0.08);
 
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-dim: #475569;
+  --text-primary: #E8F0F7;
+  --text-secondary: #93A7B8;
+  --text-muted: #93A7B8;
+  --text-dim: #5c7082;
 
   --font-display: 'Orbitron', sans-serif;
   --font-mono: 'Share Tech Mono', monospace;
@@ -599,6 +600,88 @@ body {
   text-decoration: underline; align-self: flex-end; margin-top: -8px;
 }
 .auth-link:hover { color: #ffffff; }
+
+.auth-back-link {
+  background: none; border: none; padding: 0; font-family: var(--font-mono);
+  font-size: 11px; color: var(--text-dim); text-align: center; cursor: pointer;
+  margin-top: 14px; letter-spacing: 0.08em; transition: color var(--fast);
+}
+.auth-back-link:hover { color: var(--cyan); text-decoration: underline; }
+
+/* Primary Clearance Action Button */
+.cyber-btn-auth-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--cyan);
+  color: #030712;
+  border: none;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  padding: 14px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 0 22px rgba(0, 240, 255, 0.45);
+  transition: all var(--fast);
+  text-transform: uppercase;
+}
+.cyber-btn-auth-primary:hover {
+  background: #ffffff;
+  color: #000000;
+  box-shadow: 0 0 32px rgba(0, 240, 255, 0.85);
+  transform: translateY(-1px);
+}
+.cyber-btn-auth-primary:active {
+  transform: translateY(1px);
+}
+.cyber-btn-auth-primary svg {
+  fill: currentColor;
+}
+
+/* Engine online status indicator */
+.auth-engine-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--text-secondary);
+}
+
+.engine-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.engine-status-dot.online {
+  background-color: var(--cyan);
+  box-shadow: 0 0 10px var(--cyan);
+  animation: dot-pulse-cyan 2s infinite ease-in-out;
+}
+
+.engine-status-dot.offline {
+  background-color: var(--red);
+  box-shadow: 0 0 10px var(--red);
+}
+
+.engine-status-dot.checking {
+  background-color: var(--amber);
+  box-shadow: 0 0 8px var(--amber);
+}
+
+@keyframes dot-pulse-cyan {
+  0%, 100% { box-shadow: 0 0 6px var(--cyan); opacity: 0.8; }
+  50% { box-shadow: 0 0 14px var(--cyan); opacity: 1; }
+}
 
 .password-input-wrapper {
   position: relative;
@@ -1240,6 +1323,166 @@ body {
   background: rgba(255, 204, 0, 0.65) !important;
   border-color: var(--amber) !important;
   box-shadow: 0 0 10px var(--amber);
+}
+
+/* ═══════════════════════════════════════════════
+   TACTICAL GEOMETRIC SHAPES
+   - Friendly: Blue/Cyan Circle
+   - Hostile: Red Inverted Square (Diamond)
+   - Target: Orange Triangle
+   ═══════════════════════════════════════════════ */
+.city-node-shape-container {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: transform var(--fast);
+}
+
+.city-marker-wrapper:hover .city-node-shape-container {
+  transform: scale(1.15);
+}
+
+.city-shape-svg {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.7));
+}
+
+.city-shape-core {
+  transition: all var(--fast);
+}
+
+.city-node-shape-container.is-friendly .city-shape-core {
+  filter: drop-shadow(0 0 6px rgba(43, 217, 240, 0.45));
+}
+
+.city-node-shape-container.is-hostile .city-shape-core {
+  filter: drop-shadow(0 0 6px rgba(255, 71, 87, 0.45));
+}
+
+.city-node-shape-container.is-target .city-shape-core {
+  filter: drop-shadow(0 0 8px rgba(255, 185, 56, 0.65));
+}
+
+.city-node-shape-container.is-selected {
+  transform: scale(1.22);
+}
+
+.shape-select-ring {
+  animation: shape-pulse-ring 1.8s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes shape-pulse-ring {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.16);
+    opacity: 0.35;
+  }
+}
+
+.shape-sweep-ring {
+  animation: sweep-ring-pulse 1.4s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+@keyframes sweep-ring-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.22);
+    opacity: 0.25;
+  }
+}
+
+/* Subtle tactical connection lines - less prominent */
+.connection-line-tactical {
+  transition: stroke 0.3s ease, opacity 0.3s ease;
+  pointer-events: none;
+}
+
+/* Tactical HUD Legend (Hostile / Secured / Suspect) */
+.tactical-hud-legend {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: rgba(13, 21, 32, 0.92);
+  border: 1px solid #1F3044;
+  box-shadow: 0 4px 16px rgba(7, 11, 18, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 6px 18px;
+  border-radius: 20px;
+  z-index: 10;
+  pointer-events: none;
+  user-select: none;
+}
+
+.legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-symbol {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.legend-chip.hostile .legend-symbol {
+  color: #FF4757;
+  filter: drop-shadow(0 0 5px rgba(255, 71, 87, 0.7));
+}
+
+.legend-chip.secured .legend-symbol {
+  color: #2BD9F0;
+  filter: drop-shadow(0 0 5px rgba(43, 217, 240, 0.7));
+}
+
+.legend-chip.suspect .legend-symbol {
+  color: #FFB938;
+  filter: drop-shadow(0 0 5px rgba(255, 185, 56, 0.7));
+}
+
+.legend-text {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #93A7B8;
+}
+
+/* Tactical blueprint node label override for clean, unboxed text */
+.tactical-view-blueprint .city-marker-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+  font-family: var(--font-mono) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  color: #cbd5e1 !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.8) !important;
+  margin-top: 6px !important;
+}
+
+.tactical-view-blueprint .city-marker-label.active {
+  color: var(--cyan) !important;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.8) !important;
 }
 
 /* Safehouse / Tech Badges */
@@ -3081,8 +3324,8 @@ body {
   width: 100%;
   overflow-x: hidden;
   background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,255,170,0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(0,240,255,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(43,217,240,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 80% 80%, rgba(43,217,240,0.03) 0%, transparent 60%),
     var(--bg-deep);
   display: flex;
   flex-direction: column;
@@ -3278,10 +3521,10 @@ body {
   justify-content: center;
   width: 100%;
   padding: 16px 24px;
-  border: 1px solid rgba(0, 240, 255, 0.4);
+  border: 1px solid #1F3044;
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(0, 225, 255, 0.95) 0%, rgba(0, 165, 220, 0.9) 100%);
-  color: #030d14;
+  background: #2BD9F0;
+  color: #070B12;
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 800;
@@ -3290,14 +3533,15 @@ body {
   cursor: pointer;
   overflow: hidden;
   box-shadow:
-    0 0 30px rgba(0, 240, 255, 0.35),
-    0 8px 24px rgba(0, 0, 0, 0.5);
-  transition: box-shadow var(--smooth);
+    0 0 24px rgba(43, 217, 240, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.6);
+  transition: transform var(--smooth), box-shadow var(--smooth), background var(--smooth);
 }
 .home-play-btn:hover {
+  background: #4ae0f5;
   box-shadow:
-    0 0 50px rgba(0, 240, 255, 0.6),
-    0 12px 32px rgba(0, 0, 0, 0.6);
+    0 0 40px rgba(43, 217, 240, 0.65),
+    0 12px 32px rgba(0, 0, 0, 0.7);
 }
 .home-play-btn-primary {
   display: flex;
@@ -3346,14 +3590,14 @@ body {
 .home-section-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(0,240,255,0.2), transparent);
+  background: linear-gradient(90deg, transparent, #1F3044, transparent);
 }
 .home-section-label {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.35em;
-  color: var(--cyan);
-  opacity: 0.6;
+  color: #2BD9F0;
+  opacity: 0.7;
   white-space: nowrap;
 }
 
@@ -3375,14 +3619,14 @@ body {
   flex-direction: column;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid rgba(0,240,255,0.12);
-  background: var(--bg-card);
+  border: 1px solid #1F3044;
+  background: #0D1520;
   cursor: default;
   transition: border-color var(--smooth), box-shadow var(--smooth);
 }
 .home-screenshot-card:hover {
-  border-color: rgba(0,240,255,0.3);
-  box-shadow: 0 0 20px rgba(0,240,255,0.1);
+  border-color: rgba(43, 217, 240, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
 }
 
 .home-screenshot-img {

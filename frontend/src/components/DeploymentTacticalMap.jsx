@@ -123,18 +123,18 @@ export default function DeploymentTacticalMap({
       width: '100%',
       height: '100%',
       minHeight: isMobile ? '380px' : '480px',
-      background: 'radial-gradient(circle at 50% 50%, rgba(6,16,36,0.95) 0%, rgba(2,6,16,0.98) 100%)',
+      background: 'radial-gradient(circle at 50% 50%, #0D1520 0%, #070B12 100%)',
       borderRadius: '8px',
-      border: '1px solid rgba(0,240,255,0.2)',
-      boxShadow: 'inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(0,240,255,0.08)',
+      border: '1px solid #1F3044',
+      boxShadow: 'inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(43,217,240,0.05)',
       overflow: 'hidden',
       userSelect: 'none'
     }}>
       {/* Grid Pattern Background */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.15 }}>
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: 0.12 }}>
         <defs>
           <pattern id="deploy-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#00f0ff" strokeWidth="0.8" />
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#2BD9F0" strokeWidth="0.8" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#deploy-grid)" />
@@ -148,30 +148,30 @@ export default function DeploymentTacticalMap({
         zIndex: 10,
         display: 'flex',
         gap: 6,
-        background: 'rgba(0,10,24,0.85)',
+        background: 'rgba(13, 21, 32, 0.9)',
         padding: 4,
         borderRadius: 6,
-        border: '1px solid rgba(0,240,255,0.3)',
+        border: '1px solid #1F3044',
         backdropFilter: 'blur(4px)'
       }}>
         <button
           onClick={handleZoomIn}
           title="Zoom In"
-          style={{ background: 'transparent', border: 'none', color: '#00f0ff', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+          style={{ background: 'transparent', border: 'none', color: '#2BD9F0', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
         >
           <ZoomIn size={14} />
         </button>
         <button
           onClick={handleZoomOut}
           title="Zoom Out"
-          style={{ background: 'transparent', border: 'none', color: '#00f0ff', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+          style={{ background: 'transparent', border: 'none', color: '#2BD9F0', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
         >
           <ZoomOut size={14} />
         </button>
         <button
           onClick={handleResetZoom}
           title="Reset View"
-          style={{ background: 'transparent', border: 'none', color: '#00f0ff', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
+          style={{ background: 'transparent', border: 'none', color: '#2BD9F0', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}
         >
           <RotateCcw size={14} />
         </button>
@@ -186,25 +186,25 @@ export default function DeploymentTacticalMap({
         display: 'flex',
         gap: 12,
         alignItems: 'center',
-        background: 'rgba(0,10,24,0.85)',
+        background: 'rgba(13, 21, 32, 0.9)',
         padding: '6px 12px',
         borderRadius: 6,
-        border: '1px solid rgba(0,240,255,0.2)',
+        border: '1px solid #1F3044',
         fontSize: isMobile ? '8px' : '9px',
         fontFamily: "'Share Tech Mono', monospace",
-        color: '#888',
+        color: '#93A7B8',
         backdropFilter: 'blur(4px)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00f0ff', boxShadow: '0 0 6px #00f0ff' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2BD9F0', boxShadow: '0 0 6px #2BD9F0', display: 'inline-block' }} />
           <span>FRIENDLY</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ff3b30', boxShadow: '0 0 6px #ff3b30' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ width: 7, height: 7, transform: 'rotate(45deg)', background: '#FF4757', boxShadow: '0 0 6px #FF4757', display: 'inline-block' }} />
           <span>HOSTILE</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Shield size={10} color="#00f0ff" />
+          <Shield size={10} color="#2BD9F0" />
           <span>SAFEHOUSE</span>
         </div>
       </div>
@@ -247,10 +247,10 @@ export default function DeploymentTacticalMap({
                   y1={conn.from.y}
                   x2={conn.to.x}
                   y2={conn.to.y}
-                  stroke={activeConn ? '#00f0ff' : 'rgba(0, 240, 255, 0.18)'}
-                  strokeWidth={activeConn ? 2 : 1.2}
-                  strokeDasharray={activeConn ? 'none' : '4 4'}
-                  opacity={activeConn ? 0.8 : 0.4}
+                  stroke={activeConn ? '#2BD9F0' : 'rgba(43, 217, 240, 0.22)'}
+                  strokeWidth={activeConn ? 1.5 : 0.9}
+                  strokeDasharray={activeConn ? 'none' : '4 5'}
+                  opacity={activeConn ? 0.6 : 0.22}
                 />
               );
             })}
@@ -313,42 +313,60 @@ export default function DeploymentTacticalMap({
                     </circle>
                   )}
 
-                  {/* Outer Glow Circle */}
-                  <circle
-                    r={hasSH || isDroneBase ? 16 : 12}
-                    fill={hasSH ? 'rgba(0,240,255,0.15)' : isDroneBase ? 'rgba(16,185,129,0.15)' : 'rgba(0,0,0,0.6)'}
-                    stroke={isHovered ? '#ffffff' : hasSH ? '#00f0ff' : isDroneBase ? '#10b981' : nodeColor}
-                    strokeWidth={isHovered ? 2.5 : hasSH ? 2 : 1.5}
-                    filter={hasSH ? 'url(#cyan-glow)' : 'none'}
-                  />
+                  {/* Outer Shape: Red Inverted Square (Hostile), Blue Circle (Home), Orange Triangle (Neutral) */}
+                  {isHostile ? (
+                    <polygon
+                      points="0,-14 14,0 0,14 -14,0"
+                      fill={hasSH ? 'rgba(255,71,87,0.2)' : 'rgba(255,71,87,0.1)'}
+                      stroke={isHovered ? '#ffffff' : hasSH ? '#FFB938' : '#FF4757'}
+                      strokeWidth={isHovered ? 2.5 : 2}
+                      strokeLinejoin="round"
+                    />
+                  ) : isHome ? (
+                    <circle
+                      r={hasSH || isDroneBase ? 15 : 12}
+                      fill={hasSH ? 'rgba(43,217,240,0.15)' : isDroneBase ? 'rgba(16,185,129,0.15)' : 'rgba(43,217,240,0.08)'}
+                      stroke={isHovered ? '#ffffff' : hasSH ? '#2BD9F0' : isDroneBase ? '#10b981' : '#2BD9F0'}
+                      strokeWidth={isHovered ? 2.5 : hasSH ? 2 : 1.8}
+                      filter={hasSH ? 'url(#cyan-glow)' : 'none'}
+                    />
+                  ) : (
+                    <polygon
+                      points="0,-13 12,9 -12,9"
+                      fill="rgba(255,185,56,0.12)"
+                      stroke={isHovered ? '#ffffff' : '#FFB938'}
+                      strokeWidth={isHovered ? 2.5 : 1.8}
+                      strokeLinejoin="round"
+                    />
+                  )}
 
                   {/* Inner Pin Point */}
                   <circle
-                    r={5}
-                    fill={nodeColor}
+                    r={4}
+                    fill={isHovered ? '#ffffff' : nodeColor}
                   />
 
                   {/* Safehouse Shield Icon on Node */}
                   {hasSH && (
                     <g transform="translate(0, -18)">
-                      <rect x="-10" y="-9" width="20" height="18" rx="3" fill="#001428" stroke="#00f0ff" strokeWidth="1" />
-                      <path d="M0 -5 L5 -1 L5 4 L0 7 L-5 4 L-5 -1 Z" fill="#00f0ff" />
+                      <rect x="-10" y="-9" width="20" height="18" rx="3" fill="#0D1520" stroke="#2BD9F0" strokeWidth="1" />
+                      <path d="M0 -5 L5 -1 L5 4 L0 7 L-5 4 L-5 -1 Z" fill="#2BD9F0" />
                     </g>
                   )}
 
                   {/* Drone Base Hangar Icon */}
                   {isDroneBase && (
                     <g transform="translate(0, -18)">
-                      <rect x="-12" y="-9" width="24" height="18" rx="3" fill="#062419" stroke="#10b981" strokeWidth="1" />
-                      <text x="0" y="3" textAnchor="middle" fill="#10b981" fontSize="9" fontWeight="bold">🚁</text>
+                      <rect x="-12" y="-9" width="24" height="18" rx="3" fill="#0D1520" stroke="#2BD9F0" strokeWidth="1" />
+                      <text x="0" y="3" textAnchor="middle" fill="#2BD9F0" fontSize="9" fontWeight="bold">🚁</text>
                     </g>
                   )}
 
                   {/* Unit Badges Pill below Node */}
                   {(myAgents.length > 0 || myTeams.length > 0) && (
                     <g transform="translate(0, 18)">
-                      <rect x="-24" y="-7" width="48" height="14" rx="4" fill="#030a16" stroke="#00f0ff66" strokeWidth="1" />
-                      <text x="0" y="3" textAnchor="middle" fill="#ffffff" fontSize="8" fontFamily="'Share Tech Mono', monospace">
+                      <rect x="-24" y="-7" width="48" height="14" rx="4" fill="#0D1520" stroke="rgba(43,217,240,0.4)" strokeWidth="1" />
+                      <text x="0" y="3" textAnchor="middle" fill="#E8F0F7" fontSize="8" fontFamily="'Share Tech Mono', monospace">
                         {myAgents.length > 0 ? `👤${myAgents.length}` : ''} {myTeams.length > 0 ? `⚔️${myTeams.length}` : ''}
                       </text>
                     </g>
@@ -358,7 +376,7 @@ export default function DeploymentTacticalMap({
                   <text
                     y={hasSH || isDroneBase ? 32 : (myAgents.length > 0 || myTeams.length > 0 ? 32 : 22)}
                     textAnchor="middle"
-                    fill={hasSH || isDroneBase ? '#e0f8ff' : '#a0b0c0'}
+                    fill={hasSH || isDroneBase ? '#E8F0F7' : '#93A7B8'}
                     fontSize={isMobile ? "9" : "10"}
                     fontFamily="'Share Tech Mono', monospace"
                     fontWeight={hasSH ? 'bold' : 'normal'}
@@ -380,26 +398,26 @@ export default function DeploymentTacticalMap({
           top: 12,
           left: 12,
           zIndex: 20,
-          background: 'rgba(2,10,24,0.92)',
-          border: '1px solid rgba(0,240,255,0.4)',
+          background: 'rgba(13, 21, 32, 0.95)',
+          border: '1px solid #1F3044',
           borderRadius: 6,
           padding: '8px 12px',
           maxWidth: '220px',
-          boxShadow: '0 0 20px rgba(0,0,0,0.8)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.8)',
           pointerEvents: 'none',
           backdropFilter: 'blur(6px)'
         }}>
-          <div style={{ fontSize: 11, fontWeight: 'bold', color: '#00f0ff', letterSpacing: '0.08em', marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 'bold', color: '#2BD9F0', letterSpacing: '0.08em', marginBottom: 4 }}>
             {(hoveredNode.name || hoveredNode.id).replace(/_/g, ' ').toUpperCase()}
           </div>
-          <div style={{ fontSize: 8, color: hoveredNode.territory === 'HOME_TERRITORY' ? '#00f0ff' : '#ff3b30', letterSpacing: '0.1em', marginBottom: 6 }}>
+          <div style={{ fontSize: 8, color: hoveredNode.territory === 'HOME_TERRITORY' ? '#2BD9F0' : '#FF4757', letterSpacing: '0.1em', marginBottom: 6 }}>
             {hoveredNode.territory === 'HOME_TERRITORY' ? 'FRIENDLY HOME TERRITORY' : 'HOSTILE TERRITORY'}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 9, color: '#aaa', fontFamily: "'Share Tech Mono', monospace" }}>
-            <div>Safehouse: <span style={{ color: safehouseCities.has(hoveredNode.id) ? '#00f0ff' : '#666' }}>{safehouseCities.has(hoveredNode.id) ? 'ACTIVE SAFEHOUSE' : 'NONE'}</span></div>
-            <div>Agents: <span style={{ color: '#10b981' }}>{agents.filter(a => agentPlacements[a.id] === hoveredNode.id).map(a => a.codename).join(', ') || 'None'}</span></div>
-            <div>Teams: <span style={{ color: '#f59e0b' }}>{teams.filter(t => teamPlacements[t.id] === hoveredNode.id).map(t => t.name).join(', ') || 'None'}</span></div>
-            {droneBaseCity === hoveredNode.id && <div style={{ color: '#10b981', fontWeight: 'bold' }}>🏭 Drone Base Established</div>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 9, color: '#93A7B8', fontFamily: "'Share Tech Mono', monospace" }}>
+            <div>Safehouse: <span style={{ color: safehouseCities.has(hoveredNode.id) ? '#2BD9F0' : '#93A7B8' }}>{safehouseCities.has(hoveredNode.id) ? 'ACTIVE SAFEHOUSE' : 'NONE'}</span></div>
+            <div>Agents: <span style={{ color: '#2BD9F0' }}>{agents.filter(a => agentPlacements[a.id] === hoveredNode.id).map(a => a.codename).join(', ') || 'None'}</span></div>
+            <div>Teams: <span style={{ color: '#FFB938' }}>{teams.filter(t => teamPlacements[t.id] === hoveredNode.id).map(t => t.name).join(', ') || 'None'}</span></div>
+            {droneBaseCity === hoveredNode.id && <div style={{ color: '#2BD9F0', fontWeight: 'bold' }}>🏭 Drone Base Established</div>}
           </div>
         </div>
       )}

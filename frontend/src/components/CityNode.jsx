@@ -48,21 +48,60 @@ const CityNode = ({
         </>
       )}
 
-      <circle 
-        r="22" 
-        fill="none" 
-        stroke={strokeColor} 
-        strokeWidth={isSelected ? "2" : "1"}
-        opacity={isSelected ? "1" : "0.5"}
-        className="city-node-ring"
-      />
-      
-      <circle 
-        r="12" 
-        fill={innerFill} 
-        stroke={strokeColor} 
-        strokeWidth="2"
-      />
+      {isTarget ? (
+        <>
+          <polygon
+            points="0,-22 20,16 -20,16"
+            fill="none"
+            stroke="#ff9f43"
+            strokeWidth={isSelected ? "2" : "1"}
+            opacity={isSelected ? "1" : "0.5"}
+            className="city-node-ring"
+          />
+          <polygon
+            points="0,-14 13,9 -13,9"
+            fill="rgba(255,159,67,0.18)"
+            stroke="#ff9f43"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+        </>
+      ) : isFriendly ? (
+        <>
+          <circle 
+            r="22" 
+            fill="none" 
+            stroke="#00f0ff" 
+            strokeWidth={isSelected ? "2" : "1"}
+            opacity={isSelected ? "1" : "0.5"}
+            className="city-node-ring"
+          />
+          <circle 
+            r="12" 
+            fill="rgba(0,240,255,0.12)" 
+            stroke="#00f0ff" 
+            strokeWidth="2"
+          />
+        </>
+      ) : (
+        <>
+          <polygon
+            points="0,-20 20,0 0,20 -20,0"
+            fill="none"
+            stroke="#ff3b30"
+            strokeWidth={isSelected ? "2" : "1"}
+            opacity={isSelected ? "1" : "0.5"}
+            className="city-node-ring"
+          />
+          <polygon
+            points="0,-13 13,0 0,13 -13,0"
+            fill="rgba(255,59,48,0.14)"
+            stroke="#ff3b30"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+        </>
+      )}
       
       {hasSafehouse && (
         <path 

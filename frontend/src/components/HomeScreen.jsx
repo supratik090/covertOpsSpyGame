@@ -20,7 +20,7 @@ const GridCanvas = () => {
       ctx.clearRect(0, 0, W, H);
 
       // Grid lines
-      ctx.strokeStyle = 'rgba(0,255,170,0.04)';
+      ctx.strokeStyle = 'rgba(43,217,240,0.05)';
       ctx.lineWidth = 1;
       const cellW = 50, cellH = 50;
       for (let x = 0; x < W; x += cellW) {
@@ -33,15 +33,15 @@ const GridCanvas = () => {
       // Sweeping scanline
       const scanY = ((t * 0.4) % H);
       const grad = ctx.createLinearGradient(0, scanY - 60, 0, scanY + 8);
-      grad.addColorStop(0, 'rgba(0,255,170,0)');
-      grad.addColorStop(1, 'rgba(0,255,170,0.06)');
+      grad.addColorStop(0, 'rgba(43,217,240,0)');
+      grad.addColorStop(1, 'rgba(43,217,240,0.07)');
       ctx.fillStyle = grad;
       ctx.fillRect(0, scanY - 60, W, 68);
 
       // Random glitch dots
       if (Math.random() > 0.97) {
         for (let i = 0; i < 6; i++) {
-          ctx.fillStyle = 'rgba(0,255,170,0.6)';
+          ctx.fillStyle = 'rgba(43,217,240,0.6)';
           ctx.fillRect(Math.random() * W, Math.random() * H, 2, 2);
         }
       }
